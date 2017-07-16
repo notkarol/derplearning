@@ -11,51 +11,61 @@ def bernstein_polynomials(i, n, t):
 
 
 # Get points for bezier curve
-def bezier_curve(points, n_segments=5):
+def bezier_curve(x_arr, y_arr, n_segments=5):
     t = np.linspace(0.0, 1.0, n_segments)
-    arr = np.array([bernstein_polynomials(i, len(points) - 1, t) for i in range(len(points))])
-    x = np.dot(points[:, 0], arr)
-    y = np.dot(points[:, 1], arr)
+    arr = np.array([bernstein_polynomials(i, len(x_arr) - 1, t) for i in range(len(x_arr))])
+    x = np.dot(x_arr, arr)
+    y = np.dot(y_arr, arr)
     return x, y
 
 # Verify by saving both pyplot as generated image
-def verify_plot(points, x, y, w, h, array):
-    fig = plt.figure(figsize=(w / 100, h / 100))
+def verify_plot(points, x, y, w, h):
+    fig = plt.figure(figsize=(w / 10, h / 10))
     plt.plot(x, y, 'k-')
     plt.plot(points[:, 0], points[:, 1], 'ro')
     plt.grid()
     plt.xlim(0, w)
     plt.ylim(0, h)
     plt.gca().invert_yaxis()
-    plt.savefig('plt.png', dpi=100, bbox_inches='tight')
-
-    image = PIL.Image.fromarray(np.array(array, dtype=np.uint8))
-    image.save("pil.png")
-    plt.close()
-    
+    plt.savefig('plt.png', dpi=100, bbox_inches='tight')    
     
 # Generate board size and plot
 if __name__ == "__main__":
 
     # Configuration
     n_points = 3
-    width = 720
-    height = 480
+    n_channels = 1
+    n_dimensions = 2
+    width = 32
+    height = 32
+    radius = 5
+    n_segments = 10
+    n_datapoints = int(1E5)
+    train_split = 0.8
+    n_train_datapoints = int(train_split * n_datapoints)
+    
+    # Data to store
+    X_train = np.zeros((n_datapoints, n_channels, height, width), dtype=np.float)
+    y_train = np.zeros((n_datapoints, n_points * n_dimensions), np.float)
 
-    # Prepare Points
-    points = np.zeros((n_points, 2), dtype=np.int)
-    points[:, 0] = np.random.randint(0, width, n_points)
-    points[:, 1] = np.random.randint(0, height, n_points)
+    # Generate Y
+    y_train[:, : n_points] = np.random.randint(0, width, (n_datapoints, n_points))
+    y_train[:, n_points :] = np.random.randint(0, height, (n_datapoints, n_points))
 
-    # Get points of curve
-    x, y = bezier_curve(points, 32)
+    # Generate X
+    for dp_i in range(n_datapoints):
+        x, y = bezier_curve(y_train[dp_i, : n_points], y_train[dp_i, n_points :], n_segments)
+        for ls_i in range(len(x) - 1):
+            rr, cc, val = line_aa(int(x[ls_i]), int(y[ls_i]), int(x[ls_i + 1]), int(y[ls_i + 1]))
+            X_train[dp_i, 0, cc, rr] = val
 
-    # Plot lines on array
-    array = np.zeros((height, width))
-    for i in range(len(x) - 1):
-        rr, cc, val = line_aa(int(x[i]), int(y[i]), int(x[i + 1]), int(y[i + 1]))
-        array[cc, rr] = val * 255
-
-    # Convert to PIL image and save png
-    verify_plot(points, x, y, width, height, array)
-                              
+    # Normalize training and testing
+    X_train *= (1. / np.max(X_train))
+    y_train[:, :n_points] /= width
+    y_train[:, n_points:] /= height
+    
+    # Save Files
+    np.save("X_train.npy", X_train[:n_train_datapoints])
+    np.save("X_val.npy", X_train[n_train_datapoints:])
+    np.save("y_train.npy", y_train[:n_train_datapoints])
+    np.save("y_val.npy", y_train[n_train_datapoints:])
