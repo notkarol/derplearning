@@ -1,7 +1,11 @@
-import servo
-import time
+#!/usr/bin/env/python3
 
-def main():
+import cv2
+import time
+import servo
+import camera
+
+def test_servo():
     s = servo.Servo()
 
     # Turn right
@@ -23,5 +27,24 @@ def main():
     # Stop movign
     s.move(0.0)
 
+
+def test_camera(video_index=1, count=0):
+    """
+    Show count frames from camera video_index to the screen
+    """
+    c = camera.Camera(video_index)
+    while count >= 0:
+        frame = c.getFrame()
+        if frame is None:
+            print("Skipping frame due to none read")
+        cv2.imshow('frame', frame)
+    cv2.destroyAllWindows()
+
+
+def main():
+
+    test_servo()
+    test_camera()
+    
 if __name__ == "__main__":
     main()
