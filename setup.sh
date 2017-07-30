@@ -37,10 +37,10 @@ function install_opencv()  {
 
     # Make sure we have the right branch
     cd opencv
-    git checkout -b v3.2.0 3.2.0
+    git checkout -b 3.3.0-rc
     cd -
     cd opencv_extra
-    git checkout -b v3.2.0 3.2.0
+    git checkout -b 3.3.0-rc
     cd -
 
     # Build
@@ -88,6 +88,7 @@ function install_opencv()  {
 }
 
 function install_tensorflow() {
+
     # Install prereqs
     sudo apt install -y \
 	 zip \
@@ -104,54 +105,59 @@ function install_tensorflow() {
 	 python3-wheel \
 	 swig
 
-    # Install Java
-    sudo add-apt-repository ppa:webupd8team/java
-    sudo apt update
-    sudo apt install -y oracle-java8-installer
+    if [[ -z $(ls tensorfllow*aarch64.whl) ]] ; then
+	
+	# Install Java
+	sudo add-apt-repository ppa:webupd8team/java
+	sudo apt update
+	sudo apt install -y oracle-java8-installer
 
-    # Install bazel
-    mkdir bazel
-    cd bazel
-    unzip ../bazel-*-dist.zip
-    ./compile.sh
-    sudo cp output/bazel /usr/local/bin
-    cd -
+	# Install bazel
+	mkdir bazel
+	cd bazel
+	unzip ../bazel-*-dist.zip
+	./compile.sh
+	sudo cp output/bazel /usr/local/bin
+	cd -
 
-    # create swap file
-    fallocate -l 8G swapfile
-    chmod 600 swapfile
-    mkswap swapfile
-    swapon swapfile
-    swapon -s
+	# create swap file
+	fallocate -l 5G swapfile
+	chmod 600 swapfile
+	mkswap swapfile
+	sudo swapon swapfile
+	swapon -s
 
-    # Get tensorflow
-    if ! [[ -e tensorflow ]] ; then
-	git clone https://github.com/tensorflow/tensorflow.git
+	# Get tensorflow
+	if ! [[ -e tensorflow ]] ; then
+	    git clone https://github.com/tensorflow/tensorflow.git
+	fi
+	cd tensorflow
+	git checkout v1.3.0-rc1
+
+	# Fix numa stuff for ARM
+	sed -i 's/static int TryToReadNumaNode(const string \&pci_bus_id, int device_ordinal) {/static int TryToReadNumaNode(const string \&pci_bus_id, int device_ordinal) {\n  LOG(INFO) << "ARM has no NUMA node, hardcoding to return zero";\n  return 0;/g' tensorflow/stream_executor/cuda/cuda_gpu_executor.cc
+
+	# Move cudnn into the right folder
+	sudo mkdir /usr/lib/aarch64-linux-gnu/include/
+	sudo cp /usr/include/cudnn.h /usr/lib/aarch64-linux-gnu/include/cudnn.h
+
+	# configure. might need to specify a few things here
+	./configure
+
+	# Build tensorflow
+	bazel build -c opt --local_resources 3072,4.0,1.0 --verbose_failures --config=cuda \
+	      //tensorflow/tools/pip_package:build_pip_package
+	
+	# Build pip package
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package build_wheel
+
+	# Move wheel to local directory and install
+	cd ..
+	mv tensorflow/build_wheel/tensorflow*aarch64.whl .
     fi
-    cd tensorflow
-    git checkout v1.3.0-rc1
 
-    # Fix numa stuff for ARM
-    sed -i 's/static int TryToReadNumaNode(const string \&pci_bus_id, int device_ordinal) {/static int TryToReadNumaNode(const string \&pci_bus_id, int device_ordinal) {\n  LOG(INFO) << "ARM has no NUMA node, hardcoding to return zero";\n  return 0;/g' tensorflow/stream_executor/cuda/cuda_gpu_executor.cc
-
-    # Move cudnn into the right folder
-    sudo mkdir /usr/lib/aarch64-linux-gnu/include/
-    sudo cp /usr/include/cudnn.h /usr/lib/aarch64-linux-gnu/include/cudnn.h
-
-    # configure. might need to specify a few things here
-    ./configure
-
-    # Build tensorflow
-    bazel build -c opt --local_resources 3072,4.0,1.0 --verbose_failures --config=cuda \
-	  //tensorflow/tools/pip_package:build_pip_package
-    
-    # Build pip package
-    bazel-bin/tensorflow/tools/pip_package/build_pip_package build_wheel
-
-    # Move wheel to local directory and install
-    cd ..
-    mv tensorflow/build_wheel/tensorflow*aarch64.whl .
-    sudo pip install tensorflow*aarch64.whl
+    # Install 
+    sudo pip3 install tensorflow*aarch64.whl
 }
 
 
@@ -160,5 +166,3 @@ sudo apt upgrade -y
 
 install_opencv
 install_tensorflow
-
-
