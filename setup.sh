@@ -169,6 +169,48 @@ function install_tensorflow() {
     sudo pip3 install tensorflow*-cp3*linux_aarch64.whl
 }
 
+
+function install_ros() {
+    # Prepare and install ROS
+    sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+    sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116
+    sudo apt-get update
+    sudo apt-get install ros-kinetic-ros-base
+
+    # Install rosdep, whicha llows system dependency installs
+    sudo rosdep init
+    rosdep update
+
+    # Setup environent
+    echo "source /opt/ros/kinetic/setup.bash" >> ~/.bashrc
+    source ~/.bashrc
+
+    # Dependencies for building packages. TODO: find out about python3
+    sudo apt-get install python-rosinstall python-rosinstall-generator python-wstool build-essential
+}
+
+
+function install_pytorch() {
+
+    # Install latest python pip
+    sudo apt-get install python3-pip
+    pip3 install -U pip
+
+    # Get pytorch
+    if ! [[ -e pytorch ]] ; then
+	git clone https://github.com/pytorch/pytorch.git
+    fi
+    cd pytorch
+
+    # Install requirements
+    sudo pip3 install -U setuptools
+    sudo pip3 install -r requirements
+
+    # Build dependencies and install. This might need to be restarted
+    python3 setup.py build_deps
+    sudo python3 setup.py install
+}
+
 # Prepare by updating and upgrading all existing packages
 sudo apt update
 sudo apt upgrade -y
@@ -176,3 +218,5 @@ sudo apt upgrade -y
 # Install required software
 install_opencv3
 install_tensorflow
+install_pytorch
+install_ros
