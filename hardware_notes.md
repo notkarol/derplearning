@@ -1,4 +1,15 @@
-Current Needs(per kar):
+Goals for Noisebridge Build day (2017.08.05): All notes are for both cars but plan is to do one and then the other.
+1. Mark out all drill holes
+2. Drill mounting holes for carrier board, wifi, and controller.
+3. Dry mount said boards.
+4. Lash batteries to wishbone battery cage.
+5. Cut solder and tape power converter (look for heat shrink at Noisebridge).
+6. Validate all body mount components.
+7. Affix camera to eye stalk use glue(and shims to get a permanent angle.
+8. Mount camera to body.
+9. affix all wires and conduct basic functional tests.
+
+Current Needs(per kar as of 2017.07.30):
 
 Final call on the carrier board. -No.
 
