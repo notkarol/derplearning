@@ -42,7 +42,6 @@ def test_camera(video_index=1, count=0):
 
 
 def main():
-
     test_servo()
     test_camera()
     
