@@ -1,4 +1,6 @@
 #!/bin/bash
+# Install ROS from source. Instructions from the attached website
+# http://wiki.ros.org/lunar/Installation/Source
 
 sudo pip install -U \
      rosdep \
