@@ -35,28 +35,28 @@ def main(screen):
         elif c == ord('q'):
             break 
         elif c == curses.KEY_LEFT:
-            servo.turn_left()
+            servo.turn_left()           #large left turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == curses.KEY_RIGHT:
-            servo.turn_right()
+            servo.turn_right()          #large right turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == curses.SKEY_LEFT:
-            servo.turn_left(.005)
+            servo.turn_left(.005)       #small left turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == curses.SKEY_RIGHT:
-            servo.turn_right(.005)
+            servo.turn_right(.005)      #small right turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == ord('/'):
-            servo.turn_zero()
+            servo.turn_zero()           #sets turn to zero
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == curses.KEY_UP:
-            servo.move_faster()
+            servo.move_faster()         #moves faster
             screen.addstr(1, 6, "%06.3f" % servo.speed)
         elif c == curses.KEY_DOWN:
-            servo.move_slower()
+            servo.move_slower()         #slows down
             screen.addstr(1, 6, "%06.3f" % servo.speed)
         elif c == ord('.'):
-            servo.move_zero()
+            servo.move_zero()           #stops the vehicle
             screen.addstr(1, 6, "%06.3f" % servo.speed)
         else:
             screen.addstr(4, 0, chr(c))
