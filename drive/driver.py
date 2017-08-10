@@ -24,6 +24,8 @@ def main(screen):
     screen.addstr(0, 0, "ANGLE")
     screen.addstr(1, 0, "SPEED")
     screen.addstr(2, 0, "FPS")
+    screen.addstr(3, 0, "")
+    screen.addstr(4, 0, "KEY")
     
     # Main loop
     while True:
@@ -35,31 +37,29 @@ def main(screen):
         elif c == ord('q'):
             break 
         elif c == curses.KEY_LEFT:
-            servo.turn_left()           #large left turn
-            screen.addstr(0, 6, "%06.3f" % servo.angle)
+            servo.turn_left()           # large left turn
         elif c == curses.KEY_RIGHT:
-            servo.turn_right()          #large right turn
-            screen.addstr(0, 6, "%06.3f" % servo.angle)
+            servo.turn_right()          # large right turn
         elif c == curses.KEY_SLEFT:
-            servo.turn_left(.005)       #small left turn
-            screen.addstr(0, 6, "%06.3f" % servo.angle)
+            servo.turn_left(.005)       # small left turn
         elif c == curses.KEY_SRIGHT:
-            servo.turn_right(.005)      #small right turn
-            screen.addstr(0, 6, "%06.3f" % servo.angle)
+            servo.turn_right(.005)      # small right turn
         elif c == ord('/'):
-            servo.turn_zero()           #sets turn to zero
-            screen.addstr(0, 6, "%06.3f" % servo.angle)
+            servo.turn(0)               # sets turn to zero
         elif c == curses.KEY_UP:
-            servo.move_faster()         #moves faster
-            screen.addstr(1, 6, "%06.3f" % servo.speed)
+            servo.move_faster()         # moves faster
         elif c == curses.KEY_DOWN:
-            servo.move_slower()         #slows down
-            screen.addstr(1, 6, "%06.3f" % servo.speed)
+            servo.move_slower()         # slows down
         elif c == ord('.'):
-            servo.move_zero()           #stops the vehicle
-            screen.addstr(1, 6, "%06.3f" % servo.speed)
-        else:
-            screen.addstr(4, 0, chr(c))
+            servo.move(0)               # stops the vehicle
+
+        # Update the screen with the speed and steering
+        if c > 0:
+            screen.addstr(0, 7, "%06.3f" % servo.angle)
+            screen.addstr(1, 7, "%06.3f" % servo.speed)
+            screen.addstr(4, 7, chr(c))
+
+        # Refresh the screen and wait before trying again
         screen.refresh()
         time.sleep(1E-3)
 

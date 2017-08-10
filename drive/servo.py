@@ -15,6 +15,7 @@ class Servo:
                  max_speed=0.5,          # fastest to go
                  min_angle=-0.9,         # max angle to turn (left)
                  max_angle=0.9,          # max angle to turn (right)
+                 turn_offset=0.0         # how much to adjust 0 turn to drive straight
     ):      
         """
         Interface through USB to the servo controller. At the moment the only
@@ -29,6 +30,7 @@ class Servo:
         self.max_angle = max_angle
         self.min_speed = min_speed
         self.max_speed = max_speed
+        self.turn_offset = turn_offset
         
         # Initialize usb device
         self.device = usb.core.find(idVendor=self.usb_vendor_id,
@@ -76,17 +78,6 @@ class Servo:
         self.move()
         return True
 
-
-    def move_zero(self,
-                    amount = 0): #target that brings us to a full stop
-        """
-        A wrapper around move that makes us stop
-        """
-        self.speed = amount
-        self.move()
-        return True
-
-
     def turn_right(self,
                    amount=0.02): # amount to turn right by
         """
@@ -113,16 +104,6 @@ class Servo:
         return True
     
 
-    def turn_zero(self,
-                    amount = 0): #target that brings us to zero steering angle
-        """
-        A wrapper around turn that makes us turn strait
-        """
-        self.angle = amount
-        self.turn()
-        return True
-
-    
     def convert(self,
                 intensity):  # normalized intensity value [-1, 1]
         """
@@ -140,9 +121,15 @@ class Servo:
         Due to the stock ESC limitations, to go in reverse you have to send a
         negative command, a zero, and then a negative command again.
         """
+
+        # Make sure we have a speed
+        if speed is not None:
+            self.speed = speed
+        
+        # Prepare arguments to usb and send them
         request_type = 0x40
         request = 0x85
-        value = self.convert(self.speed if speed is None else speed)
+        value = self.convert(self.speed)
         return self.device.ctrl_transfer(request_type, request,
                                          value, self.servo_speed_id)
 
@@ -153,8 +140,14 @@ class Servo:
         Zero represents the wheels pointed forward. 
         +- 1 represent a turning radius or approximately 1 meter
         """
+
+        # Make sure we have an angle
+        if angle is not None:
+            self.angle = angle + self.turn_offset
+        
+        # Prepare arguments to usb and send them
         request_type = 0x40
         request = 0x85
-        value = self.convert(self.angle if angle is None else angle)
+        value = self.convert(self.angle)
         return self.device.ctrl_transfer(request_type, request,
                                          value, self.servo_steer_id)
