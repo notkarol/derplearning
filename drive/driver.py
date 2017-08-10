@@ -40,11 +40,23 @@ def main(screen):
         elif c == curses.KEY_RIGHT:
             servo.turn_right()
             screen.addstr(0, 6, "%06.3f" % servo.angle)
+        elif c == curses.SKEY_LEFT:
+            servo.turn_left(.005)
+            screen.addstr(0, 6, "%06.3f" % servo.angle)
+        elif c == curses.SKEY_RIGHT:
+            servo.turn_right(.005)
+            screen.addstr(0, 6, "%06.3f" % servo.angle)
+        elif c == ord('/'):
+            servo.turn_zero()
+            screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == curses.KEY_UP:
             servo.move_faster()
             screen.addstr(1, 6, "%06.3f" % servo.speed)
         elif c == curses.KEY_DOWN:
             servo.move_slower()
+            screen.addstr(1, 6, "%06.3f" % servo.speed)
+        elif c == ord('.'):
+            servo.move_zero()
             screen.addstr(1, 6, "%06.3f" % servo.speed)
         else:
             screen.addstr(4, 0, chr(c))

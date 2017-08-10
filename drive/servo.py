@@ -77,6 +77,16 @@ class Servo:
         return True
 
 
+    def move_zero(self,
+                    amount = 0): #target that brings us to a full stop
+        """
+        A wrapper around move that makes us stop
+        """
+        self.speed = amount
+        self.move()
+        return True
+
+
     def turn_right(self,
                    amount=0.02): # amount to turn right by
         """
@@ -102,6 +112,16 @@ class Servo:
         self.turn()
         return True
     
+
+    def turn_zero(self,
+                    amount = 0): #target that brings us to zero steering angle
+        """
+        A wrapper around turn that makes us turn strait
+        """
+        self.angle = amount
+        self.turn()
+        return True
+
     
     def convert(self,
                 intensity):  # normalized intensity value [-1, 1]
