@@ -1,0 +1,18 @@
+
+
+Raceday Vitals Checklist (Complete by: 2017.08.12)
+Behavior cloning method:
+ 1. Method to record frames and steering position simultaneously
+ 2. shuffle training data
+ 3. train model with it
+ 4. validate model
+ 5. NTH shift and rotation permutations
+ 
+ Nice to haves:
+ 1. signal lost deadman switch
+ 2. autonomous remote override functionality
+ 3. Zero speed button, ez reverse, zero steer key
+ 4. fine adjustment stearing control
+ 5. Battery Life monitoring
+ 5. Onboard shutdown logic.
+ 
