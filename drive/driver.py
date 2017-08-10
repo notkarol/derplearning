@@ -12,7 +12,7 @@ def main(screen):
 
     # Initialize servo and camera
     servo = Servo()
-    # camera = Camera()
+    camera = Camera()
     
     # Prepare screen input
     curses.noecho() # don't display pressed characters to screen
@@ -30,12 +30,18 @@ def main(screen):
     # Main loop
     while True:
 
+        # Get state of sensors
+        frame = camera.getFrame()
+        speed, angle = servo.speed, servo.angle
+        
         # Handle heyboard
         c = screen.getch()
         if c < 0:
             pass
         elif c == ord('q'):
             break 
+        elif c == ord('r'):
+            camera.startRecording()
         elif c == curses.KEY_LEFT:
             servo.turn_left()           # large left turn
         elif c == curses.KEY_RIGHT:
@@ -71,7 +77,7 @@ def main(screen):
 
     # Cleanup sensors
     del servo
-    # del camera
+    del camera
     
 if __name__ == "__main__":
     curses.wrapper(main)
