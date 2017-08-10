@@ -40,10 +40,10 @@ def main(screen):
         elif c == curses.KEY_RIGHT:
             servo.turn_right()          #large right turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
-        elif c == curses.SKEY_LEFT:
+        elif c == curses.KEY_SLEFT:
             servo.turn_left(.005)       #small left turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
-        elif c == curses.SKEY_RIGHT:
+        elif c == curses.KEY_SRIGHT:
             servo.turn_right(.005)      #small right turn
             screen.addstr(0, 6, "%06.3f" % servo.angle)
         elif c == ord('/'):
