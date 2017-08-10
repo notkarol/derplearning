@@ -2,7 +2,8 @@
 
 Raceday Vitals Checklist (Complete by: 2017.08.12)
 Behavior cloning method:
- 1. Method to record frames and steering position simultaneously
+ 1. Auto find camera port
+ 2. Method to record frames and steering position simultaneously
  2. shuffle training data
  3. train model with it
  4. validate model
@@ -15,4 +16,5 @@ Behavior cloning method:
  4. fine adjustment stearing control
  5. Battery Life monitoring
  5. Onboard shutdown logic.
- 
+ 6. Find the horizon
+ 7. general camera oreantation.
