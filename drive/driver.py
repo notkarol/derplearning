@@ -24,6 +24,7 @@ def main(screen):
     args = parser.parse_args()
 
     # Initialize relevant classes
+    timestamp = time()
     log = Log()
     camera = Camera(log)
     servo = Servo(log)
@@ -39,7 +40,6 @@ def main(screen):
     screen.addstr(4, 0, "AUTO")
 
     # Main loop
-    timestamp = time()
     while True:
 
         last_timestamp = timestamp
@@ -48,7 +48,8 @@ def main(screen):
         if recording or autonomous:
             frame = camera.getFrame()
             speed, steer = servo.speed, servo.steer
-            log.log(timestamp, frame, speed, steer)
+            log.write(timestamp, speed, steer)
+            camera.record(frame)
 
         if autonomous:
             servo.speed, servo.steer = model.evaluate(frame, speed, steer)
@@ -76,12 +77,12 @@ def main(screen):
         # Refresh the screen and wait before trying again
         screen.addstr(0, 6, "%6.3f" % servo.speed)
         screen.addstr(1, 6, "%6.3f" % servo.steer)
-        screen.addstr(2, 6, "%6.3f" % (1.0 / (timestamp - last_timestamp)))
-        screen.addstr(3, 6, "%5s" % recording)
-        screen.addstr(4, 6, "%5s" % autonomous)
+        screen.addstr(2, 6, "%6.1f" % (1.0 / (timestamp - last_timestamp)))
+        screen.addstr(3, 6, "%6s" % recording)
+        screen.addstr(4, 6, "%6s" % autonomous)
         screen.refresh()
         if not recording and not autonomous:
-            sleep(1E-3)
+            sleep(2E-3)
 
     # Prepare screen output
     curses.nocbreak()

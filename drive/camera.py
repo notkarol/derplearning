@@ -10,7 +10,7 @@ from time import strftime, gmtime, time
 
 class Camera:
     
-    def __init__(self, log, index=None, width=640, height=480, fps=30):
+    def __init__(self, log, index=None, width=640, height=480, fps=20):
         """
         Open a camera capture
         """
@@ -27,10 +27,14 @@ class Camera:
             
         # Input  video
         self.cap = cv2.VideoCapture(self.index)
-        # self.cap.set(cv2.CAP_PROP_FOURCC, self.fourcc)
-        self.cap.set(cv2.CAP_PROP_FPS, 30.0)
+        self.cap.set(cv2.CAP_PROP_FPS, self.fps)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+
+        # Output video in log
+        self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.rec_path = os.path.join(log.folder, 'video.mp4')
+        self.rec = cv2.VideoWriter(self.rec_path, self.fourcc, self.fps, (self.width, self.height))
 
         
     def __del__(self):
@@ -51,10 +55,15 @@ class Camera:
         if not ret:
             sys.stderr.write("Failed to get frame!")
             return None
-
+        
         return frame
 
+    
+    def record(self,
+               frame):  # Frame to write to disk
+        self.rec.write(frame)
 
+        
     def discoverCamera(self,
                        last_available=True):  # use most recently plugged in camera
         """
