@@ -1,73 +1,72 @@
 #!/usr/bin/env/python3
 
-import cv2
-import time
+import argparse
 import curses
-from servo import Servo
+from time import sleep, time
+
+# Local Python Files
 from camera import Camera
-
-
+from log import Log
+from model import Model
+from servo import Servo
 
 def main(screen):
 
-    # Initialize servo and camera
-    servo = Servo()
-    camera = Camera()
-    
     # Prepare screen input
     curses.noecho() # don't display pressed characters to screen
     curses.cbreak() # process key instantly without explicit flushing
     screen.keypad(1) # enable keypad mode so keys are not multibyte escape sequences
     screen.nodelay(1) # nonblocking
 
-    # Print out labels
-    screen.addstr(0, 0, "ANGLE")
-    screen.addstr(1, 0, "SPEED")
-    screen.addstr(2, 0, "FPS")
-    screen.addstr(3, 0, "")
-    screen.addstr(4, 0, "KEY")
-    
-    # Main loop
-    while True:
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', default="", help="Model to run")
+    args = parser.parse_args()
 
-        # Get state of sensors
-        frame = camera.getFrame()
-        speed, angle = servo.speed, servo.angle
+    # Initialize relevant classes
+    log = Log()
+    camera = Camera(log)
+    servo = Servo(log)
+    # model = Model(log, args.model)
+    recording = False
+    autonomous = False
+
+    # Main loop
+    last_timestamp = 0.0
+    while True:
         
+        if recording or autonomous:
+            frame = camera.getFrame()
+            timestamp = time()
+            speed, steer = servo.speed, servo.steer
+            log.log(timestamp, frame, speed, steer)
+
+        if autonomous:
+            servo.speed, servo.steer = model.evaluate(frame, speed, steer)
+            
         # Handle heyboard
         c = screen.getch()
-        if c < 0:
-            pass
-        elif c == ord('q'):
-            break 
-        elif c == ord('r'):
-            camera.startRecording()
-        elif c == curses.KEY_LEFT:
-            servo.turn_left()           # large left turn
-        elif c == curses.KEY_RIGHT:
-            servo.turn_right()          # large right turn
-        elif c == curses.KEY_SLEFT:
-            servo.turn_left(.005)       # small left turn
-        elif c == curses.KEY_SRIGHT:
-            servo.turn_right(.005)      # small right turn
-        elif c == ord('/'):
-            servo.turn(0)               # sets turn to zero
-        elif c == curses.KEY_UP:
-            servo.move_faster()         # moves faster
-        elif c == curses.KEY_DOWN:
-            servo.move_slower()         # slows down
-        elif c == ord('.'):
-            servo.move(0)               # stops the vehicle
+        if c < 0:                    pass
+        elif c == ord('q'):          break 
+        elif c == ord('r'):          recording = True
+        elif c == ord('t'):          recording = False
+        elif c == ord('a'):          autonomous = True
+        elif c == ord('s'):          autonomous = False
+        elif c == curses.KEY_LEFT:   servo.turn_left(1E-2)  # large left turn
+        elif c == curses.KEY_RIGHT:  servo.turn_right(1E-2) # large right turn
+        elif c == curses.KEY_SLEFT:  servo.turn_left(1E-3)  # small left turn
+        elif c == curses.KEY_SRIGHT: servo.turn_right(1E-3) # small right turn
+        elif c == curses.KEY_UP:     servo.move_faster()    # moves faster
+        elif c == curses.KEY_DOWN:   servo.move_slower()    # slows down
+        elif c == ord('0'):          servo.move(0)          # stops the vehicle
+        elif c == ord('1'):          servo.move(0.13)       # slowest speed to move
+        elif c == ord('2'):          servo.move(0.26)       # moderate speed
+        elif c == ord('3'):          servo.move(0.39)       # fastest safe speed
+        elif c == ord('/'):          servo.turn(0)          # sets turn to zero
 
-        # Update the screen with the speed and steering
-        if c > 0:
-            screen.addstr(0, 7, "%06.3f" % servo.angle)
-            screen.addstr(1, 7, "%06.3f" % servo.speed)
-            screen.addstr(4, 7, chr(c))
 
         # Refresh the screen and wait before trying again
-        screen.refresh()
-        time.sleep(1E-3)
+        sleep(1E-6)
 
     # Prepare screen output
     curses.nocbreak()
@@ -78,6 +77,7 @@ def main(screen):
     # Cleanup sensors
     del servo
     del camera
+    del log
     
 if __name__ == "__main__":
     curses.wrapper(main)
