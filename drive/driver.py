@@ -26,6 +26,7 @@ def main(screen):
     # Initialize relevant classes
     timestamp = time()
     log = Log()
+    # 1280x720 is 15fps
     camera = Camera(log)
     servo = Servo(log)
     model = Model(log, args.model)
@@ -38,6 +39,7 @@ def main(screen):
     screen.addstr(2, 0, "FPS")
     screen.addstr(3, 0, "REC")
     screen.addstr(4, 0, "AUTO")
+    screen.addstr(5, 0, log.name)
 
     # Main loop
     while True:
@@ -48,11 +50,15 @@ def main(screen):
         if recording or autonomous:
             frame = camera.getFrame()
             speed, steer = servo.speed, servo.steer
-            log.write(timestamp, speed, steer)
+            if autonomous:
+                # average data
+                nn_speed, nn_steer = model.evaluate(frame, speed, steer)
+                servo.move(0.5 * servo.speed + 0.5 * nn_speed)
+                serov.turn(0.5 * servo.steer + 0.5 * nn_steer)
+            else:
+                nn_speed, nn_steer = None, None
+            log.write((timestamp, speed, nn_speed, steer, nn_steer))
             camera.record(frame)
-
-        if autonomous:
-            servo.speed, servo.steer = model.evaluate(frame, speed, steer)
             
         # Handle heyboard
         c = screen.getch()

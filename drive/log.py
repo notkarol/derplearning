@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import cv2
 import os
 from socket import gethostname
 from time import strftime, gmtime
@@ -13,7 +12,10 @@ class Log:
         """
 
         # Create folder
-        self.folder = os.path.join(root_path, strftime('%Y%m%dT%H%M%SZ', gmtime()))
+        hostname = gethostname()
+        self.date = strftime('%Y%m%dT%H%M%SZ', gmtime())
+        self.name = '%s-%s' % (self.date, hostname)
+        self.folder = os.path.join(root_path, self.name)
         os.mkdir(self.folder)
 
         # Record that we have a model
@@ -25,12 +27,8 @@ class Log:
         self.csv_fp = open(self.csv_path, 'w')
         
         # Write headers
-        self.csv_fp.write("timestamp,speed,steer\n")
+        self.csv_fp.write("timestamp,speed,nn_speed,steer,nn_steer\n")
 
-        # Save some attributes about the machine
-        self.config('hostname', gethostname())
-        self.config('cv2_version', cv2.__version__)
-        
 
     def __del__(self):
         """
@@ -49,13 +47,9 @@ class Log:
         self.config_fp.write("%s=%s\n" % (key, value))
         
 
-    def write(self, timestamp, speed, steer):
+    def write(self, args):
         """
         Write he provided values to a file
         """
-        timestamp_str = "%.6f" % timestamp
-        speed_str = "%.6f" % speed
-        steer_str = "%.6f" % steer
-
-        # Create video
-        self.csv_fp.write(",".join([timestamp_str, speed_str, steer_str]) + "\n")
+        out = ','.join(['' if arg is None else "%.6f" % arg for arg in args])
+        self.csv_fp.write(out + "\n")
