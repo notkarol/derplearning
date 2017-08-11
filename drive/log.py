@@ -49,10 +49,13 @@ class Log:
         """
         Write he provided values to a file
         """
+        timestamp_str = "%.6f" % timestamp
+        speed_str = "%.6f" % speed
+        steer_str = "%.6f" % steer
 
         # Write video frame
         frame_path = os.path.join(self.folder, "%s.jpg" % timestamp)
         cv2.imwrite(frame_path, frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
 
         # Create video
-        self.out_csv.write(",".join([timestamp]) + "\n")
+        self.csv_fp.write(",".join([timestamp_str, speed_str, steer_str]) + "\n")

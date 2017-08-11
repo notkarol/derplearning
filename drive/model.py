@@ -12,7 +12,7 @@ class Model:
         self.log = log
         self.path = path
 
-    def __del__():
+    def __del__(self):
         """
         Deconstructor to close file objects
         """

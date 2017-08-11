@@ -27,17 +27,26 @@ def main(screen):
     log = Log()
     camera = Camera(log)
     servo = Servo(log)
-    # model = Model(log, args.model)
+    model = Model(log, args.model)
     recording = False
     autonomous = False
 
+    # Print out labels
+    screen.addstr(0, 0, "SPEED")
+    screen.addstr(1, 0, "STEER")
+    screen.addstr(2, 0, "FPS")
+    screen.addstr(3, 0, "REC")
+    screen.addstr(4, 0, "AUTO")
+
     # Main loop
-    last_timestamp = 0.0
+    timestamp = time()
     while True:
-        
+
+        last_timestamp = timestamp
+        timestamp = time()
+
         if recording or autonomous:
             frame = camera.getFrame()
-            timestamp = time()
             speed, steer = servo.speed, servo.steer
             log.log(timestamp, frame, speed, steer)
 
@@ -64,9 +73,15 @@ def main(screen):
         elif c == ord('3'):          servo.move(0.39)       # fastest safe speed
         elif c == ord('/'):          servo.turn(0)          # sets turn to zero
 
-
         # Refresh the screen and wait before trying again
-        sleep(1E-6)
+        screen.addstr(0, 6, "%6.3f" % servo.speed)
+        screen.addstr(1, 6, "%6.3f" % servo.steer)
+        screen.addstr(2, 6, "%6.3f" % (1.0 / (timestamp - last_timestamp)))
+        screen.addstr(3, 6, "%5s" % recording)
+        screen.addstr(4, 6, "%5s" % autonomous)
+        screen.refresh()
+        if not recording and not autonomous:
+            sleep(1E-3)
 
     # Prepare screen output
     curses.nocbreak()
@@ -75,6 +90,7 @@ def main(screen):
     curses.endwin()
 
     # Cleanup sensors
+    del model
     del servo
     del camera
     del log
