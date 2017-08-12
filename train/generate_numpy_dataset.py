@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pickle
 import sys
+import srperm as srp
 
 def main():
     source_size = (640, 480)
@@ -44,12 +45,19 @@ def main():
             ret, frame = video_cap.read()
             if not ret: break
 
+            #shift values
+            drot = 0
+            mshift = 0
+
+            #permutate frame
+            pframe = srp.shiftimg(frame, drot, mshift)
+
             # Prepare patch
-            patch = frame[crop_x : crop_x + crop_size[0], crop_y : crop_y + crop_size[1], :]
+            patch = pframe[crop_x : crop_x + crop_size[0], crop_y : crop_y + crop_size[1], :]
             thumb = cv2.resize(patch, target_size)
 
             # Prepare label, shape, thumb            
-            labels_out.append(labels[counter])
+            labels_out.append( [labels[counter][0],srp.shiftsteer(labels[counter][1],drot,mshift) ] )
             thumbs_out.append(thumb)
 
             counter += 1
