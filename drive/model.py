@@ -38,7 +38,7 @@ class Model:
                         self.crop_y : self.crop_y + self.crop_size[1], :]
         thumb = cv2.resize(patch, self.target_size)
         batch = np.reshape(thumb, [1] + list(thumb.shape))
-        return batch
+        return np.array(batch, dtype=np.float32)
                 
     def evaluate(self, frame, speed, steer):
         """ 

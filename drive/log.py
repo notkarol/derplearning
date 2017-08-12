@@ -6,11 +6,12 @@ from time import strftime, gmtime
 
 class Log:
     
-    def __init__(self, root_path="."):
+    def __init__(self, screen, root_path="../data"):
         """
         Open the log files and write some logs
         """
-
+        self.screen = screen
+    
         # Create folder
         hostname = gethostname()
         self.date = strftime('%Y%m%dT%H%M%SZ', gmtime())

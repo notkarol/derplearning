@@ -25,7 +25,7 @@ def main(screen):
 
     # Initialize relevant classes
     timestamp = time()
-    log = Log()
+    log = Log(screen)
     camera = Camera(log) if args.model and args.weights else Camera(log, height=1080, width=1920)
     servo = Servo(log)
     if args.model and args.weights:
@@ -86,7 +86,7 @@ def main(screen):
         # Refresh the screen and wait before trying again
         screen.addstr(0, 6, "%6.3f" % servo.speed)
         screen.addstr(1, 6, "%6.3f" % servo.steer)
-        screen.addstr(2, 6, "%6.1f" % (1.0 / (timestamp - last_timestamp)))
+        screen.addstr(2, 6, "%6i" % (1.0 / (timestamp - last_timestamp)))
         screen.addstr(3, 6, "%6s" % recording)
         screen.addstr(4, 6, "%6s" % autonomous)
         screen.refresh()
