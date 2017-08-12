@@ -44,9 +44,13 @@ def main():
 
     # train model
     with tf.Session() as sess:
-        model.fit(train_x, train_y, epochs=16, shuffle=True)
-        model.save_weights('weights-%s.h5' % train_name)        
+        model.fit(train_x, train_y, epochs=64, shuffle=True)
 
+        # Store model and weights
+        model_json = model.to_json()
+        with open('model-%s.json' % train_name, "w") as f:
+            f.write(model_json)
+        model.save_weights('weights-%s.h5' % train_name)        
 
 if __name__ == "__main__":
     main()
