@@ -44,7 +44,7 @@ class Model:
         """ 
         Cut out the patch and run the model on it
         """
-q        example = self.preprocess(frame)
+        example = self.preprocess(frame)
         nn_speed, nn_steer = self.model.predict_on_batch(example)[0]
         return nn_speed, nn_steer
 
