@@ -18,17 +18,16 @@ Produces side shifts and z axis rotations of training data
 	mshift is the number of car is shifted along yaxis for perm
 		(shift car left is positive in meters)
 '''
-def shiftsteer(dsteer, drot, mshift):
-	maxcorrect = 20 #maximum corrective steering
-	saturationpoint = .5 #displacement distance at which the car makes the max correction
+def shiftsteer(steer, drot, mshift):
+	maxsteer = 1 #maximum value which can be returned for steering
+	shifttosteer = 1 # ratio of steering correction to lateral shift in steers/m
+	spd = 1/30 #linear coefficient for angle correction in steers/degree
 
-	if mshift>0:
-		dcomp = min(mshift,saturationpoint)*maxcorrect/saturationpoint
+	permsteer = steer - drot*spd - mshift*shifttosteer
+	if permsteer>0:
+		return min(maxsteer, permsteer)
 	else:
-		dcomp = max(mshift,-saturationpoint)*maxcorrect/saturationpoint
-
-
-	return dsteer - drot - dcomp 
+		return max(-maxsteer, permsteer)
 
 
 #shift image function

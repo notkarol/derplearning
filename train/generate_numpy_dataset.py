@@ -47,7 +47,7 @@ def main():
 
             #shift values
             drot = 0
-            mshift = 0
+            mshift = 1
 
             #permutate frame
             pframe = srp.shiftimg(frame, drot, mshift)
