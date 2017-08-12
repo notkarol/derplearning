@@ -6,24 +6,11 @@ import os
 import sys
 import tensorflow as tf
 
+def _int64_feature(value):
+      return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def float_feature(value):
-    if type(value) is not list and type(value) is not tuple and type(value) is not np.ndarray:
-        value = [value]
-    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
-
-
-def bytes_feature(value):
-    if type(value) is not list and type(value) is not tuple and type(value) is not np.ndarray:
-        value = [value]
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=value))
-
-
-def int64_feature(value):
-    if type(value) is not list and type(value) is not tuple and type(value) is not np.ndarray:
-        value = [value]
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
-    
+def _bytes_feature(value):
+      return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
 def main():
     source_size = (640, 480)
@@ -47,7 +34,7 @@ def main():
                 timestamps.append([float(timestamp)])
                 labels.append((float(speed), float(steer)))
         timestamps = np.array(timestamps, dtype=np.double)
-        labels = np.array(labels, dtype=np.float)
+        labels = np.array(labels, dtype=np.float32)
 
         # Prepare video frames by extracting the patch and thumbnail for training
         counter = 0
@@ -64,20 +51,21 @@ def main():
             patch = frame[crop_x : crop_x + crop_size[0], crop_y : crop_y + crop_size[1], :]
             thumb = cv2.resize(patch, target_size)
 
-            # Insert into tensorflow
-            thumb_raw = thumb.tostring()
+            # Prepare label, shape, thumb            
+            label = labels[counter].tobytes()
+            thumb = thumb.tobytes()
+
+            # Prepare example and write it
             example = tf.train.Example(features=tf.train.Features(feature={
-                'width': int64_feature(thumb.shape[0]),
-                'height': int64_feature(thumb.shape[1]),
-                'depth': int64_feature(thumb.shape[2]),
-                'label': float_feature(labels[counter]),
-                'image_raw': bytes_feature(thumb_raw)}))
+                'label': _bytes_feature(label),
+                'thumb': _bytes_feature(thumb)}))
             writer.write(example.SerializeToString())
 
             # Make sure to increment counter
             counter += 1
 
         # Clean up video capture
+        writer.close()
         video_cap.release()
 
 if __name__ == "__main__":
