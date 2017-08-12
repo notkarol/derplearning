@@ -9,14 +9,35 @@ from math import pi
 Produces side shifts and z axis rotations of training data
 '''
 
-#shift function
+#shift label function
+'''
+	dsteer is the stearing in degrees
+		(positive steering is turning left atm)
+	drot is the number of degrees the car is rotated about zaxis for perm
+		(rotate car left is postiive in degrees)
+	mshift is the number of car is shifted along yaxis for perm
+		(shift car left is positive in meters)
+'''
+def shiftsteer(dsteer, drot, mshift):
+	maxcorrect = 20 #maximum corrective steering
+	saturationpoint = .5 #displacement distance at which the car makes the max correction
+
+	if mshift>0:
+		dcomp = min(mshift,saturationpoint)*maxcorrect/saturationpoint
+	else:
+		dcomp = max(mshift,-saturationpoint)*maxcorrect/saturationpoint
+
+
+	return dsteer - drot - dcomp 
+
+
+#shift image function
 '''
 	img is the input image
-	horz is the measure of pixels above the horizon
-	rot is the number of pixels the image is rotated about zaxis
-		(rotate car left is postiive)
-	shift is the number of pixes the bottom of the image is shifted along yaxis
-		(shift car left is positive)
+	drot is the number of pixels the image is rotated about zaxis
+		(rotate car left is postiive in degrees)
+	mshift is the number of meters the car is shifted along yaxis
+		(shift car left is positive in meters)
 '''
 def shiftimg(img, drot, mshift):
 	perm = np.zeros( np.shape(img) )
@@ -89,14 +110,26 @@ def main():
 				[1,2,3,4,5,6,7,8,9,0],
 				[1,2,3,4,5,6,7,8,9,0]]
 
+	steer = 5
+
+	mshift = .25
+	drot = -5
+
 	'''
 	for x in img:
 		print(x)
 	'''
-	perm = shiftimg(img, 0, 0.5)
+	perm = shiftimg(img, drot, mshift)
 
 	for y in perm:
 		print(y)
+
+
+	print(steer)
+
+	newsteer = shiftsteer(steer, drot, mshift)
+
+	print(newsteer)
 
 
 if __name__ == "__main__":
