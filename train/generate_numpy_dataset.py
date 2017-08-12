@@ -54,8 +54,8 @@ def main():
             crop_y = frame_height - crop_size[1]            
             
             #shift values
-            drot = 0
-            mshift = 1
+            drot = 10*min(np.random.normal(0,.5),1.5)
+            mshift = min(np.random.normal(0,.2),1)
 
             #permutate frame
             pframe = srp.shiftimg(frame, drot, mshift)

@@ -46,6 +46,9 @@ def shiftimg(img, drot, mshift):
 	prot = zdegtopixel(drot, len(img[0]) )
 	pshift = ymetertopixel(mshift, len(img[0]) )
 
+	if int(prot+pshift)==0:
+		return img
+
 	for z,row in enumerate(img):
 		
 		#Calculates the shift distance for a given row
@@ -109,10 +112,10 @@ def main():
 				[1,2,3,4,5,6,7,8,9,0],
 				[1,2,3,4,5,6,7,8,9,0]]
 
-	steer = 5
+	steer = 0
 
-	mshift = .25
-	drot = -5
+	mshift = 0
+	drot = 0
 
 	'''
 	for x in img:
