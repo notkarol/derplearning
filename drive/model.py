@@ -16,10 +16,10 @@ class Model:
         self.weights_path = weights_path
 
         self.source_size = (640, 480)
-        self.crop_size = (640, 320)
+        self.crop_size = (640, 160)
         self.crop_x = 0
         self.crop_y = self.source_size[1] - self.crop_size[1]
-        self.target_size = (80, 40)
+        self.target_size = (128, 32)
         
         with open(model_path) as f:
             json_contents = f.read()

@@ -8,13 +8,14 @@ import sys
 import srperm as srp
 
 def main():
-    target_size = (80, 40)
+    target_size = (128, 32)
 
     # Output labels
     thumbs_out = []
     labels_out = []
     
     name = sys.argv[1]
+    perturb = not (name[0] == '_')
     folders = sys.argv[2:]
     for folder in folders:
 
@@ -42,43 +43,55 @@ def main():
             if not ret: break
 
             # Handle multiple video sizes
-            frame_width, frame_height = frame.size
+            frame_height, frame_width, frame_depth = frame.shape
             if frame_width == 1920 and frame_height == 1080:
-                crop_size = frame_width * 3 // 4, frame_height * 2 // 3
+                frame = cv2.resize(frame, (240, 135))
+                frame_height, frame_width, frame_depth = frame.shape
+                crop_size = frame_width * 3 // 4, frame_height * 1 // 3
             elif frame_width == 640 and frame_height == 480:
-                crop_size = frame_width, frame_height * 2 // 3
+                frame = cv2.resize(frame, (160, 120))
+                frame_height, frame_width, frame_depth = frame.shape
+                crop_size = frame_width, frame_height * 1 // 3
             else:
                 print("Unknown frame size", frame.size)
                 return
             crop_x = (frame_width - crop_size[0]) // 2
-            crop_y = frame_height - crop_size[1]            
+            crop_y = frame_height - crop_size[1]
             
-            #shift values
-            drot = 10*min(np.random.normal(0,.5),1.5)
-            mshift = min(np.random.normal(0,.2),1)
+            # Perturb if we got a wide enough image
+            if perturb and frame_width / frame_height > 1.5:
+                drot = max(min(np.random.normal(0, 3), 10), -10)
+                mshift = max(min(np.random.normal(0, 0.1), 1), -1)
+                pframe = srp.shiftimg(frame, drot, mshift)
+                patch = pframe[crop_y : crop_y + crop_size[1], crop_x : crop_x + crop_size[0], :]
+                thumb = cv2.resize(patch, target_size)
+                speed = labels[counter][0]
+                steer = srp.shiftsteer(labels[counter][1], drot, mshift)
+                labels_out.append([speed, steer])
+                thumbs_out.append(thumb)
 
-            #permutate frame
-            pframe = srp.shiftimg(frame, drot, mshift)
-
-            # Prepare patch
-            patch = pframe[crop_x : crop_x + crop_size[0], crop_y : crop_y + crop_size[1], :]
+            # Store original too
+            patch = frame[crop_y : crop_y + crop_size[1], crop_x : crop_x + crop_size[0], :]
             thumb = cv2.resize(patch, target_size)
-
-            # Prepare label, shape, thumb            
-            labels_out.append( [labels[counter][0],srp.shiftsteer(labels[counter][1],drot,mshift) ] )
+            speed = labels[counter][0]
+            steer = labels[counter][1]
+            labels_out.append([speed, steer])
             thumbs_out.append(thumb)
-
+            
             counter += 1
+            print("%.2f\r" % (100.0 * counter / len(labels)), end='')
+        print("Done [%i] %s"  % (counter, folder))
 
-        # Clean up video capture
+        # Clean up
         video_cap.release()
 
+    # Store output
     thumbs_out = np.array(thumbs_out, dtype=np.uint8)
     labels_out = np.array(labels_out, dtype=np.float32)
 
     # store pickles
     print("Storing ", thumbs_out.shape, labels_out.shape)
-    with open("%s.pkl" % name, 'wb') as f:
+    with open("../data/%s.pkl" % name, 'wb') as f:
         pickle.dump((thumbs_out, labels_out), f, protocol=pickle.HIGHEST_PROTOCOL)
         
 if __name__ == "__main__":

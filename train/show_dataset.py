@@ -14,15 +14,16 @@ def main():
     # Load data
     with open(train_path, 'rb') as f:
         train_x, train_y = pickle.load(f)
-    print(train_x.shape, train_y.shape)
-
+    print(np.mean(train_y, axis=0), np.std(train_y, axis=0))
+    
     # Store png files
     if not os.path.exists(train_name):
-        os.makedirs(train_name)
+        os.makedirs("../data/%s" % train_name)
     for i, (x, y) in enumerate(zip(train_x, train_y)):
-        cv2.imwrite("%s/%s_%06i_%.3f_%.3f.png" % (train_name, train_name, i, y[0], y[1]), x)
+        cv2.imwrite("../data/%s/%s_%06i_%.3f_%.3f.png" % (train_name, train_name, i, y[0], y[1]), x)
         sys.stdout.write("%.3f\r" % (100.0 * i / len(train_x)))
     print("Done")
+    print(train_x.shape, train_y.shape)
 
     
 if __name__ == "__main__":
