@@ -1,19 +1,22 @@
-
+Software Note Doc
 
 Raceday Vitals Checklist (Complete by: 2017.08.12)
 Behavior cloning method:
- 1. Auto find camera port
- 2. Method to record frames and steering position simultaneously
- 2. shuffle training data
- 3. train model with it
- 4. validate model
- 5. NTH shift and rotation permutations
+ 1. COMPLETE Auto find camera port
+ 2. COMPLETE Method to record frames and steering position simultaneously
+ 3. Method to import record file as inputs and labels
+ 4. Shift + Rotate training data
+ 5. Model to train with input data
+
+Things to do at the track
+ 4. train model with it
+ 5. validate model
  
  Nice to haves:
  1. signal lost deadman switch
  2. autonomous remote override functionality
- 3. Zero speed button, ez reverse, zero steer key
- 4. fine adjustment stearing control
+ 3. COMPLETE Zero speed button, ez reverse, zero steer key
+ 4. COMPLETE fine adjustment stearing control
  5. Battery Life monitoring
  5. Onboard shutdown logic.
  6. Find the horizon
