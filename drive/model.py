@@ -34,8 +34,8 @@ class Model:
         pass
 
     def preprocess(self, example):
-        patch = example[self.crop_x : self.crop_x + self.crop_size[0],
-                        self.crop_y : self.crop_y + self.crop_size[1], :]
+        patch = example[self.crop_y : self.crop_y + self.crop_size[1],
+                        self.crop_x : self.crop_x + self.crop_size[0], :]
         thumb = cv2.resize(patch, self.target_size)
         batch = np.reshape(thumb, [1] + list(thumb.shape))
         return np.array(batch, dtype=np.float32)
@@ -44,7 +44,7 @@ class Model:
         """ 
         Cut out the patch and run the model on it
         """
-        example = self.preprocess(frame)
+q        example = self.preprocess(frame)
         nn_speed, nn_steer = self.model.predict_on_batch(example)[0]
         return nn_speed, nn_steer
 
