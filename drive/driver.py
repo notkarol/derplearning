@@ -7,7 +7,6 @@ from time import sleep, time
 # Local Python Files
 from camera import Camera
 from log import Log
-from model import Model
 from servo import Servo
 
 def main(screen):
@@ -27,9 +26,11 @@ def main(screen):
     # Initialize relevant classes
     timestamp = time()
     log = Log()
-    camera = Camera(log)
+    camera = Camera(log) if args.model and args.weights else Camera(log, height=1080, width=1920)
     servo = Servo(log)
-    model = Model(log, args.model, args.weights)
+    if args.model and args.weights:
+        from model import Model
+        model = Model(log, args.model, args.weights)
     recording = False
     autonomous = False
 
@@ -68,7 +69,7 @@ def main(screen):
         elif c == ord('q'):          break 
         elif c == ord('r'):          recording = True
         elif c == ord('t'):          recording = False
-        elif c == ord('a'):          autonomous = True
+        elif c == ord('a'):          autonomous = args.model and args.weights
         elif c == ord('s'):          autonomous = False
         elif c == curses.KEY_LEFT:   servo.turn_left(1E-2)  # large left turn
         elif c == curses.KEY_RIGHT:  servo.turn_right(1E-2) # large right turn
@@ -90,7 +91,7 @@ def main(screen):
         screen.addstr(4, 6, "%6s" % autonomous)
         screen.refresh()
         if not recording and not autonomous:
-            sleep(2E-3)
+            sleep(1E-2)
 
     # Prepare screen output
     curses.nocbreak()
@@ -99,7 +100,8 @@ def main(screen):
     curses.endwin()
 
     # Cleanup sensors
-    del model
+    if args.model and args.weights:
+        del model
     del servo
     del camera
     del log

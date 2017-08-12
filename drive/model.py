@@ -17,8 +17,8 @@ class Model:
 
         self.source_size = (640, 480)
         self.crop_size = (640, 320)
-        self.crop_x = (self.source_size[0] - self.crop_size[0]) // 2
-        self.crop_y = (self.source_size[1] - self.crop_size[1]) // 2
+        self.crop_x = 0
+        self.crop_y = self.source_size[1] - self.crop_size[1]
         self.target_size = (80, 40)
         
         with open(model_path) as f:

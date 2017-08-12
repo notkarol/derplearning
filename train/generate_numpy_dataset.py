@@ -8,10 +8,6 @@ import sys
 import srperm as srp
 
 def main():
-    source_size = (640, 480)
-    crop_size = (640, 320)
-    crop_x = (source_size[0] - crop_size[0]) // 2
-    crop_y = (source_size[1] - crop_size[1]) // 2
     target_size = (80, 40)
 
     # Output labels
@@ -45,6 +41,18 @@ def main():
             ret, frame = video_cap.read()
             if not ret: break
 
+            # Handle multiple video sizes
+            frame_width, frame_height = frame.size
+            if frame_width == 1920 and frame_height == 1080:
+                crop_size = frame_width * 3 // 4, frame_height * 2 // 3
+            elif frame_width == 640 and frame_height == 480:
+                crop_size = frame_width, frame_height * 2 // 3
+            else:
+                print("Unknown frame size", frame.size)
+                return
+            crop_x = (frame_width - crop_size[0]) // 2
+            crop_y = frame_height - crop_size[1]            
+            
             #shift values
             drot = 0
             mshift = 1
