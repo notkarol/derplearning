@@ -14,21 +14,21 @@ H, W, D, L = 32, 128, 3, 2
 
 def model_A():
     model = Sequential()
-    model.add(BatchNormalization(input_shape=(H,W,D)))
+    model.add(BatchNormalization(input_shape=(H, W, D)))
     model.add(Conv2D(16, (5, 5), activation='elu', padding='same'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(BatchNormalization(input_shape=(H,W,D)))
+    model.add(BatchNormalization(input_shape=(H, W, D)))
     model.add(Conv2D(32, (5, 5), activation='elu', padding='same'))
     model.add(Conv2D(32, (5, 5), activation='elu', padding='same'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(BatchNormalization(input_shape=(H,W,D)))
+    model.add(BatchNormalization(input_shape=(H, W, D)))
     model.add(Conv2D(48, (3, 3), activation='elu', padding='same'))
     model.add(Conv2D(48, (3, 3), activation='elu', padding='same'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(BatchNormalization(input_shape=(H,W,D)))
+    model.add(BatchNormalization(input_shape=(H, W, D)))
     model.add(Conv2D(64, (3, 3), activation='elu', padding='valid'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(BatchNormalization(input_shape=(H,W,D)))
+    model.add(BatchNormalization(input_shape=(H, W, D)))
     model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(L, name='x_out'))
@@ -45,15 +45,15 @@ def main():
 
     # Prepare model
     model = model_A()
-    sgd = keras.optimizers.SGD(lr=0.005, decay=1e-6, momentum=0.8, nesterov=True)
-    model.compile(optimizer=sgd, loss='mse')
+    opt = keras.optimizers.SGD(lr=0.002, decay=1e-9, momentum=0.9, nesterov=True)
+    model.compile(optimizer=opt, loss='mse')
     model.summary()
 
     # train model
-    config = tf.ConfigProto( device_count = {'GPU': 0} )
-    with tf.Session(config=config) as sess:
-    #with tf.Session() as sess:
-        model.fit(train_x, train_y, epochs=16, shuffle=True)
+    #config = tf.ConfigProto( device_count = {'GPU': 0} ) # disable GPU
+    #with tf.Session(config=config) as sess:
+    with tf.Session() as sess:
+        model.fit(train_x, train_y, epochs=64, shuffle=True)
 
         # Store model and weights
         model_json = model.to_json()
