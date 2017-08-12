@@ -43,6 +43,8 @@ def main():
     model.summary()
 
     # train model
+    #config = tf.ConfigProto( device_count = {'GPU': 0} )
+    #with tf.Session(config=config) as sess:
     with tf.Session() as sess:
         model.fit(train_x, train_y, epochs=64, shuffle=True)
 
