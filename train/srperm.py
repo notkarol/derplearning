@@ -38,13 +38,13 @@ def shiftsteer(steer, drot, mshift):
 	mshift is the number of meters the car is shifted along yaxis
 		(shift car left is positive in meters)
 '''
-def shiftimg(img, drot, mshift):
+def shiftimg(img, drot, mshift, cfovz, cfovy):
 	perm = np.zeros( np.shape(img) )
 
-	phorz = horizonset(len(img))
+	phorz = horizonset(len(img), cfovy)
 
-	prot = zdegtopixel(drot, len(img[0]) )
-	pshift = ymetertopixel(mshift, len(img[0]) )
+	prot = zdegtopixel(drot, len(img[0]), cfovz )
+	pshift = ymetertopixel(mshift, len(img[0]), cfovz )
 
 	if int(prot+pshift)==0:
 		return img
@@ -72,16 +72,12 @@ def shiftimg(img, drot, mshift):
 
 #calculates the number of pixels the image has rotated
 # for a given degree rotation of the camera
-def zdegtopixel(deg, iydim):
-	cfovz = 80 #camera view arc about zaxis in degrees
-
+def zdegtopixel(deg, iydim, cfovz = 100):
 	return deg*iydim/cfovz
 
 
 #converts a displacement of the car in y meters to pixels along the bottom row of the image
-def ymetertopixel(disp, iydim):
-	cfovz = 80 #camera view arc about zaxis in degrees
-
+def ymetertopixel(disp, iydim, cfovz = 100):
 	cheight = .38 #camera height in meters
 	minvis = .7 #FIXME minimum distance camera can see (must be measured)
 
@@ -90,9 +86,7 @@ def ymetertopixel(disp, iydim):
 	return disp*iydim/botwidth
 
 
-def horizonset(izdim):
-	cfovy = 60 #camera view arc about yaxis in degrees
-
+def horizonset(izdim, cfovy = 60):
 	cheight = .38 #camera height in meters
 	minvis = .7 #FIXME minimum distance camera can see (must be measured)
 
@@ -112,16 +106,16 @@ def main():
 				[1,2,3,4,5,6,7,8,9,0],
 				[1,2,3,4,5,6,7,8,9,0]]
 
-	steer = 0
+	steer = .3
 
-	mshift = 0
-	drot = 0
+	mshift = .2
+	drot = 10
 
 	'''
 	for x in img:
 		print(x)
 	'''
-	perm = shiftimg(img, drot, mshift)
+	perm = shiftimg(img, drot, mshift, 100, 60)
 
 	for y in perm:
 		print(y)

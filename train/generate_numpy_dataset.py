@@ -62,7 +62,8 @@ def main():
             if perturb and frame_width / frame_height > 1.5:
                 drot = max(min(np.random.normal(0, 3), 10), -10)
                 mshift = max(min(np.random.normal(0, 0.1), 1), -1)
-                pframe = srp.shiftimg(frame, drot, mshift)
+                pframe = srp.shiftimg(frame, drot, mshift, 100, 60)
+                
                 patch = pframe[crop_y : crop_y + crop_size[1], crop_x : crop_x + crop_size[0], :]
                 thumb = cv2.resize(patch, target_size)
                 speed = labels[counter][0]
