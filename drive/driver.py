@@ -21,6 +21,7 @@ def main(screen):
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', default="", help="Model to run")
+    parser.add_argument('--weights', default="", help="Model to run")
     args = parser.parse_args()
 
     # Initialize relevant classes
@@ -29,7 +30,7 @@ def main(screen):
     # 1280x720 is 15fps
     camera = Camera(log)
     servo = Servo(log)
-    model = Model(log, args.model)
+    model = Model(log, args.model, args.weights)
     recording = False
     autonomous = False
 
@@ -52,7 +53,8 @@ def main(screen):
             speed, steer = servo.speed, servo.steer
             if autonomous:
                 # average data
-                nn_speed, nn_steer = model.evaluate(frame, speed, steer)
+                nn_speed, nn_steer, out = model.evaluate(frame, speed, steer)
+                screen.addstr(7, 0, str(out.shape))
                 servo.move(0.5 * servo.speed + 0.5 * nn_speed)
                 serov.turn(0.5 * servo.steer + 0.5 * nn_steer)
             else:
