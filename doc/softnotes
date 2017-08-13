@@ -4,13 +4,13 @@ Raceday Vitals Checklist (Complete by: 2017.08.12)
 Behavior cloning method:
  1. COMPLETE Auto find camera port
  2. COMPLETE Method to record frames and steering position simultaneously
- 3. Method to import record file as inputs and labels
- 4. Shift + Rotate training data
- 5. Model to train with input data
+ 3. COMPLETE Method to import record file as inputs and labels
+ 4. COMPLETE Shift + Rotate training data
+ 5. COMPLETE Model to train with input data
 
 Things to do at the track
- 4. train model with it
- 5. validate model
+ 4. COMPLETE train model with it
+ 5. COMPLETE validate model
  
  Nice to haves:
  1. signal lost deadman switch
