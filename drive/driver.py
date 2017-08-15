@@ -53,15 +53,17 @@ def main(screen):
             speed, steer = servo.speed, servo.steer
             if autonomous:
                 # average data
-                nn_speed, nn_steer = model.evaluate(frame, speed, steer)
+                nn_speed, nn_steer, nn_frame = model.evaluate(frame, speed, steer)
 
                 # dampen
                 servo.move(0.25 * servo.speed + 0.75 * nn_speed)
                 servo.turn(0.25 * servo.steer + 0.75 * nn_steer)
+                if recording:
+                    camera.snapshot('front', timestamp, nn_frame)
             else:
                 nn_speed, nn_steer = None, None
             log.write((timestamp, speed, nn_speed, steer, nn_steer))
-            camera.record(frame)
+            camera.record('front', frame)
             
         # Handle heyboard
         c = screen.getch()
