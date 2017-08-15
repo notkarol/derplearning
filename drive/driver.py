@@ -70,17 +70,17 @@ def main(screen):
         elif c == ord('r'):          recording = True
         elif c == ord('t'):          recording = False
         elif c == ord('a'):          autonomous = args.model and args.weights
-        elif c == ord('s'):          autonomous = False
-        elif c == curses.KEY_LEFT:   servo.turn_left(0.05)  # large left turn
-        elif c == curses.KEY_RIGHT:  servo.turn_right(0.05) # large right turn
-        elif c == curses.KEY_SLEFT:  servo.turn_left(0.01)  # small left turn
-        elif c == curses.KEY_SRIGHT: servo.turn_right(0.01) # small right turn
+        elif c == ord('s'):          autonomous = False ; servo.turn(0) ; servo.move(0)
+        elif c == curses.KEY_LEFT:   servo.turn_left(0.2)  # large left turn
+        elif c == curses.KEY_RIGHT:  servo.turn_right(0.2) # large right turn
+        elif c == curses.KEY_SLEFT:  servo.turn_left(0.05)  # small left turn
+        elif c == curses.KEY_SRIGHT: servo.turn_right(0.05) # small right turn
         elif c == curses.KEY_UP:     servo.move_faster()    # moves faster
         elif c == curses.KEY_DOWN:   servo.move_slower()    # slows down
         elif c == ord('0'):          servo.move(0)          # stops the vehicle
         elif c == ord('1'):          servo.move(0.14)       # slowest speed to move
         elif c == ord('2'):          servo.move(0.15)       # moderate speed
-        elif c == ord('3'):          servo.move(0.16)       # fastest safe speed
+        elif c == ord('3'):          servo.move(0.20)       # fastest safe speed
         elif c == ord('/'):          servo.turn(0)          # sets turn to zero
 
         # Refresh the screen and wait before trying again
