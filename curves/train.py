@@ -5,6 +5,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
+from keras.models import model_from_yaml
 
 def create_model(input_shape, n_output):
     model = Sequential()
@@ -36,7 +37,7 @@ def main():
                         help='learning rate (default: 0.01)')
     parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                         help='SGD momentum (default: 0.5)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=1, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
@@ -60,6 +61,17 @@ def main():
 
     model.fit(X_train, y_train, batch_size=args.bs, epochs=args.epochs,
               validation_data=(X_val, y_val), shuffle=True)
+
+
+    # serialize model to YAML
+    model_yaml = model.to_yaml()
+    with open("model.yaml", "w") as yaml_file:
+        yaml_file.write(model_yaml)
+    # serialize weights to HDF5
+    model.save_weights("model.h5")
+    print("Saved model to disk")
+
+
     
     
 if __name__ == "__main__":
