@@ -38,14 +38,14 @@ class Model:
                         self.crop_x : self.crop_x + self.crop_size[0], :]
         thumb = cv2.resize(patch, self.target_size)
         batch = np.reshape(thumb, [1] + list(thumb.shape))
-        return np.array(batch, dtype=np.float32)
+        return batch
                 
     def evaluate(self, frame, speed, steer):
         """ 
         Cut out the patch and run the model on it
         """
-        example = self.preprocess(frame)
-        nn_speed, nn_steer = self.model.predict_on_batch(example)[0]
-        return nn_speed, nn_steer
+        batch = self.preprocess(frame)
+        nn_speed, nn_steer = self.model.predict_on_batch(batch)[0]
+        return nn_speed, nn_steer, batch[0]
 
                     

@@ -33,8 +33,15 @@ class Camera:
 
         # Output video in log
         self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        self.rec_path = os.path.join(log.folder, 'video.mp4')
-        self.rec = cv2.VideoWriter(self.rec_path, self.fourcc, self.fps, (self.width, self.height))
+        self.extension = 'mp4'
+        self.writers = {}
+
+        # Initialize known cameras
+        views = ['front']
+        for view in views:
+            path = os.path.join(log.folder, "%s.%s" % (view, self.extension))
+            self.writers[view] = cv2.VideoWriter(path, self.fourcc, self.fps,
+                                                 (self.width, self.height))
 
         
     def __del__(self):
@@ -59,10 +66,14 @@ class Camera:
         return frame
 
     
-    def record(self,
-               frame):  # Frame to write to disk
-        self.rec.write(frame)
+    def record(self, camera, frame):
+        self.writers[camera].write(frame)
 
+
+    def snapshot(self, view, timestamp, frame):
+        name = os.path.join(self.log.folder, "%s-%.6f.png" % (view, timestamp))
+        cv2.imwrite(name, frame)
+        
         
     def discoverCamera(self,
                        last_available=True):  # use most recently plugged in camera

@@ -45,7 +45,7 @@ def main():
 
     # Prepare model
     model = model_A()
-    opt = keras.optimizers.SGD(lr=0.002, decay=1e-9, momentum=0.9, nesterov=True)
+    opt = keras.optimizers.SGD(lr=0.005, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(optimizer=opt, loss='mse')
     model.summary()
 
@@ -53,7 +53,8 @@ def main():
     #config = tf.ConfigProto( device_count = {'GPU': 0} ) # disable GPU
     #with tf.Session(config=config) as sess:
     with tf.Session() as sess:
-        model.fit(train_x, train_y, epochs=64, shuffle=True)
+        model.fit(train_x, train_y, epochs=16
+, shuffle=True)
 
         # Store model and weights
         model_json = model.to_json()
