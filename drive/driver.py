@@ -48,16 +48,13 @@ def main(screen):
         last_timestamp = timestamp
         timestamp = time()
 
+        speed, steer = servo.speed, servo.steer
         if recording or autonomous:
             frame = camera.getFrame()
-            speed, steer = servo.speed, servo.steer
             if autonomous:
-                # average data
                 nn_speed, nn_steer = model.evaluate(frame, speed, steer)
-
-                # dampen
-                servo.move(0.5 * servo.speed + 0.5 * nn_speed)
-                servo.turn(0.5 * servo.steer + 0.5 * nn_steer)
+                servo.move(0.25 * servo.speed + 0.75 * nn_speed)
+                servo.turn(0.25 * servo.steer + 0.75 * nn_steer)
             else:
                 nn_speed, nn_steer = None, None
             log.write((timestamp, speed, nn_speed, steer, nn_steer))
