@@ -14,6 +14,7 @@ from keras.layers import Conv2D, MaxPooling2D
 from keras.models import model_from_yaml
 
 from bezier import bezier_curve, verify_plot
+from skimage.draw import line_aa
 
 def print_points( labels, model_out):
   print("The image was created using points: ")
@@ -23,25 +24,78 @@ def print_points( labels, model_out):
   for m in model_out:
     print("{} ".format(m ) )
 
+def print_images(X_val, model_raw):
+  n_lines = 3
+  n_points = 3
+  n_dimensions = 2
 
-def print_curves( val_array, val_points, model_out):
+  n_segments = 10
+
+  n_channels = 1
+  width = 64
+  height = 64
+  max_intensity = 256
+  curves_to_print = model_raw.shape[0]
+
+  #reshaping the model output vector to make it easier to work with
+  model_shaped = np.reshape(model_raw, (model_raw.shape[0], n_lines, n_dimensions, n_points))
+  model_out = np.zeros(np.shape(model_shaped), dtype=np.float)
+  model_out[:,:,0,:] = model_shaped[:,:,0,:] * width
+  model_out[:,:,1,:] = model_shaped[:,:,1,:] * height
+
+  #creating the array to hold the perception projections
+  model_view = np.zeros( (curves_to_print, n_channels, width, height), dtype=np.float)
+
+  X_large = X_val*max_intensity
+
+  for dp_i in range(curves_to_print):
+
+    # Generate model perception image
+    x0, y0 = bezier_curve(model_out[dp_i, 0, 0, : ], model_out[dp_i, 0, 1, :], n_segments)
+    for ls_i in range(len(x0) - 1):
+      rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
+      model_view[dp_i, 0, cc, rr] = val
+
+    x1, y1 = bezier_curve(model_out[dp_i, 1, 0, : ], model_out[dp_i, 1, 1, :], n_segments)
+    for ls_i in range(len(x1) - 1):
+      rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
+      model_view[dp_i, 0, cc, rr] = val
+
+    x2, y2 = bezier_curve(model_out[dp_i, 2, 0, : ], model_out[dp_i, 2, 1, :], n_segments)
+    for ls_i in range(len(x2) - 1):
+      rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
+      model_view[dp_i, 0, cc, rr] = val
+
+    #figval = plt.figure(figsize=(width / 10, height / 10))
+    #comparison = 
+    plt.subplot(1, 2, 1)
+    plt.title('Input Image')
+    plt.imshow(X_large[dp_i,0])
+
+    plt.subplot(1, 2, 2)
+    plt.title('Model Perception')
+    plt.imshow(model_view[dp_i,0])
+    
+    #plt.show()
+    plt.savefig('validation_images/image_comparison_%06i.png' % dp_i, dpi=100, bbox_inches='tight')
+    plt.close()
+    #plt.imsave('real_%06i.png' % i, big_val, dpi=100)
+
+
+
+
+
+def plot_curves( val_points, model_out):
 
   n_points = 3
   n_segments = 10
-  width = 32
-  height = 32
+  width = 64
+  height = 64
   max_intensity = 256
-  curves_to_print = val_points.shape[0]
+  curves_to_print = model_out.shape[0]
 
   for i in range(curves_to_print):
-   #valdiation data rescalling:
-    big_val = np.floor(val_array[i, 0]*max_intensity)
-
-    #Currently raw input to model is disabled.
-    #figval = plt.figure(figsize=(width / 10, height / 10))
-    #plt.imshow(big_val)
-    #plt.imsave('real_%06i.png' % i, big_val, dpi=100)
-
+   
     #Turns the validation points into a plottable curve
     x_val_points = val_points[i, :n_points]*width
     y_val_points = val_points[i, n_points:]*height
@@ -90,8 +144,9 @@ def main():
 
   #print_points(y_val[0], predictions[0] )
 
-  print_curves(X_val[:image_count], y_val[:image_count], predictions[:image_count])
+  #plot_curves( y_val[:image_count], predictions[:image_count])
 
+  print_images(X_val[:image_count], predictions[:image_count])
 
 if __name__ == "__main__":
     main()

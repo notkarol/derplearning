@@ -8,36 +8,60 @@ v1 only draws one line on the ground. it is a work in progress.
 '''
 
 # Configuration
+n_lines = 3
 n_points = 3
-n_channels = 1
 n_dimensions = 2
-width = 32
-height = 32
+n_channels = 1
+width = 64
+height = 64
 n_segments = 10
-n_datapoints = int(2E5)
+n_datapoints = int(1E5)
 train_split = 0.8
 n_train_datapoints = int(train_split * n_datapoints)
 
 # Data to store
 X_train = np.zeros((n_datapoints, n_channels, height, width), dtype=np.float)
-y_train = np.zeros((n_datapoints, n_points * n_dimensions), np.float)
+y_train = np.zeros((n_datapoints, n_lines, n_dimensions, n_points ), np.float)
 
 # Generate Y
-y_train[:, : n_points] = np.random.randint(0, width, (n_datapoints, n_points))
-y_train[:, (n_points+1) :] = np.sort(np.random.randint(0, height, (n_datapoints, (n_points-1) ) ) )
+#Centerline:
+y_train[:, 1, 0, : ] = np.random.randint(width/4, width*3/4, (n_datapoints, n_points))
+y_train[:, 1, 1, 1:] = np.sort(np.random.randint(height/4, height, (n_datapoints, (n_points-1) ) ) )
 #note that by sorting the height control points we get non-uniform distributions
+
+#Left lines
+y_train[:, 0, 0, : ] = y_train[:, 1, 0, : ] - width/4 *(1 - .8*y_train[:, 1, 1, : ]/height)
+y_train[:, 0, 1, : ] = y_train[:, 1, 1, : ]
+
+#Right lines
+y_train[:, 2, 0, : ] = y_train[:, 1, 0, : ] + width/4 *(1 - y_train[:, 1, 1, : ]/height)
+y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
+
 
 # Generate X
 for dp_i in range(n_datapoints):
-    x, y = bezier_curve(y_train[dp_i, : n_points], y_train[dp_i, n_points :], n_segments)
-    for ls_i in range(len(x) - 1):
-        rr, cc, val = line_aa(int(x[ls_i]), int(y[ls_i]), int(x[ls_i + 1]), int(y[ls_i + 1]))
+    x0, y0 = bezier_curve(y_train[dp_i, 0, 0, : ], y_train[dp_i, 0, 1, :], n_segments)
+    for ls_i in range(len(x0) - 1):
+        rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
+        X_train[dp_i, 0, cc, rr] = val
+
+    x1, y1 = bezier_curve(y_train[dp_i, 1, 0, : ], y_train[dp_i, 1, 1, :], n_segments)
+    for ls_i in range(len(x1) - 1):
+        rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
+        X_train[dp_i, 0, cc, rr] = val
+
+    x2, y2 = bezier_curve(y_train[dp_i, 2, 0, : ], y_train[dp_i, 2, 1, :], n_segments)
+    for ls_i in range(len(x2) - 1):
+        rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
         X_train[dp_i, 0, cc, rr] = val
 
 # Normalize training and testing
 X_train *= (1. / np.max(X_train))
-y_train[:, :n_points] /= width
-y_train[:, n_points:] /= height
+y_train[:, :, 0, :] /= width
+y_train[:, :, 1, :] /= height
+
+#fixes the label array for use by the learning model
+y_train = np.reshape(y_train, (n_datapoints, n_lines * n_points * n_dimensions) )
 
 # Save Files
 np.save("X_train.npy", X_train[:n_train_datapoints])
