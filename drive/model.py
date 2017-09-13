@@ -37,8 +37,10 @@ class Model:
     self.camera_min_view = 500 #Fixme remeasure distance
     #arcs measured in radians
     self.camera_to_ground_arc = np.arctan(camera_min_view/camera_height)
-    self.camera_vert_arc = 60 * (pi/180)
-    self.camera_horz_arc = 80 * (pi/180)
+    self.camera_offset_y = 0
+    self.camera_arc_y = 80 * (pi/180)
+    self.camera_arc_x = 60 * (pi/180)
+    self.crop_ratio = self.crop_size/self.source_size
 
       
       
@@ -55,6 +57,7 @@ class Model:
     batch = np.reshape(thumb, [1] + list(thumb.shape))
     return batch
               
+  #seriously Karol, you couldn't keep the variables consistant comming in and out of this function?
   def evaluate(self, frame, speed, steer):
     """ 
     Cut out the patch and run the model on it
@@ -75,11 +78,39 @@ class Model:
   #This function uses a transform to map the percieved road onto a 2d plane beneath the car
   def road_mapper(self, frame):
 
-    road_spots = road_spotter(frame)
+    road_spots = self.road_spotter(frame)
 
-    road_map = np.zeros(np.shape(road_spots), np.float)
+    #road_map = np.zeros(np.shape(road_spots), np.float)
 
     #First we deal with all the points
-    z = self.camera_height * np.tan(self.camera_to_ground_arc + road_map[:, 0, :] * self.camera_vert_arc/ self.source_size[1])
+    road_map[:, 1, :] = self.camera_height * np.tan(self.camera_to_ground_arc + road_spots[:, 0, :] * self.camera_arc_x/self.crop_ratio[1])
+    road_map[:, 0, :] = np.multiply( np.power( ( np.power(self.camera_height, 2) + np.power(road_map[:, 1, :], 2) ), 0.5 ) , np.tan(self.camera_offset_y + (road_spots[:, 1, :]-0.5)*self.camera_arc_y ) )
 
+    return road_map
 
+  # pilot_mk1 is currently only built for low speed operation
+  def pilot_mk1(self, frame):
+
+    batch = self.preprocess(frame)
+
+    road_map = self.road_mapper( batch)
+
+    #speed is a constant, for now
+    nn_speed = .25
+
+    #steering angle is a function of how far the car believes it is from the center of the road
+    #note that this is completely un damped and may become unstable at high speeds
+    nn_steer = road_map[1, 0, 0] / (road_map[2, 0, 0] - road_map[0, 0, 0])
+    
+    # center vector is a measure of what direction the road is pointing
+    center_vector = road_map[1, :, 1] - road_map[1, :, 0]
+    '''
+    road angle compensation
+    adjusts stearing angle to account for road curvature
+    nn_speed term is a linear scaling factor to kill this component at low speeds
+    where position correction should be sufficient without a differential component
+    (note that the main issue with high speed operation is lag between camera and wheels)
+    '''
+    nn_steer = nn_steer + 2 * nn_speed * center_vector[0]/center_vector[1]
+
+    return nn_speed, nn_steer, batch[0]
