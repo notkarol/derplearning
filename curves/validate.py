@@ -25,6 +25,11 @@ def print_points( labels, model_out):
     print("{} ".format(m ) )
 
 def print_images(X_val, model_raw):
+  #file management stuff
+  directory = 'validation_images'
+  if not os.path.exists(directory):
+    os.makedirs(directory)
+
   n_lines = 3
   n_points = 3
   n_dimensions = 2
@@ -32,52 +37,59 @@ def print_images(X_val, model_raw):
   n_segments = 10
 
   n_channels = 1
-  width = 64
-  height = 64
+  train_width = 64
+  gen_width = train_width+64
+  cropsize = int( (gen_width-train_width)/2)
+  height = 32
   max_intensity = 256
   curves_to_print = model_raw.shape[0]
 
   #reshaping the model output vector to make it easier to work with
   model_shaped = np.reshape(model_raw, (model_raw.shape[0], n_lines, n_dimensions, n_points))
   model_out = np.zeros(np.shape(model_shaped), dtype=np.float)
-  model_out[:,:,0,:] = model_shaped[:,:,0,:] * width
+  model_out[:,:,0,:] = model_shaped[:,:,0,:] * gen_width
   model_out[:,:,1,:] = model_shaped[:,:,1,:] * height
 
   #creating the array to hold the perception projections
-  model_view = np.zeros( (curves_to_print, n_channels, width, height), dtype=np.float)
+  model_view = np.zeros( (curves_to_print, n_channels, height, train_width), dtype=np.float)
 
   X_large = X_val*max_intensity
 
   for dp_i in range(curves_to_print):
-
+    model_vgen = np.zeros( (n_channels, height, gen_width), dtype=np.float)
+  
     # Generate model perception image
     x0, y0 = bezier_curve(model_out[dp_i, 0, 0, : ], model_out[dp_i, 0, 1, :], n_segments)
     for ls_i in range(len(x0) - 1):
       rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
-      model_view[dp_i, 0, cc, rr] = val
+      model_vgen[ 0, cc, rr] = val
 
     x1, y1 = bezier_curve(model_out[dp_i, 1, 0, : ], model_out[dp_i, 1, 1, :], n_segments)
     for ls_i in range(len(x1) - 1):
       rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
-      model_view[dp_i, 0, cc, rr] = val
+      model_vgen[ 0, cc, rr] = val
 
     x2, y2 = bezier_curve(model_out[dp_i, 2, 0, : ], model_out[dp_i, 2, 1, :], n_segments)
     for ls_i in range(len(x2) - 1):
       rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
-      model_view[dp_i, 0, cc, rr] = val
+      model_vgen[ 0, cc, rr] = val
+
+    model_view[dp_i] = model_vgen[:,:, cropsize : (gen_width-cropsize) ]
 
     #figval = plt.figure(figsize=(width / 10, height / 10))
     #comparison = 
     plt.subplot(1, 2, 1)
     plt.title('Input Image')
     plt.imshow(X_large[dp_i,0])
+    plt.gca().invert_yaxis()
 
     plt.subplot(1, 2, 2)
     plt.title('Model Perception')
     plt.imshow(model_view[dp_i,0])
+    plt.gca().invert_yaxis()
     
     #plt.show()
-    plt.savefig('validation_images/image_comparison_%06i.png' % dp_i, dpi=100, bbox_inches='tight')
+    plt.savefig('%s/image_comparison_%06i.png' % (directory, dp_i), dpi=100, bbox_inches='tight')
     plt.close()
     #plt.imsave('real_%06i.png' % i, big_val, dpi=100)
 
