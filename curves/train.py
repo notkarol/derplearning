@@ -13,19 +13,19 @@ from keras.layers.normalization import BatchNormalization
 
 def create_model(input_shape, n_output, n_blocks=4):
     model = Sequential()
-    model.add(Conv2D(128, (7, 7), padding='same', input_shape=input_shape))
+    model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))
     model.add(BatchNormalization())
     model.add(Activation('elu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(MaxPooling2D(pool_size=2))
 
     for i in range(n_blocks):
         model.add(Conv2D(64, (3, 3), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation('elu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(MaxPooling2D(pool_size=2))
 
     model.add(Flatten())
-    model.add(Dense(128))
+    model.add(Dense(100))
     model.add(Activation('elu'))
     
     model.add(Dense(n_output))
@@ -35,14 +35,14 @@ def create_model(input_shape, n_output, n_blocks=4):
 def main():
     
     parser = argparse.ArgumentParser(description='PyTorch Bezier Curve Predictor')
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                        help='learning rate (default: 0.01)')
-    parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
-                        help='SGD momentum (default: 0.5)')
-    parser.add_argument("--opt", type=str, default='sgd',
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+                        help='learning rate (default: 0.001)')
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
+                        help='SGD momentum (default: 0.9)')
+    parser.add_argument("--opt", type=str, default='adam',
                         help='optimizers (sgd, adam)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                        help='number of epochs to train (default: 10)')
+    parser.add_argument('--epochs', type=int, default=32, metavar='N',
+                        help='number of epochs to train (default: 32)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
