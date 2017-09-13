@@ -9,33 +9,37 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.models import model_from_yaml
+from keras.layers.normalization import BatchNormalization
 
 def create_model(input_shape, n_output):
     model = Sequential()
     model.add(Conv2D(32, (3, 3), padding='same', input_shape=input_shape, data_format='channels_first'))
-    model.add(Activation('relu'))
-    model.add(Conv2D(32, (3, 3)))
-    model.add(Activation('relu'))
+    model.add(BatchNormalization())    
+    model.add(Activation('elu'))
+    model.add(Conv2D(32, (3, 3), padding='same'))
+    model.add(BatchNormalization())    
+    model.add(Activation('elu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
 
     model.add(Conv2D(64, (3, 3), padding='same'))
-    model.add(Activation('relu'))
-    model.add(Conv2D(64, (3, 3)))
-    model.add(Activation('relu'))
+    model.add(BatchNormalization())    
+    model.add(Activation('elu'))
+    model.add(Conv2D(64, (3, 3), padding='same'))
+    model.add(BatchNormalization())
+    model.add(Activation('elu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
 
     model.add(Conv2D(64, (3, 3), padding='same'))
-    model.add(Activation('relu'))
-    model.add(Conv2D(64, (3, 3)))
-    model.add(Activation('relu'))
+    model.add(BatchNormalization())    
+    model.add(Activation('elu'))
+    model.add(Conv2D(64, (3, 3), padding='same'))
+    model.add(BatchNormalization())
+    model.add(Activation('elu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.25))
 
     model.add(Flatten())
-    model.add(Dense(64))
-    model.add(Activation('relu'))
+    model.add(Dense(128))
+    model.add(Activation('elu'))
     model.add(Dropout(0.5))
     model.add(Dense(n_output))
     return model
@@ -51,8 +55,11 @@ def main():
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
+    parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
     args = parser.parse_args()
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+    
     # Load Data
     X_train = np.load('X_train.npy')
     X_val = np.load('X_val.npy')
@@ -68,10 +75,10 @@ def main():
     model = create_model(X_train.shape[1:], y_train.shape[1])
     opt = keras.optimizers.sgd(lr=args.lr, momentum=args.momentum)
     model.compile(loss='mean_squared_error', optimizer=opt)
-
+    model.summary()
+    
     model.fit(X_train, y_train, batch_size=args.bs, epochs=args.epochs,
               validation_data=(X_val, y_val), shuffle=True)
-
 
     # serialize model to YAML
     model_yaml = model.to_yaml()
@@ -82,8 +89,6 @@ def main():
     print("Saved model to disk")
 
 
-    
-    
 if __name__ == "__main__":
     main()
 

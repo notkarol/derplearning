@@ -24,6 +24,11 @@ def print_points( labels, model_out):
   for m in model_out:
     print("{} ".format(m ) )
 
+def clamp(array, max_val):
+  array[array >= max_val] = max_val - 1
+  array[array < 0] = 0
+  
+    
 def print_images(X_val, model_raw):
   #file management stuff
   directory = 'validation_images'
@@ -62,22 +67,26 @@ def print_images(X_val, model_raw):
     x0, y0 = bezier_curve(model_out[dp_i, 0, 0, : ], model_out[dp_i, 0, 1, :], n_segments)
     for ls_i in range(len(x0) - 1):
       rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
+      clamp(rr, model_vgen.shape[-1])
+      clamp(cc, model_vgen.shape[-2])
       model_vgen[ 0, cc, rr] = val
 
     x1, y1 = bezier_curve(model_out[dp_i, 1, 0, : ], model_out[dp_i, 1, 1, :], n_segments)
     for ls_i in range(len(x1) - 1):
       rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
+      clamp(rr, model_vgen.shape[-1])
+      clamp(cc, model_vgen.shape[-2])
       model_vgen[ 0, cc, rr] = val
 
     x2, y2 = bezier_curve(model_out[dp_i, 2, 0, : ], model_out[dp_i, 2, 1, :], n_segments)
     for ls_i in range(len(x2) - 1):
       rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
+      clamp(rr, model_vgen.shape[-1])
+      clamp(cc, model_vgen.shape[-2])
       model_vgen[ 0, cc, rr] = val
 
     model_view[dp_i] = model_vgen[:,:, cropsize : (gen_width-cropsize) ]
 
-    #figval = plt.figure(figsize=(width / 10, height / 10))
-    #comparison = 
     plt.subplot(1, 2, 1)
     plt.title('Input Image')
     plt.imshow(X_large[dp_i,0])
@@ -87,14 +96,9 @@ def print_images(X_val, model_raw):
     plt.title('Model Perception')
     plt.imshow(model_view[dp_i,0])
     plt.gca().invert_yaxis()
-    
-    #plt.show()
+
     plt.savefig('%s/image_comparison_%06i.png' % (directory, dp_i), dpi=100, bbox_inches='tight')
     plt.close()
-    #plt.imsave('real_%06i.png' % i, big_val, dpi=100)
-
-
-
 
 
 def plot_curves( val_points, model_out):
