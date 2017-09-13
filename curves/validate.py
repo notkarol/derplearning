@@ -39,13 +39,13 @@ def print_images(X_val, model_raw):
   n_points = 3
   n_dimensions = 2
 
-  n_segments = 10
+  n_segments = 20
 
   n_channels = 1
-  train_width = 64
-  gen_width = train_width+64
-  cropsize = int( (gen_width-train_width)/2)
-  height = 32
+  train_width = 128
+  gen_width = train_width * 2
+  cropsize = int((gen_width - train_width) / 2)
+  height = 64
   max_intensity = 256
   curves_to_print = model_raw.shape[0]
 
@@ -58,43 +58,43 @@ def print_images(X_val, model_raw):
   #creating the array to hold the perception projections
   model_view = np.zeros( (curves_to_print, n_channels, height, train_width), dtype=np.float)
 
-  X_large = X_val*max_intensity
+  X_large = X_val * max_intensity
 
   for dp_i in range(curves_to_print):
-    model_vgen = np.zeros( (n_channels, height, gen_width), dtype=np.float)
+    model_vgen = np.zeros( (height, gen_width, n_channels), dtype=np.float)
   
     # Generate model perception image
     x0, y0 = bezier_curve(model_out[dp_i, 0, 0, : ], model_out[dp_i, 0, 1, :], n_segments)
     for ls_i in range(len(x0) - 1):
       rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
-      clamp(rr, model_vgen.shape[-1])
-      clamp(cc, model_vgen.shape[-2])
-      model_vgen[ 0, cc, rr] = val
+      clamp(cc, height)
+      clamp(rr, gen_width)
+      model_vgen[cc, rr, 0] = val
 
     x1, y1 = bezier_curve(model_out[dp_i, 1, 0, : ], model_out[dp_i, 1, 1, :], n_segments)
     for ls_i in range(len(x1) - 1):
       rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
-      clamp(rr, model_vgen.shape[-1])
-      clamp(cc, model_vgen.shape[-2])
-      model_vgen[ 0, cc, rr] = val
+      clamp(cc, height)
+      clamp(rr, gen_width)
+      model_vgen[cc, rr, 0] = val
 
     x2, y2 = bezier_curve(model_out[dp_i, 2, 0, : ], model_out[dp_i, 2, 1, :], n_segments)
     for ls_i in range(len(x2) - 1):
       rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
-      clamp(rr, model_vgen.shape[-1])
-      clamp(cc, model_vgen.shape[-2])
-      model_vgen[ 0, cc, rr] = val
+      clamp(cc, height)
+      clamp(rr, gen_width)
+      model_vgen[cc, rr, 0] = val
 
-    model_view[dp_i] = model_vgen[:,:, cropsize : (gen_width-cropsize) ]
+    model_view[dp_i] = model_vgen[:,cropsize : (gen_width-cropsize), 0]
 
     plt.subplot(1, 2, 1)
     plt.title('Input Image')
-    plt.imshow(X_large[dp_i,0])
+    plt.imshow(X_large[dp_i,:,:,0], cmap=plt.cm.gray)
     plt.gca().invert_yaxis()
 
     plt.subplot(1, 2, 2)
     plt.title('Model Perception')
-    plt.imshow(model_view[dp_i,0])
+    plt.imshow(model_view[dp_i,0], cmap=plt.cm.gray)
     plt.gca().invert_yaxis()
 
     plt.savefig('%s/image_comparison_%06i.png' % (directory, dp_i), dpi=100, bbox_inches='tight')

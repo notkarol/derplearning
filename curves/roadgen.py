@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import PIL
 import numpy as np
 from skimage.draw import line_aa
@@ -13,23 +14,23 @@ n_points = 3
 n_dimensions = 2
 
 n_channels = 1
-train_width = 64
-gen_width = train_width+64
-cropsize = int( (gen_width-train_width)/2)
-height = 32
+train_width = 128 # visible space
+gen_width = train_width * 2 # buffer onto each horizontal side to allow us to draw curves
+cropsize = int((gen_width - train_width) / 2)
+height = 64
 
 max_road_width = gen_width/4
 horz_noise_fraction = 0.25
 
-n_segments = 10
+n_segments = 20
 n_datapoints = int(1E5)
 train_split = 0.8
 n_train_datapoints = int(train_split * n_datapoints)
 
-
 # Data to store
-X_train = np.zeros((n_datapoints, n_channels, height, train_width), dtype=np.float)
-y_train = np.zeros((n_datapoints, n_lines, n_dimensions, n_points ), np.float)
+print((n_datapoints, n_channels, height, train_width))
+X_train = np.zeros((n_datapoints, height, train_width, n_channels), dtype=np.float)
+y_train = np.zeros((n_datapoints, n_lines, n_dimensions, n_points), np.float)
 
 # Generate Y
 #Centerline:
@@ -49,28 +50,29 @@ y_train[:, 0, 1, : ] = y_train[:, 1, 1, : ]
 y_train[:, 2, 0, : ] = y_train[:, 1, 0, : ] + np.multiply( (max_road_width*(1-horz_noise_fraction) - y_noise[:, 2, 1, :]),(1 - .8*y_train[:, 1, 1, : ]/height) ) 
 y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
 
-
 # Generate X
 for dp_i in range(n_datapoints):
   #Temporary generation location
-  X_gen = np.zeros((n_channels, height, gen_width), dtype=np.float)
+  X_gen = np.zeros((height, gen_width, n_channels), dtype=np.float)
 
   x0, y0 = bezier_curve(y_train[dp_i, 0, 0, : ], y_train[dp_i, 0, 1, :], n_segments)
   for ls_i in range(len(x0) - 1):
     rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
-    X_gen[0, cc, rr] = val
+    X_gen[cc, rr, 0] = val
 
   x1, y1 = bezier_curve(y_train[dp_i, 1, 0, : ], y_train[dp_i, 1, 1, :], n_segments)
   for ls_i in range(len(x1) - 1):
     rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
-    X_gen[0, cc, rr] = val
+    X_gen[cc, rr, 0] = val
 
   x2, y2 = bezier_curve(y_train[dp_i, 2, 0, : ], y_train[dp_i, 2, 1, :], n_segments)
   for ls_i in range(len(x2) - 1):
     rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
-    X_gen[ 0, cc, rr] = val
-
-  X_train[dp_i, :, :, :] = X_gen[:, :, cropsize : (gen_width-cropsize) ]
+    X_gen[cc, rr, 0] = val
+    
+  X_train[dp_i, :, :, :] = X_gen[:, cropsize : (gen_width-cropsize), :]
+  print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+print("Done")
 
 # Normalize training and testing
 X_train *= (1. / np.max(X_train))
