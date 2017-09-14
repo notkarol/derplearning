@@ -131,38 +131,40 @@ def plot_curves( val_points, model_out):
     plt.savefig('valplots/model_%06i.png' % i, dpi=100, bbox_inches='tight')
     plt.close()
 
-
-def main():
-  
-  #Validation parameters
-  #number of curves to print:
-  image_count = 64
-
-  #load data
-  X_val = np.load('X_val.npy')
-  y_val = np.load('y_val.npy')
-
+def load_model(model_path, model_weights_path):
   # load YAML and create model
-  yaml_file = open('model.yaml', 'r')
+  yaml_file = open(model_path, 'r')
   loaded_model_yaml = yaml_file.read()
   yaml_file.close()
   loaded_model = model_from_yaml(loaded_model_yaml)
   # load weights into new model
-  loaded_model.load_weights("model.h5")
+  loaded_model.load_weights(model_weights_path)
   print("Loaded model from disk")
+
+  return loaded_model
+
+def val_training(val_count = 64, model_path = 'model.yaml', model_weights_path = "model.h5"):
+  
+  #load data
+  X_val = np.load('X_val.npy')
+  y_val = np.load('y_val.npy')
+
+  loaded_model = load_model(model_path, model_weights_path)
 
   # evaluate loaded model on test data
   loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
   score = loaded_model.evaluate(X_val[:64], y_val[:64], verbose=0)
-  print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1]))
+  #print("%s: %.2f%%" % (loaded_model.metrics_names[0], score[0]) )
 
-  predictions = loaded_model.predict(X_val[:image_count])
+  predictions = loaded_model.predict(X_val[:val_count])
 
-  #print_points(y_val[0], predictions[0] )
 
-  #plot_curves( y_val[:image_count], predictions[:image_count])
+  print_images(X_val[:val_count], predictions[:val_count])
 
-  print_images(X_val[:image_count], predictions[:image_count])
+
+def main():
+  val_training()
+  
 
 if __name__ == "__main__":
     main()
