@@ -23,7 +23,7 @@ max_road_width = gen_width/4
 horz_noise_fraction = 0.25
 
 n_segments = 20
-n_datapoints = int(1E5)
+n_datapoints = int(1E3)
 train_split = 0.8
 n_train_datapoints = int(train_split * n_datapoints)
 

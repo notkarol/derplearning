@@ -1,6 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
+import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 
@@ -8,13 +9,14 @@ import numpy as np
 
 import keras
 from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers import Conv2D, MaxPooling2D
+#from keras.models import Sequential
+#from keras.layers import Dense, Dropout, Activation, Flatten
+#from keras.layers import Conv2D, MaxPooling2D
 from keras.models import model_from_yaml
 
 from bezier import bezier_curve, verify_plot
 from skimage.draw import line_aa
+from model import preprocess
 
 def print_points( labels, model_out):
   print("The image was created using points: ")
@@ -29,9 +31,8 @@ def clamp(array, max_val):
   array[array < 0] = 0
   
     
-def print_images(X_val, model_raw):
+def save_images(X_val, model_raw, directory = 'validation_images'):
   #file management stuff
-  directory = 'validation_images'
   if not os.path.exists(directory):
     os.makedirs(directory)
 
@@ -90,6 +91,9 @@ def print_images(X_val, model_raw):
     plt.subplot(1, 2, 1)
     plt.title('Input Image')
     plt.imshow(X_large[dp_i,:,:,0], cmap=plt.cm.gray)
+    #plt.plot(x0, y0, 'r-')
+    #plt.plot(x1, y1, 'y-')
+    #plt.plot(x2, y2, 'r-')
     plt.gca().invert_yaxis()
 
     plt.subplot(1, 2, 2)
@@ -131,6 +135,7 @@ def plot_curves( val_points, model_out):
     plt.savefig('valplots/model_%06i.png' % i, dpi=100, bbox_inches='tight')
     plt.close()
 
+#function loads model parameters
 def load_model(model_path, model_weights_path):
   # load YAML and create model
   yaml_file = open(model_path, 'r')
@@ -143,27 +148,64 @@ def load_model(model_path, model_weights_path):
 
   return loaded_model
 
-def val_training(val_count = 64, model_path = 'model.yaml', model_weights_path = "model.h5"):
+#function takes a model 
+def val_training(X_val, model_param):
   
-  #load data
-  X_val = np.load('X_val.npy')
-  y_val = np.load('y_val.npy')
-
-  loaded_model = load_model(model_path, model_weights_path)
+  loaded_model = load_model(model_param[0], model_param[1])
 
   # evaluate loaded model on test data
   loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
-  score = loaded_model.evaluate(X_val[:64], y_val[:64], verbose=0)
+  #score = loaded_model.evaluate(X_val[:64], y_val[:64], verbose=0)
   #print("%s: %.2f%%" % (loaded_model.metrics_names[0], score[0]) )
 
-  predictions = loaded_model.predict(X_val[:val_count])
+  #apply the model to generate coordinate prediction
+  predictions = loaded_model.predict(X_val)
+
+  directory = 'validation_images'
+  save_images(X_val, predictions, directory)
+  print("Validation images saved to: %s" %directory)
+
+def video_to_frames(folder = "videofiller", max_frames = 64):
+  # Prepare video frames by extracting the patch and thumbnail for training
+  video_path = os.path.join(folder, 'front.mp4')
+  video_cap = cv2.VideoCapture(video_path)
+
+  #initializing the car's perspective
+  viewer = Model.model()
+
+  #initializing the output array
+  frames = np.zeros(max_frames, viewer.target_size )
+
+  counter = 0
+  while video_cap.isOpened() and counter < max_frames:
+    # Get the frame
+    ret, frame = video_cap.read()
+    if not ret: break
+
+    frames[counter] = viewer.preprocess(frame)
+  
+  #cleanup      
+  video_cap.release()
+
+  return frames
 
 
-  print_images(X_val[:val_count], predictions[:val_count])
 
 
 def main():
-  val_training()
+  
+  #number of images to validate:
+  val_count = 64
+  
+
+  #load data
+  #X_val = np.load('X_val.npy')
+  #y_val = np.load('y_val.npy')
+  X_val = video_to_frames('folder', val_count)
+
+  #model_path = 'model.yaml', model_weights_path = "model.h5"
+  model = ['model.yaml', "model.h5"]
+  val_training(X_val[:val_count], model)
   
 
 if __name__ == "__main__":
