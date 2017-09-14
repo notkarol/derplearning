@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import cv2
@@ -18,10 +19,12 @@ def get_crop_size(height, width):
 
 def process(train_config, folder, train_x, train_y, val_x, val_y):
 
+    # Load the data config
     config_path = os.path.join(folder, 'config.yaml')
     with open(config_path) as f:
         data_config = yaml.load(f)
 
+    # Prepare the size of our data
     target_size = (train_config['patch']['width'], train_config['patch']['height'])
     train_shape = (1, train_config['patch']['depth'],
                    train_config['patch']['height'],

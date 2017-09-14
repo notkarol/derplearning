@@ -1,22 +1,17 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
-
+import sys
 import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
-
 import numpy as np
-
 import keras
 from keras.preprocessing.image import ImageDataGenerator
-#from keras.models import Sequential
-#from keras.layers import Dense, Dropout, Activation, Flatten
-#from keras.layers import Conv2D, MaxPooling2D
 from keras.models import model_from_yaml
-
 from bezier import bezier_curve, verify_plot
 from skimage.draw import line_aa
-from model import preprocess
+sys.path.append('../drive')
+from model import Model
 
 def print_points( labels, model_out):
   print("The image was created using points: ")
@@ -165,16 +160,17 @@ def val_training(X_val, model_param):
   save_images(X_val, predictions, directory)
   print("Validation images saved to: %s" %directory)
 
-def video_to_frames(folder = "videofiller", max_frames = 64):
+def video_to_frames(folder="../data/20170812T214343Z-paras", max_frames=32):
   # Prepare video frames by extracting the patch and thumbnail for training
-  video_path = os.path.join(folder, 'front.mp4')
+  video_path = os.path.join(folder, 'video.mp4')
+  print(video_path)
   video_cap = cv2.VideoCapture(video_path)
 
   #initializing the car's perspective
-  viewer = Model.model()
+  viewer = Model(None, None, None)
 
   #initializing the output array
-  frames = np.zeros(max_frames, viewer.target_size )
+  frames = np.zeros([max_frames, 64, 128, 1])
 
   counter = 0
   while video_cap.isOpened() and counter < max_frames:
@@ -182,29 +178,32 @@ def video_to_frames(folder = "videofiller", max_frames = 64):
     ret, frame = video_cap.read()
     if not ret: break
 
-    frames[counter] = viewer.preprocess(frame)
-  
+    prepared = viewer.preprocess(frame)[0]
+    prepared = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
+    prepared = cv2.flip(prepared, 0)
+    prepared = cv2.Canny(prepared,100,200)
+    prepared[prepared < 128] = 0
+    prepared[prepared >= 128] = 255
+    prepared = np.reshape(prepared, (64, 128,1))
+    frames[counter] = prepared
+    counter += 1
+
   #cleanup      
   video_cap.release()
 
+  # Return our batch
   return frames
-
-
-
 
 def main():
   
-  #number of images to validate:
-  val_count = 64
-  
-
   #load data
   #X_val = np.load('X_val.npy')
   #y_val = np.load('y_val.npy')
-  X_val = video_to_frames('folder', val_count)
+  X_val = video_to_frames()
 
   #model_path = 'model.yaml', model_weights_path = "model.h5"
   model = ['model.yaml', "model.h5"]
+  val_count = 64
   val_training(X_val[:val_count], model)
   
 

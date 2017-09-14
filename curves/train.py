@@ -9,7 +9,9 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D, SeparableConv2D
 from keras.models import model_from_yaml
+from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
+
 
 def create_model(input_shape, n_output, n_blocks=4):
     model = Sequential()
@@ -19,7 +21,10 @@ def create_model(input_shape, n_output, n_blocks=4):
     model.add(MaxPooling2D(pool_size=2))
 
     for i in range(n_blocks):
-        model.add(Conv2D(64, (3, 3), padding='same'))
+        model.add(Conv2D(32, (3, 3), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('elu'))
+        model.add(Conv2D(32, (3, 3), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation('elu'))
         model.add(MaxPooling2D(pool_size=2))
@@ -27,7 +32,6 @@ def create_model(input_shape, n_output, n_blocks=4):
     model.add(Flatten())
     model.add(Dense(100))
     model.add(Activation('elu'))
-    
     model.add(Dense(n_output))
     
     return model

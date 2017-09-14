@@ -3,7 +3,7 @@
 import cv2
 import tensorflow as tf
 import numpy as np
-from keras.models import model_from_json
+from keras.models import model_from_json, model_from_yaml
 
 class Model:
     
@@ -20,11 +20,19 @@ class Model:
     self.crop_x = 0
     self.crop_y = self.source_size[1] - self.crop_size[1]
     self.target_size = (128, 32)
-    
-    with open(model_path) as f:
+
+    # Temporary
+    self.source_size = (1920, 1080)
+    self.crop_size = (1440, 360)
+    self.crop_x = 240
+    self.crop_y = 720
+    self.target_size = (128, 64)
+
+    if model_path is not None and weights_path is not None:
+      with open(model_path) as f:
         json_contents = f.read()
-        self.model = model_from_json(json_contents)
-    self.model.load_weights(weights_path)
+      self.model = model_from_yaml(json_contents)
+      self.model.load_weights(weights_path)
 
     #define model output characteristics:
     self.n_lines = 3
@@ -36,11 +44,11 @@ class Model:
     self.camera_height = 380
     self.camera_min_view = 500 #Fixme remeasure distance
     #arcs measured in radians
-    self.camera_to_ground_arc = np.arctan(camera_min_view/camera_height)
+    self.camera_to_ground_arc = np.arctan(self.camera_min_view / self.camera_height)
     self.camera_offset_y = 0
-    self.camera_arc_y = 80 * (pi/180)
-    self.camera_arc_x = 60 * (pi/180)
-    self.crop_ratio = self.crop_size/self.source_size
+    self.camera_arc_y = 80 * (np.pi / 180)
+    self.camera_arc_x = 60 * (np.pi / 180)
+    self.crop_ratio = [c / s for c, s in zip(self.crop_size, self.source_size)]
 
       
       
