@@ -6,7 +6,8 @@ import os
 import sys
 import tensorflow as tf
 import pickle
-    
+   
+
 def main():
     train_path = sys.argv[1]
     train_name = os.path.basename(train_path).split(".")[0]

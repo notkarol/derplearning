@@ -5,7 +5,8 @@ from skimage.draw import line_aa
 from bezier import bezier_curve
 
 '''
-v1 only draws one line on the ground. it is a work in progress.
+generates 3 line road training data does not have any functions
+v2 only draws 3 lines on the ground. it is a work in progress.
 '''
 
 # Configuration

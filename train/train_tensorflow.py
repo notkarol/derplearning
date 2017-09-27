@@ -10,6 +10,10 @@ import keras
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, Activation, BatchNormalization
 
+'''
+defines model. Trains model when called as executable
+'''
+
 H, W, D, L = 32, 128, 3, 2
 
 def model_A():

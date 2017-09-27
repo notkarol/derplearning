@@ -5,6 +5,16 @@ import tensorflow as tf
 import numpy as np
 from keras.models import model_from_json, model_from_yaml
 
+'''
+Defines the model class containing the following functions:
+  __init__
+  __del__
+  evaluate
+  roadspotter
+  road_mapper
+  pilot_mk1
+'''
+
 class Model:
     
   def __init__(self, log, model_path, weights_path):
@@ -65,6 +75,7 @@ class Model:
     batch = np.reshape(thumb, [1] + list(thumb.shape))
     return batch
               
+  #Runs clonemodel
   #seriously Karol, you couldn't keep the variables consistant comming in and out of this function?
   def evaluate(self, frame, speed, steer):
     """ 
@@ -74,7 +85,7 @@ class Model:
     nn_speed, nn_steer = self.model.predict_on_batch(batch)[0]
     return nn_speed, nn_steer, batch[0]
 
-  #Funtion which calls the learning network and outputs road line control points
+  #runs line_model returns camera pov bezier control points
   def road_spotter(self, frame):
 
     batch = self.preprocess(frame)

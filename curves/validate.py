@@ -13,6 +13,18 @@ from skimage.draw import line_aa
 sys.path.append('../drive')
 from model import Model
 
+'''
+Function List:
+  print_points
+  clamp
+  save_images
+  plot_curves
+  val_training
+  video_to_frames
+  main
+'''
+
+#Prints to command line the points used to produce an image
 def print_points( labels, model_out):
   print("The image was created using points: ")
   for l in labels:
@@ -21,16 +33,19 @@ def print_points( labels, model_out):
   for m in model_out:
     print("{} ".format(m ) )
 
+#clamp function to prevent predictions from exceeding the drawing boundaries of plot_curves
 def clamp(array, max_val):
   array[array >= max_val] = max_val - 1
   array[array < 0] = 0
   
-    
+#   
 def save_images(X_val, model_raw, directory = 'validation_images'):
   #file management stuff
   if not os.path.exists(directory):
     os.makedirs(directory)
 
+  #Creates tensors to compare to source images, plots both side by side, and saves the plots
+  #FIXME need a config file to ubiquitize data generation and validation drawing parameters
   n_lines = 3
   n_points = 3
   n_dimensions = 2
@@ -60,6 +75,7 @@ def save_images(X_val, model_raw, directory = 'validation_images'):
     model_vgen = np.zeros( (height, gen_width, n_channels), dtype=np.float)
   
     # Generate model perception image
+    #FIXME: This should be 1 called function (same as with roadgen.py run n times by a for loop
     x0, y0 = bezier_curve(model_out[dp_i, 0, 0, : ], model_out[dp_i, 0, 1, :], n_segments)
     for ls_i in range(len(x0) - 1):
       rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
@@ -83,6 +99,7 @@ def save_images(X_val, model_raw, directory = 'validation_images'):
 
     model_view[dp_i] = model_vgen[:,cropsize : (gen_width-cropsize), 0]
 
+    #This is the actual save images part
     plt.subplot(1, 2, 1)
     plt.title('Input Image')
     plt.imshow(X_large[dp_i,:,:,0], cmap=plt.cm.gray)
@@ -99,7 +116,10 @@ def save_images(X_val, model_raw, directory = 'validation_images'):
     plt.savefig('%s/image_comparison_%06i.png' % (directory, dp_i), dpi=100, bbox_inches='tight')
     plt.close()
 
-
+#Prints plot of curves against the training data Saves plots in files
+#Because the model outputs are not put into a drawing function it is easier for audiences 
+# to understand the model output data.
+#FIXME function is still built to work like v1 generation also may have bugs in the plotter function
 def plot_curves( val_points, model_out):
 
   n_points = 3
@@ -143,7 +163,9 @@ def load_model(model_path, model_weights_path):
 
   return loaded_model
 
-#function takes a model 
+#function calls load_model, runs the model, and saves the predictions
+#FIXME: add either a save directory passed variable or a filename prefix variable (or both)
+#	such that we can easily run validation on both realworld images and virtual images simultaneously
 def val_training(X_val, model_param):
   
   loaded_model = load_model(model_param[0], model_param[1])
@@ -160,6 +182,8 @@ def val_training(X_val, model_param):
   save_images(X_val, predictions, directory)
   print("Validation images saved to: %s" %directory)
 
+#extracts frames from video for use by the validation function
+#this allows us to validate the model with real world images instead of simulated images.
 def video_to_frames(folder="../data/20170812T214343Z-paras", max_frames=32):
   # Prepare video frames by extracting the patch and thumbnail for training
   video_path = os.path.join(folder, 'video.mp4')
@@ -193,6 +217,8 @@ def video_to_frames(folder="../data/20170812T214343Z-paras", max_frames=32):
 
   # Return our batch
   return frames
+
+
 
 def main():
   

@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from model import model
 from validate import print_images
 
-
-
+# Tests models under driving conditions using logged data
+#FIXME file incomplete
 def main():
   
   frame = load_frame

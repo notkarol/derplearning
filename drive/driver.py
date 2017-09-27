@@ -9,6 +9,10 @@ from camera import Camera
 from log import Log
 from servo import Servo
 
+'''
+master controller file. This file contains the function which handles all tools needed for vehical operation
+'''
+
 def main(screen):
 
     # Prepare screen input

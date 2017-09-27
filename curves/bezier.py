@@ -4,6 +4,15 @@ from scipy.misc import comb
 from skimage.draw import line_aa
 import matplotlib.pyplot as plt
 
+'''
+function list:
+  bernstein_polynomials
+  bezier_curve
+  verify_plot
+
+function: bezier_curve converts control point coordinates into strait line segment coordinates
+'''
+
 # Calculate bezier polynomials
 # Page 2: http://www.idav.ucdavis.edu/education/CAGDNotes/CAGDNotes/Bernstein-Polynomials.pdf
 def bernstein_polynomials(i, n, t):

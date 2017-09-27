@@ -12,7 +12,14 @@ from keras.models import model_from_yaml
 from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
 
+'''
+When run file builds and trains a model saving it to the same directory as the file.
 
+Function list:
+  create_model
+'''
+
+# defines the structure of the model to be trained
 def create_model(input_shape, n_output, n_blocks=4):
     model = Sequential()
     model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))

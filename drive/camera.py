@@ -8,6 +8,17 @@ import re
 import sys
 from time import strftime, gmtime, time
 
+'''
+Defines the camera class
+Function list:
+  init
+  del
+  getFrame
+  record
+  snapshot
+  discoverCamera
+'''
+
 class Camera:
     
     def __init__(self, log, index=None, width=640, height=480, fps=20):

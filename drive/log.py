@@ -4,6 +4,11 @@ import os
 from socket import gethostname
 from time import strftime, gmtime
 
+'''
+defines the log class facilitating the creation of video/steering log files
+log files are currently stored in the directory data
+'''
+
 class Log:
     
     def __init__(self, screen, root_path="../data"):
