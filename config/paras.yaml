@@ -6,37 +6,36 @@ folders: []
 perturb: False
 
 # What we want our models to predict
-supervisors:
- speed: 1.0
- steer: 1.0
+labels:
+  speed: 1.0
+  steer: 1.0
 
 # Recording
-camera: 
-  name: 'front'
-  hfov: 100
-  vfov: 56.25
-  fps: 6
-  height: 1080
-  width: 1920
-  depth: 3
-  x: 0
-  y: 0.38
-  z: -0.33
-  pitch: 0
-  yaw: 0
-  roll: 0
+camera:
+  front:
+    hfov: 100
+    vfov: 56.25
+    fps: 6
+    height: 1080
+    width: 1920
+    depth: 3
+    x: 0
+    y: 0.38
+    z: -0.33
+    pitch: 0
+    yaw: 0
+    roll: 0
 
-# Training/Testing
 patch:
-  name: 'front'
-  hfov: 75
-  vfov: 18.75
-  height: 32
-  width: 128
-  depth: 3
-  x: 0
-  y: 0.38
-  z: -0.33
-  pitch: -18.75
-  yaw: 0
-  roll: 0
+  front:
+    hfov: 75
+    vfov: 18.75
+    height: 32
+    width: 128
+    depth: 3
+    x: 0
+    y: 0.38
+    z: -0.33
+    pitch: 0
+    yaw: 0
+    roll: 0
