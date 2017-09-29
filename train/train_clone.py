@@ -7,7 +7,7 @@ import sys
 import tensorflow as tf
 import keras
 from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, Activation
+from keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, Activation, Dense
 
 import drputil
 
@@ -24,6 +24,7 @@ def model_A(x_in):
     x = MaxPooling2D(pool_size=(2, 2))(x)
     x = Dropout(0.25)(x)
     x = Flatten()(x)
+    x = Dense(32, activation="relu")(x)
     x_out = Dense(2, name='x_out')(x)
     return x_out
 
@@ -93,7 +94,7 @@ def main():
         threads = tf.train.start_queue_runners(coord=coord)
 
         # Train model
-        model.fit(y=y_train_in, epochs=5)
+        model.fit(x_train_in, y_train_in, batch_size=32, epochs=5, shuffle=True)
         model.save_weights('weights.h5')        
 
         coord.request_stop()

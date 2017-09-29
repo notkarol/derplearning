@@ -81,6 +81,7 @@ def main():
     
     # Open TF data writer
     dataset_path = os.path.join(os.environ["DRP_SCRATCH"], "%s.tfrecords" % target_config['name'])
+    print("Creating [%s]" % (dataset_path))
     writer = tf.python_io.TFRecordWriter(dataset_path)
 
     # Process each recording indiviudally
