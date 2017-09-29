@@ -1,36 +1,46 @@
+import csv
 import cv2
 import numpy as np
 import os
 import pickle
 import sys
 import yaml
-import tables
-import srperm as srp
-
+import tensorflow as tf
 
 class Bbox:
     def __init__(self, x, y, w, h):
-        self.x = x # first col
-        self.y = y # first row
-        self.w = w # width
-        self.h = h # height
+        self.x = int(x + 0.5) # first col
+        self.y = int(y + 0.5) # first row
+        self.w = int(w + 0.5) # width
+        self.h = int(h + 0.5) # height
     def __repr__(self):
         return str(self)
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
     
 
-def int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+def getTfFeature(value):
+    
+    vals = value if type(value) is list else [value]
+        
+    if type(vals[0]) is int:
+        return tf.train.Feature(int64_list=tf.train.Int64List(value=vals))
+    elif type(vals[0]) is float:
+        return tf.train.Feature(float_list=tf.train.FloatList(value=vals))
+    elif type(vals[0]) is np.ndarray:
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[x.tobytes() for x in vals]))
+    else:
+        return tf.train.Feature(bytes_list=tf.train.BytesList(value=vals))
 
 
-def float64_feature(value):
-    return tf.train.Feature(float64_list=tf.train.Float64List(value=[value]))
-
-
-def bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
+def loadConfig(path, name='config'):
+    if os.path.isdir(path):
+        config_path = os.path.join(path, name + '.yaml')
+    else:
+        config_path = path        
+    with open(config_path) as f:
+        config = yaml.load(f)
+    return config
 
 def getPatchBbox(source_config, target_config, camera):
     """
@@ -53,7 +63,7 @@ def getPatchBbox(source_config, target_config, camera):
 
 def getPatchSize(target_config, camera):
     patch = target_config['patch'][camera]
-    return patch['width'], patch['size']
+    return patch['width'], patch['height']
 
 
 def cropImage(image, bbox):
@@ -70,16 +80,25 @@ def readState(path):
     Returns the non-timestamp headers, timestamps as a double array, and
     all non-timestamp values in one 2D float32 array.
     """
+    if os.path.isdir(path):
+        state_path = os.path.join(path, 'state.csv')
+    else:
+        state_path = path
     timestamps = []
     states = []
-    with open(path) as f:
+    with open(state_path) as f:
         reader = csv.reader(f)
-        headers = next(reader)
+        header = next(reader)
         for row in reader:
-            states.append([float(x) for x in row])
-            
-    timestamps_arr = np.array(timestamps, dtype=np.double)
-    states_arr = np.array(states, dtype=np.float32)
+            state = {}
+            for h, r in zip(header, row):
+                if h == 'timestamp':
+                    timestamps.append(int(1E6 * float(r)))
+                    continue
+                if len(r) == 0:
+                    continue
+                state[h] = float(r)
+            states.append(state)
 
-    return headers[1:], timestamps_arr, states_arr
+    return timestamps, states
 
