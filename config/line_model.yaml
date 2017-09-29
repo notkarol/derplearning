@@ -1,0 +1,16 @@
+#Directory Assitance:
+dir:
+    train_data: line_train_data
+    model: 'DRP_MODEL'
+    model_name: 'line_001'
+
+line:
+    n_lines: 3
+    n_points: 3
+    n_dimensions: 2
+
+    n_channels: 1
+    train_width: 128 # visible space
+    height: 64
+
+    n_segments: 20

@@ -12,6 +12,10 @@ from keras.models import model_from_yaml
 from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
 
+import yaml
+with open("config/line_model.yaml", 'r') as yamlfile:
+    cfg = yaml.load(yamlfile)
+
 '''
 When run file builds and trains a model saving it to the same directory as the file.
 
@@ -52,20 +56,27 @@ def main():
                         help='SGD momentum (default: 0.9)')
     parser.add_argument("--opt", type=str, default='adam',
                         help='optimizers (sgd, adam)')
-    parser.add_argument('--epochs', type=int, default=32, metavar='N',
-                        help='number of epochs to train (default: 32)')
+    parser.add_argument('--epochs', type=int, default=8, metavar='N',
+                        help='number of epochs to train (default: 8)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
+    parser.add_argument('--train_data', default=cfg['dir']['train_data'], 
+            help='training data source directory(default: line_train_data)')
+    parser.add_argument('--model_dir', default=cfg['dir']['model'], 
+            help='model files save directory(default: %s)' % cfg['dir']['model'])
+    parser.add_argument('--model_name', default=cfg['dir']['model_name'], 
+            help='line interpreter model name(default: TEST)')
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-    
+
+
     # Load Data
-    X_train = np.load('X_train.npy')
-    X_val = np.load('X_val.npy')
-    y_train = np.load('y_train.npy')
-    y_val = np.load('y_val.npy')
+    X_train = np.load('%s/line_X_train.npy' % (args.train_data))
+    X_val = np.load('%s/line_X_val.npy' % (args.train_data))
+    y_train = np.load('%s/line_y_train.npy' % (args.train_data))
+    y_val = np.load('%s/line_y_val.npy' % (args.train_data))
 
     print(X_train.shape, y_train.shape)
     
@@ -81,6 +92,10 @@ def main():
     model.compile(loss='mean_squared_error', optimizer=opt)
     model.summary()
 
+    #file management stuff
+    if not os.path.exists(args.model_dir):
+        os.makedirs(args.model_dir)
+
     for i in range(args.epochs):
         # Update learning rate
         lr = args.lr / (i + 1)
@@ -93,10 +108,10 @@ def main():
         
         # serialize model to YAML
         model_yaml = model.to_yaml()
-        with open("model.yaml", "w") as yaml_file:
+        with open("%s/%s.yaml" % (args.model_dir, args.model_name), "w") as yaml_file:
             yaml_file.write(model_yaml)
         # serialize weights to HDF5
-        model.save_weights("model.h5")
+        model.save_weights("%s/%s.h5" % (args.model_dir, args.model_name))
         print("Saved model to disk")
 
 
