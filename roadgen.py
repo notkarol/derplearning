@@ -10,90 +10,123 @@ generates 3 line road training data does not have any functions
 v2 only draws 3 lines on the ground. it is a work in progress.
 '''
 
-def road_generator(y_train, X_gen, n_segments):
-	x0, y0 = bezier_curve(y_train[dp_i, 0, 0, : ], y_train[dp_i, 0, 1, :], n_segments)
-	for ls_i in range(len(x0) - 1):
-		rr, cc, val = line_aa(int(x0[ls_i]), int(y0[ls_i]), int(x0[ls_i + 1]), int(y0[ls_i + 1]))
-		X_gen[cc, rr, 0] = val
+import yaml
+with open("config/line_model.yaml", 'r') as yamlfile:
+    cfg = yaml.load(yamlfile)
 
-	x1, y1 = bezier_curve(y_train[dp_i, 1, 0, : ], y_train[dp_i, 1, 1, :], n_segments)
-	for ls_i in range(len(x1) - 1):
-		rr, cc, val = line_aa(int(x1[ls_i]), int(y1[ls_i]), int(x1[ls_i + 1]), int(y1[ls_i + 1]))
-		X_gen[cc, rr, 0] = val
+class Roadgen:
+	"""Load the generation configuration parameters"""
+	def __init__(self, config):
+		self.n_lines = config['line']['n_lines']
+		self.n_points = config['line']['n_points']
+		self.n_dimensions = config['line']['n_dimensions']
+		self.n_channels = config['line']['n_channels']
 
-	x2, y2 = bezier_curve(y_train[dp_i, 2, 0, : ], y_train[dp_i, 2, 1, :], n_segments)
-	for ls_i in range(len(x2) - 1):
-		rr, cc, val = line_aa(int(x2[ls_i]), int(y2[ls_i]), int(x2[ls_i + 1]), int(y2[ls_i + 1]))
-		X_gen[cc, rr, 0] = val
+		self.view_height = config['line']['view_height']
+		self.view_width = config['line']['view_width']
+		self.gen_width = self.view_width * 2 # buffer onto each horizontal side to allow us to draw curves
+		self.cropsize = int((self.gen_width - self.view_width) / 2)
 
-	return X_gen
+		self.max_road_width = self.gen_width/4
+		self.horz_noise_fraction = 0.25
 
-# Configuration
-train_data_dir = 'line_train_data'
+		self.n_segments = config['line']['n_segments']
 
-n_lines = 3
-n_points = 3
-n_dimensions = 2
 
-n_channels = 1
-train_width = 128 # visible space
-gen_width = train_width * 2 # buffer onto each horizontal side to allow us to draw curves
-cropsize = int((gen_width - train_width) / 2)
-height = 64
+	def __del__(self):
+		#Deconstructor
+		pass
 
-max_road_width = gen_width/4
-horz_noise_fraction = 0.25
+	# Generate coordinate of beizier control points for a road
+	def coord_gen(self, n_datapoints):
+		y_train = np.zeros( (n_datapoints, self.n_lines, self.n_dimensions, 
+			self.n_points), np.float)
 
-n_segments = 20
-n_datapoints = int(1E3)
-train_split = 0.8
-n_train_datapoints = int(train_split * n_datapoints)
+		#Centerline:
+		y_train[:, 1, 0, : ] = np.random.randint(self.max_road_width, 
+			(self.gen_width - self.max_road_width), (n_datapoints, self.n_points))
+		y_train[:, 1, 1, 1:] = np.sort(np.random.randint(self.view_height/4, 
+			self.view_height, (n_datapoints, (self.n_points - 1) ) ) )
+		#note that by sorting the height control points we get non-uniform distributions
 
-# Data to store
-print((n_datapoints, n_channels, height, train_width))
-X_train = np.zeros((n_datapoints, height, train_width, n_channels), dtype=np.float)
-y_train = np.zeros((n_datapoints, n_lines, n_dimensions, n_points), np.float)
+		#noise for the side lines
+		y_noise = np.zeros((n_datapoints, self.n_lines, self.n_dimensions,
+			self.n_points) , np.float)
+		y_noise = np.random.randint(0, self.max_road_width * self.horz_noise_fraction,
+			(n_datapoints, self.n_lines, self.n_dimensions, self.n_points) )
 
-# Generate Y
-#Centerline:
-y_train[:, 1, 0, : ] = np.random.randint(max_road_width, (gen_width-max_road_width), (n_datapoints, n_points))
-y_train[:, 1, 1, 1:] = np.sort(np.random.randint(height/4, height, (n_datapoints, (n_points-1) ) ) )
-#note that by sorting the height control points we get non-uniform distributions
+		#Left lines
+		y_train[:, 0, 0, : ] = y_train[:, 1, 0, : ] - np.multiply( 
+				(self.max_road_width * (1 - self.horz_noise_fraction) -
+				 y_noise[:, 0, 1, :]),(1 - .8*y_train[:, 1, 1, : ]/self.view_height) )
+		y_train[:, 0, 1, : ] = y_train[:, 1, 1, : ]
 
-#noise for the side lines
-y_noise = np.zeros((n_datapoints, n_lines, n_dimensions, n_points) , np.float)
-y_noise = np.random.randint(0, max_road_width*horz_noise_fraction, (n_datapoints, n_lines, n_dimensions, n_points) )
+		#Right lines
+		y_train[:, 2, 0, : ] = y_train[:, 1, 0, : ] + np.multiply( 
+				(self.max_road_width * (1 - self.horz_noise_fraction) - 
+				y_noise[:, 2, 1, :]),(1 - .8*y_train[:, 1, 1, : ]/self.view_height) ) 
+		y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
 
-#Left lines
-y_train[:, 0, 0, : ] = y_train[:, 1, 0, : ] - np.multiply( (max_road_width*(1-horz_noise_fraction) - y_noise[:, 0, 1, :]),(1 - .8*y_train[:, 1, 1, : ]/height) )
-y_train[:, 0, 1, : ] = y_train[:, 1, 1, : ]
+		#Invert generation values so that roads are drawn right side up:
+		y_train[:,:, 1, :] = self.view_height - 1 - y_train[:,:, 1, :]
 
-#Right lines
-y_train[:, 2, 0, : ] = y_train[:, 1, 0, : ] + np.multiply( (max_road_width*(1-horz_noise_fraction) - y_noise[:, 2, 1, :]),(1 - .8*y_train[:, 1, 1, : ]/height) ) 
-y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
+		return y_train
 
-# Generate X
-#Temporary generation location
-X_gen = np.zeros((height, gen_width, n_channels), dtype=np.float)
-for dp_i in range(n_datapoints):
-	X_train[dp_i, :, :, :] = road_generator(y_train, X_gen, n_segments)[:, cropsize : (gen_width-cropsize), :]
-	print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-print("Done")
+	def road_generator(self, y_train):
+		road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels), dtype=np.float)
 
-# Normalize training and testing
-X_train *= (1. / np.max(X_train))
-y_train[:, :, 0, :] /= gen_width
-y_train[:, :, 1, :] /= height
+		for y_line in y_train:
+			x, y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
+			for ls_i in range(len(x) - 1):
+				rr, cc, val = line_aa(int(x[ls_i]), int(y[ls_i]), int(x[ls_i + 1]), int(y[ls_i + 1]))
+				road_frame[cc, rr, 0] = val
 
-#fixes the label array for use by the learning model
-y_train = np.reshape(y_train, (n_datapoints, n_lines * n_points * n_dimensions) )
+		return road_frame[:, self.cropsize : (self.gen_width - self.cropsize), :]
 
-#file management stuff
-if not os.path.exists(train_data_dir):
-	os.makedirs(train_data_dir)
 
-# Save Files
-np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
-np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
-np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
-np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
+def main():
+
+	roads = Roadgen(cfg)
+
+	#Move these parameters into an argparser
+	n_datapoints = int(1E3)
+	train_split = 0.8
+	n_train_datapoints = int(train_split * n_datapoints)
+
+	# Data to store
+	#print((n_datapoints, n_channels, height, train_width))
+	X_train = np.zeros((n_datapoints, roads.view_height, roads.view_width,
+		 roads.n_channels), dtype=np.float)
+	
+	y_train = roads.coord_gen(n_datapoints)
+
+	# Generate X
+	#Temporary generation location
+	for dp_i in range(n_datapoints):
+		X_train[dp_i, :, :, :] = roads.road_generator(y_train[dp_i])
+		print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+	print("Done")
+
+	# Normalize training and testing
+	X_train *= (1. / np.max(X_train))
+	y_train[:, :, 0, :] /= roads.gen_width
+	y_train[:, :, 1, :] /= roads.view_height
+
+	#fixes the label array for use by the learning model
+	y_train = np.reshape(y_train, (n_datapoints, roads.n_lines * roads.n_points *
+									 roads.n_dimensions) )
+
+
+	train_data_dir = cfg['dir']['train_data']
+	#file management stuff
+	if not os.path.exists(train_data_dir):
+		os.makedirs(train_data_dir)
+
+	# Save Files
+	np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
+	np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
+	np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
+	np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
+
+if __name__ == "__main__":
+    main()
