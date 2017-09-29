@@ -3,7 +3,7 @@ name: "paras"
 data_folder: "."
 network: "../models/A.py"
 folders: []
-perturb: False
+perturb: false
 
 # What we want our models to predict
 labels:
@@ -39,3 +39,8 @@ patch:
     pitch: 0
     yaw: 0
     roll: 0
+    shift_min: -1
+    shift_max: 1
+    rotate_min: -10
+    rotate_max: 10
+
