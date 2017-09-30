@@ -6,12 +6,18 @@ dir:
     validation: 'line_validation'
 
 line:
+    #line attributes
     n_lines: 3
     n_points: 3
     n_dimensions: 2
 
-    n_channels: 1
-    view_width: 192 # visible space
-    view_height: 32 
+    #cropped view characteristics
+    cropped_width: 1920
+    cropped_height: 320
 
-    n_segments: 20
+    #Model input characteristics
+    n_channels: 1
+    input_width: 192 # visible space
+    input_height: 32 
+
+    n_segments: 8

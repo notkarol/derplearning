@@ -3,7 +3,7 @@ import os
 import PIL
 import cv2
 import numpy as np
-from skimage.draw import line_aa
+from skimage.draw import polygon
 from bezier import bezier_curve
 
 '''
@@ -31,7 +31,7 @@ class Roadgen:
         #parameters of the virtual view window
         self.view_height = config['line']['input_height']
         self.view_width = config['line']['input_width']
-        self.gen_width = self.view_width * 2 # buffer onto each horizontal side to allow us to draw curves
+        self.gen_width = self.view_width * 3 # buffer onto each horizontal side to allow us to draw curves
         self.cropsize = int((self.gen_width - self.view_width) / 2)
 
         #parameters of the final image size to be passed to the CNN
@@ -46,7 +46,7 @@ class Roadgen:
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = int(self.view_width/20)
+        self.line_width = int(self.view_width/30)
 
     def __del__(self):
         #Deconstructor
@@ -126,22 +126,26 @@ class Roadgen:
 
     #converts coordinates into images with curves on them
     def road_generator(self, y_train):
-        road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels), dtype=np.float)
+        road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels),
+             dtype=np.uint8)
 
         for y_line in y_train:
             x, y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
             for ls_i in range(len(x) - 1):
-                rr, cc, val = line_aa(int(x[ls_i]), int(y[ls_i]), int(x[ls_i + 1]), int(y[ls_i + 1]))
-                road_frame[cc, rr, 0] = val
+                c = [int(x[ls_i] ), int(x[ls_i] + self.line_width), int(x[ls_i+1] + 
+                    self.line_width), int(x[ls_i+1]), int(x[ls_i])]
+                r = [int(y[ls_i]), int(y[ls_i]), int(y[ls_i+1]), 
+                    int(y[ls_i+1]), int(y[ls_i] ) ]
+                rr, cc = polygon(r, c, ( self.view_height, self.gen_width) )
+                road_frame[rr, cc, 0] = 255
 
-        return road_frame[:, self.cropsize : (self.gen_width - self.cropsize), :]
+        return road_frame[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
     #applies canny edge detection algorithm to make generated data behave more like real world data
     def road_refiner(self, road_frame):
 
-        road_frame = np.uint8(road_frame)
         #road_frame = np.reshape(road_frame, (16, 96,1))
-        road_frame = cv2.Canny(road_frame, 50, 100)
+        road_frame = cv2.Canny(road_frame, 50, 200)
         #road_frame[road_frame < 128] = 0
         #road_frame[road_frame >= 128] = 255
 
@@ -153,8 +157,8 @@ def main():
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = int(1E3)
-    train_split = 0.8
+    n_datapoints = int(1E5)
+    train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
     # Data to store

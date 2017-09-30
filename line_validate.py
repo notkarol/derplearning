@@ -165,7 +165,7 @@ def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=128):
     viewer = Model(None, None, None)
 
     #initializing the output array
-    frames = np.zeros([max_frames, cfg['line']['view_height'] , cfg['line']['view_width'], 1])
+    frames = np.zeros([max_frames, cfg['line']['input_height'] , cfg['line']['input_width'], 1])
 
     counter = 0
     while video_cap.isOpened() and counter < max_frames:
@@ -179,7 +179,7 @@ def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=128):
         prepared = cv2.Canny(prepared,100,200)
         prepared[prepared < 128] = 0
         prepared[prepared >= 128] = 255
-        prepared = np.reshape(prepared, (cfg['line']['view_height'] , cfg['line']['view_width'] ,1))
+        prepared = np.reshape(prepared, (cfg['line']['input_height'] , cfg['line']['input_width'] ,1))
         frames[counter] = prepared
         counter += 1
 
@@ -194,10 +194,10 @@ def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=128):
 def main():
     
     #load data
-    #X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
-    #y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
+    X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
+    y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
     
-    X_val = video_to_frames()
+    #X_val = video_to_frames()
 
     val_count = 64
     val_training(X_val[:val_count])

@@ -41,7 +41,7 @@ class Model:
     self.crop_size = (1920, 320)
     self.crop_x = 0
     self.crop_y = 760
-    self.target_size = (lm_cfg['line']['view_width'] , lm_cfg['line']['view_height'])
+    self.target_size = (lm_cfg['line']['input_width'] , lm_cfg['line']['input0_height'])
 
     if model_path is not None and weights_path is not None:
       with open(model_path) as f:
