@@ -6,13 +6,17 @@ from skimage.draw import line_aa
 from bezier import bezier_curve
 
 '''
-generates 3 line road training data does not have any functions
-v2 only draws 3 lines on the ground. it is a work in progress.
+Running this file generates 3 line road training data
+v2 only draws 3 lines on the ground.
 '''
 
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
     cfg = yaml.load(yamlfile)
+
+''' The Rooagen class is responsible for all things related to the generation of virtual training data
+	Roadgen's init function defines several key image parameters used by line_model validation systems
+	So the class is frequently invoked in line_validate '''
 
 class Roadgen:
 	"""Load the generation configuration parameters"""
@@ -36,6 +40,41 @@ class Roadgen:
 	def __del__(self):
 		#Deconstructor
 		pass
+
+	#Reshape a label tensor to 2d and normalizes data for use by the ANN:
+	def model_tranform(self, nd_labels):
+		
+		#normalization
+		nd_labels[:, :, 0, :] /= self.gen_width
+		nd_labels[:, :, 1, :] /= self.view_height
+
+		#reshaping
+		twod_labels =  np.reshape(nd_labels, (nd_labels.shape[0], self.n_lines * self.n_points *
+									 self.n_dimensions) )
+
+		return twod_labels
+
+	#Reshape the label tensor for use by all other functions and reverses normalization
+	def model_interpret(self, twod_labels):
+		#reshape labels
+		nd_labels = np.reshape(twod_labels, (twod_labels.shape[0], self.n_lines, self.n_dimensions,
+		 								self.n_points))
+		#denormalize labels
+		nd_labels[:,:,0,:] *= self.gen_width
+		nd_labels[:,:,1,:] *= self.view_height
+
+		#Clamp model outputs (consider making this switched)
+		nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
+		nd_labels[:,:,1,:] = self.clamp(nd_labels[:,:,1,:], self.view_height)
+
+		return nd_labels
+
+	#clamp function to prevent predictions from exceeding the drawing boundaries of plot_curves
+	def clamp(self, array, max_val):
+	    array[array >= max_val] = max_val - 1
+	    array[array < 0] = 0
+
+	    return array
 
 	# Generate coordinate of beizier control points for a road
 	def coord_gen(self, n_datapoints):
@@ -68,7 +107,7 @@ class Roadgen:
 		y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
 
 		#Invert generation values so that roads are drawn right side up:
-		y_train[:,:, 1, :] = self.view_height - 1 - y_train[:,:, 1, :]
+		#y_train[:,:, 1, :] = self.view_height - 1 - y_train[:,:, 1, :]
 
 		return y_train
 
@@ -89,7 +128,7 @@ def main():
 	roads = Roadgen(cfg)
 
 	#Move these parameters into an argparser
-	n_datapoints = int(1E3)
+	n_datapoints = int(1E5)
 	train_split = 0.8
 	n_train_datapoints = int(train_split * n_datapoints)
 
@@ -107,14 +146,11 @@ def main():
 		print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
 	print("Done")
 
-	# Normalize training and testing
+	# Normalize  testing
 	X_train *= (1. / np.max(X_train))
-	y_train[:, :, 0, :] /= roads.gen_width
-	y_train[:, :, 1, :] /= roads.view_height
-
+	
 	#fixes the label array for use by the learning model
-	y_train = np.reshape(y_train, (n_datapoints, roads.n_lines * roads.n_points *
-									 roads.n_dimensions) )
+	y_train = roads.model_tranform(y_train)
 
 
 	train_data_dir = cfg['dir']['train_data']
