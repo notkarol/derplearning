@@ -2,7 +2,7 @@
 dir:
     train_data: line_train_data
     model: 'DRP_MODEL'
-    model_name: 'line_001'
+    model_name: 'line_002'
     validation: 'line_validation'
 
 line:
@@ -11,7 +11,7 @@ line:
     n_dimensions: 2
 
     n_channels: 1
-    view_width: 128 # visible space
-    view_height: 64
+    view_width: 192 # visible space
+    view_height: 32 
 
     n_segments: 20

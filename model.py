@@ -15,6 +15,11 @@ Defines the model class containing the following functions:
   pilot_mk1
 '''
 
+import yaml
+with open("config/line_model.yaml", 'r') as yamlfile:
+        lm_cfg = yaml.load(yamlfile)
+
+
 class Model:
     
   def __init__(self, log, model_path, weights_path):
@@ -33,10 +38,10 @@ class Model:
 
     # Temporary
     self.source_size = (1920, 1080)
-    self.crop_size = (1440, 360)
-    self.crop_x = 240
-    self.crop_y = 720
-    self.target_size = (128, 64)
+    self.crop_size = (1920, 320)
+    self.crop_x = 0
+    self.crop_y = 760
+    self.target_size = (lm_cfg['line']['view_width'] , lm_cfg['line']['view_height'])
 
     if model_path is not None and weights_path is not None:
       with open(model_path) as f:
@@ -45,9 +50,9 @@ class Model:
       self.model.load_weights(weights_path)
 
     #define model output characteristics:
-    self.n_lines = 3
-    self.n_points = 3
-    self.n_dimensions = 2
+    self.n_lines = lm_cfg['line']['n_lines']
+    self.n_points = lm_cfg['line']['n_points']
+    self.n_dimensions = lm_cfg['line']['n_dimensions']
 
     #define camera characteristics
     #linear measurements given in mm
@@ -60,7 +65,6 @@ class Model:
     self.camera_arc_x = 60 * (np.pi / 180)
     self.crop_ratio = [c / s for c, s in zip(self.crop_size, self.source_size)]
 
-      
       
   def __del__(self):
     """
@@ -76,7 +80,7 @@ class Model:
     return batch
               
   #Runs clonemodel
-  #seriously Karol, you couldn't keep the variables consistant comming in and out of this function?
+  #seriously Karol, you couldn't keep the variable order consistant comming in and out of this function?
   def evaluate(self, frame, speed, steer):
     """ 
     Cut out the patch and run the model on it

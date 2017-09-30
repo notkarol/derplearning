@@ -47,7 +47,7 @@ def save_images(X_val, model_raw, directory = cfg['dir']['validation']):
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
 
-    max_intensity = 256
+    max_intensity = 255
     curves_to_print = model_raw.shape[0]
 
     #reshaping the model output vector to make it easier to work with
@@ -155,7 +155,7 @@ def val_training(X_val, model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir'][
 
 #extracts frames from video for use by the validation function
 #this allows us to validate the model with real world images instead of simulated images.
-def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=32):
+def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=128):
     # Prepare video frames by extracting the patch and thumbnail for training
     video_path = os.path.join(folder, 'video.mp4')
     print(video_path)
@@ -165,7 +165,7 @@ def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=32):
     viewer = Model(None, None, None)
 
     #initializing the output array
-    frames = np.zeros([max_frames, 64, 128, 1])
+    frames = np.zeros([max_frames, cfg['line']['view_height'] , cfg['line']['view_width'], 1])
 
     counter = 0
     while video_cap.isOpened() and counter < max_frames:
@@ -179,7 +179,7 @@ def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=32):
         prepared = cv2.Canny(prepared,100,200)
         prepared[prepared < 128] = 0
         prepared[prepared >= 128] = 255
-        prepared = np.reshape(prepared, (64, 128,1))
+        prepared = np.reshape(prepared, (cfg['line']['view_height'] , cfg['line']['view_width'] ,1))
         frames[counter] = prepared
         counter += 1
 
@@ -196,6 +196,7 @@ def main():
     #load data
     #X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
     #y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
+    
     X_val = video_to_frames()
 
     val_count = 64

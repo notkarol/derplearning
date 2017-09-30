@@ -24,7 +24,7 @@ Function list:
 '''
 
 # defines the structure of the model to be trained
-def create_model(input_shape, n_output, n_blocks=4):
+def create_model(input_shape, n_output, n_blocks=2):
     model = Sequential()
     model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))
     model.add(BatchNormalization())
@@ -56,17 +56,17 @@ def main():
                         help='SGD momentum (default: 0.9)')
     parser.add_argument("--opt", type=str, default='adam',
                         help='optimizers (sgd, adam)')
-    parser.add_argument('--epochs', type=int, default=8, metavar='N',
-                        help='number of epochs to train (default: 8)')
+    parser.add_argument('--epochs', type=int, default=32, metavar='N',
+                        help='number of epochs to train (default: 32)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
     parser.add_argument('--train_data', default=cfg['dir']['train_data'], 
-            help='training data source directory(default: line_train_data)')
+            help='training data source directory(default: %s)' % cfg['dir']['train_data'])
     parser.add_argument('--model_dir', default=cfg['dir']['model'], 
             help='model files save directory(default: %s)' % cfg['dir']['model'])
     parser.add_argument('--model_name', default=cfg['dir']['model_name'], 
-            help='line interpreter model name(default: TEST)')
+            help='line interpreter model name(default: %s)' % cfg['dir']['model_name'])
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
