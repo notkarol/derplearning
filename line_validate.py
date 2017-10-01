@@ -131,6 +131,9 @@ def load_model(model_path):
 
 #function invokes Model class, and saves the predictions as images
 def val_training(X_val, loaded_model, directory, subdirectory ):
+    #predictions = np.zeros((X_val.shape[0], cfg['line']['n_lines'], 
+     #       cfg['line']['n_dimensions'], cfg['line']['n_points']), np.float )
+
 
     #apply the model to generate coordinate prediction
     predictions = loaded_model.road_spotter(X_val)

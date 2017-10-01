@@ -127,13 +127,12 @@ class Model:
 
 
     #runs line_model returns camera pov bezier control points
+    #OOM error will occur if too large a batch is passed in through frame
     def road_spotter(self, frame):
 
-        #batch = self.preprocess(frame)
+        road_lines = self.model.predict(frame)
 
-        road_lines = self.model.predict_on_batch(frame)[0]
-
-        return np.reshape(road_lines, (self.n_lines, self.n_dimensions, self.n_points) )
+        return np.reshape(road_lines, (frame.shape[0], self.n_lines, self.n_dimensions, self.n_points) )
 
     #This function uses a transform to map the percieved road onto a 2d plane beneath the car
     def road_mapper(self, frame):
