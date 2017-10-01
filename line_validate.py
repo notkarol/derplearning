@@ -35,11 +35,12 @@ def print_points( labels, model_out):
         print("{} ".format(l ) )
     print("The model returned points: ")
     for m in model_out:
-        print("{} ".format(m ) )
+        print("{} ".format(m ) ) 
 
     
 #   
-def save_images(X_val, model_raw, directory = cfg['dir']['validation']):
+def save_images(X_val, model_raw, directory = cfg['dir']['validation'], 
+                subdirectory = 'image_comparison' ):
     #file management stuff
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -56,9 +57,6 @@ def save_images(X_val, model_raw, directory = cfg['dir']['validation']):
     #Restoring the training data to a displayable color range
     X_large = X_val * max_intensity
 
-    #file management stuff
-    subdirectory = ('image_comparison_%s' % 
-                (cfg['dir']['model_name']) )
     if not os.path.exists('%s/%s' % (directory, subdirectory)):
         os.makedirs('%s/%s' % (directory, subdirectory) )
 
@@ -116,6 +114,7 @@ def plot_curves( val_points, model_out):
         plt.savefig('valplots/model_%06i.png' % i, dpi=100, bbox_inches='tight')
         plt.close()
 
+'''Defunt, move all funtionality to model.py
 #function loads model parameters
 def load_model(model_path):
     # load YAML and create model
@@ -128,79 +127,48 @@ def load_model(model_path):
     print("Loaded model from disk")
 
     return loaded_model
+'''
 
-#function calls load_model, runs the model, and saves the predictions
-#FIXME: add either a save directory passed variable or a filename prefix variable (or both)
-#   such that we can easily run validation on both realworld images and virtual images simultaneously
-def val_training(X_val, model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir']['model_name'] ) ):
-    
-    loaded_model = load_model(model_path)
-
-    # evaluate loaded model on test data
-    loaded_model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
-    #score = loaded_model.evaluate(X_val[:64], y_val[:64], verbose=0)
-    #print("%s: %.2f%%" % (loaded_model.metrics_names[0], score[0]) )
+#function invokes Model class, and saves the predictions as images
+def val_training(X_val, loaded_model, directory, subdirectory ):
 
     #apply the model to generate coordinate prediction
-    predictions = loaded_model.predict(X_val)
-
-    directory = cfg['dir']['validation']
+    predictions = loaded_model.road_spotter(X_val)
 
     #file management stuff
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    save_images(X_val, predictions, directory)
-    print("Validation images saved to: %s" %directory)
+    save_images(X_val, predictions, directory, subdirectory)
+    print("Validation images saved to: %s/%s" %(directory, subdirectory) )
 
-#extracts frames from video for use by the validation function
-#this allows us to validate the model with real world images instead of simulated images.
-def video_to_frames(folder="data/20170812T214343Z-paras", max_frames=128):
-    # Prepare video frames by extracting the patch and thumbnail for training
-    video_path = os.path.join(folder, 'video.mp4')
-    print(video_path)
-    video_cap = cv2.VideoCapture(video_path)
-
-    #initializing the car's perspective
-    viewer = Model(None, None, None)
-
-    #initializing the output array
-    frames = np.zeros([max_frames, cfg['line']['input_height'] , cfg['line']['input_width'], 1])
-
-    counter = 0
-    while video_cap.isOpened() and counter < max_frames:
-        # Get the frame
-        ret, frame = video_cap.read()
-        if not ret: break
-
-        prepared = viewer.preprocess(frame)[0]
-        prepared = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
-        prepared = cv2.flip(prepared, 0)
-        prepared = cv2.Canny(prepared,100,200)
-        prepared[prepared < 128] = 0
-        prepared[prepared >= 128] = 255
-        prepared = np.reshape(prepared, (cfg['line']['input_height'] , cfg['line']['input_width'] ,1))
-        frames[counter] = prepared
-        counter += 1
-
-    #cleanup      
-    video_cap.release()
-
-    # Return our batch
-    return frames
 
 
 
 def main():
     
+    #loading the model
+    model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir']['model_name'] )
+    loaded_model = Model(None, '%s.yaml' % model_path, '%s.h5' % model_path)
+
     #load data
     X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
     y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
     
-    #X_val = video_to_frames()
 
-    val_count = 64
-    val_training(X_val[:val_count])
+    #file management stuff
+    directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
+    subdirectory = 'virtual_comparison'
+    
+    #Validates against virtually generated data
+    val_count = 256
+    val_training(X_val[:val_count], loaded_model, directory, subdirectory)
+
+    #Validates model against recorded data
+    subdirectory = 'video_comparison' 
+    folder = "data/20170812T214343Z-paras"
+    X_video = loaded_model.video_to_frames(folder, val_count)
+    val_training(X_video, loaded_model, directory, subdirectory)
     
 
 if __name__ == "__main__":
