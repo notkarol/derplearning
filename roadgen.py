@@ -134,10 +134,17 @@ class Roadgen:
 
         for y_line in y_train:
             x, y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
+            v_line = y_line
+            v_line[0,0] = y_line[0,0] + line_width
+            v_line[:,1] = y_line[:,1] + line_width * np.multiply((y_line[:,2] - y_line[:,0]), [[0,1],[1,0]]) / 
+                np.multiply( np.transpose(y_line[:,2]-y_line[:,0]), (y_line[:,2] - y_line[:,0]) )
+            v_line[:,2] = y_line[:,2] + line_width * np.multiply((y_line[:,2]-y_line[:,1]), [[0,1],[1,0]] / 
+                np.multiply( np.transpose(y_line[:,2]-y_line[:,1]), (y_line[:,2]-y_line[:,1]) )
+            vx, vy = bezier_curve(v_line[0, :], v_line[1, :], self.n_segments)
             for ls_i in range(len(x) - 1):
-                c = [int(x[ls_i] ), int(x[ls_i] + line_width), int(x[ls_i+1] + 
-                    line_width), int(x[ls_i+1]), int(x[ls_i])]
-                r = [int(y[ls_i]), int(y[ls_i]), int(y[ls_i+1]), 
+                c = [int(x[ls_i] ), int(vx[ls_i]), int(vx[ls_i+1] ),
+                     int(x[ls_i+1]), int(x[ls_i])]
+                r = [int(y[ls_i]), int(vy[ls_i]), int(vy[ls_i+1]), 
                     int(y[ls_i+1]), int(y[ls_i] ) ]
                 rr, cc = polygon(r, c, ( self.view_height, self.gen_width) )
                 road_frame[rr, cc, 0] = 255
@@ -215,11 +222,15 @@ def main():
     #Temporary generation location
     for dp_i in range(int(n_datapoints/4) ):
         X_train[4*dp_i, :, :, :] = roads.road_refiner(
-                                 roads.road_generator(y_train[4*dp_i], roads.line_width) )
+                                    roads.road_generator(y_train[4*dp_i], 
+                                    roads.line_width) )
         X_train[4*dp_i+1, :, :, :] = roads.road_refiner(
-                                 roads.road_generator(y_train[4*dp_i+1], roads.line_width/2) )
-        X_train[4*dp_i+2, :, :, :] = roads.road_generator(y_train[4*dp_i+2], roads.line_width)
-        X_train[4*dp_i+3, :, :, :] = roads.road_generator(y_train[4*dp_i+3], roads.line_width/2)
+                                    roads.road_generator(y_train[4*dp_i+1], 
+                                    roads.line_width/2) )
+        X_train[4*dp_i+2, :, :, :] = roads.road_generator(y_train[4*dp_i+2], 
+                                    roads.line_width)
+        X_train[4*dp_i+3, :, :, :] = roads.road_generator(y_train[4*dp_i+3], 
+                                    roads.line_width/2)
 
         print("%.2f%%" % ((100.0 * dp_i*4 / n_datapoints)), end='\r')
     print("Done")
@@ -227,7 +238,8 @@ def main():
     if args.tests > 0:
         subdir = 'test'
         model = Model(None, None, None)
-        roads.save_images(model.video_to_frames(), X_train, '%s/%s' %(train_data_dir, subdir))
+        roads.save_images(model.video_to_frames(), X_train, '%s/%s' % 
+            (train_data_dir, subdir), ['Camera', 'Virtual Generator'] )
     else:
         # Normalize  testing
         X_train *= (1. / np.max( [np.max(X_train ), 0] ) )
