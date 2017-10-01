@@ -1,9 +1,13 @@
 # Experiment Name:
 name: "paras"
-data_folder: "."
-network: "../models/A.py"
-folders: []
+train_paths: [ "../data/20170812T214343Z-paras" ]
+eval_paths: [ "../data/20170812T214055Z-paras" ]
+model_clone: "A"
 perturb: false
+batch_size: 64
+num_threads: 2
+train_steps: 10000
+eval_steps: 100
 
 # What we want our models to predict
 labels:

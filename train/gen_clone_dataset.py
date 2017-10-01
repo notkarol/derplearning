@@ -74,22 +74,25 @@ def main():
 
     # Handle arguments
     config_path = sys.argv[1]
-    recording_paths = sys.argv[2:]
 
     # Import config for ho we want to store
     target_config = drputil.loadConfig(config_path)
     
-    # Open TF data writer
-    dataset_path = os.path.join(os.environ["DRP_SCRATCH"], "%s.tfrecords" % target_config['name'])
-    print("Creating [%s]" % (dataset_path))
-    writer = tf.python_io.TFRecordWriter(dataset_path)
+    # Open TF train data writer
+    train_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_train.tfrecords" % target_config['name'])
+    train_writer = tf.python_io.TFRecordWriter(train_path)
+    for recording_path in target_config['train_paths']:
+        processRecording(target_config, train_writer, recording_path)
+    train_writer.close()
 
-    # Process each recording indiviudally
-    for recording_path in recording_paths:
-        processRecording(target_config, writer, recording_path)
+    # Open TF eval data writer
+    eval_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_eval.tfrecords" % target_config['name'])
+    eval_writer = tf.python_io.TFRecordWriter(eval_path)
+    for recording_path in target_config['eval_paths']:
+        processRecording(target_config, eval_writer, recording_path)
+    eval_writer.close()
 
     # Clean up video capture
-    writer.close()
 
 if __name__ == "__main__":
     main()
