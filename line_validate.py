@@ -38,8 +38,8 @@ def print_points( labels, model_out):
         print("{} ".format(m ) ) 
 
     
-#   
-def save_images(X_val, model_raw, directory = cfg['dir']['validation'], 
+#Saves images in side by side plots
+def compare_io(X_val, model_raw, directory = cfg['dir']['validation'], 
                 subdirectory = 'image_comparison' ):
     #file management stuff
     if not os.path.exists(directory):
@@ -57,28 +57,10 @@ def save_images(X_val, model_raw, directory = cfg['dir']['validation'],
     #Restoring the training data to a displayable color range
     X_large = X_val * max_intensity
 
-    if not os.path.exists('%s/%s' % (directory, subdirectory)):
-        os.makedirs('%s/%s' % (directory, subdirectory) )
+    model_view = road.road_generator(model_out)
 
-    for dp_i in range(curves_to_print):
-        model_view = road.road_generator(model_out[dp_i])
+    road.save_images(X_large, model_view, '%s/%s' % (directory, subdirectory) )
 
-        #This is the actual save images part
-        plt.subplot(1, 2, 1)
-        plt.title('Input Image')
-        plt.imshow(X_large[dp_i,:,:,0], cmap=plt.cm.gray)
-        #plt.plot(x0, y0, 'r-')
-        #plt.plot(x1, y1, 'y-')
-        #plt.plot(x2, y2, 'r-')
-        plt.gca().invert_yaxis()
-
-        plt.subplot(1, 2, 2)
-        plt.title('Model Perception')
-        plt.imshow(model_view[:,:,0], cmap=plt.cm.gray)
-        plt.gca().invert_yaxis()
-
-        plt.savefig('%s/%s/%06i.png' % (directory, subdirectory, dp_i), dpi=100, bbox_inches='tight')
-        plt.close()
 
 #Prints plot of curves against the training data Saves plots in files
 #Because the model outputs are not put into a drawing function it is easier for audiences 
@@ -142,7 +124,7 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    save_images(X_val, predictions, directory, subdirectory)
+    compare_io(X_val, predictions, directory, subdirectory)
     print("Validation images saved to: %s/%s" %(directory, subdirectory) )
 
 

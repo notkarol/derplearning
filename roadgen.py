@@ -3,8 +3,11 @@ import os
 import PIL
 import cv2
 import numpy as np
+import argparse
 from skimage.draw import polygon
 from bezier import bezier_curve
+from model import Model
+import matplotlib.pyplot as plt
 
 '''
 Running this file generates 3 line road training data
@@ -31,7 +34,7 @@ class Roadgen:
         #parameters of the virtual view window
         self.view_height = config['line']['input_height']
         self.view_width = config['line']['input_width']
-        self.gen_width = self.view_width * 3 # buffer onto each horizontal side to allow us to draw curves
+        self.gen_width = self.view_width * 2 # buffer onto each horizontal side to allow us to draw curves
         self.cropsize = int((self.gen_width - self.view_width) / 2)
 
         #parameters of the final image size to be passed to the CNN
@@ -39,14 +42,14 @@ class Roadgen:
         self.input_height = config['line']['input_height']
 
         #Attributes of the road line drawing.
-        self.max_road_width = self.gen_width/4 #The widest possible road that can be drawn (radius)
+        self.max_road_width = self.gen_width/3.5 #The widest possible road that can be drawn (radius)
         self.min_road_height = self.view_height/2 #The minimum value for the 2nd and 3rd road control points
         self.horz_noise_fraction = 0.3 #size of the noise envelope below max_width where road lines may exist
         self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = int(self.view_width/30)
+        self.line_width = self.view_width/30
 
     def __del__(self):
         #Deconstructor
@@ -125,15 +128,15 @@ class Roadgen:
         return y_train
 
     #converts coordinates into images with curves on them
-    def road_generator(self, y_train):
+    def road_generator(self, y_train, line_width):
         road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels),
              dtype=np.uint8)
 
         for y_line in y_train:
             x, y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
             for ls_i in range(len(x) - 1):
-                c = [int(x[ls_i] ), int(x[ls_i] + self.line_width), int(x[ls_i+1] + 
-                    self.line_width), int(x[ls_i+1]), int(x[ls_i])]
+                c = [int(x[ls_i] ), int(x[ls_i] + line_width), int(x[ls_i+1] + 
+                    line_width), int(x[ls_i+1]), int(x[ls_i])]
                 r = [int(y[ls_i]), int(y[ls_i]), int(y[ls_i+1]), 
                     int(y[ls_i+1]), int(y[ls_i] ) ]
                 rr, cc = polygon(r, c, ( self.view_height, self.gen_width) )
@@ -151,8 +154,42 @@ class Roadgen:
 
         return np.reshape(road_frame, (self.input_height, self.input_width, 1) )
 
+    #Saves images in side by side plots
+    def save_images(self, Left_Images, Right_Images, directory , titles = ('Input Image','Model Perception') ):
+        
+        max_intensity = 255
+        curves_to_print = min(Right_Images.shape[0],Left_Images.shape[0])
+
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        for dp_i in range(curves_to_print):
+
+            #This is the actual save images part
+            plt.subplot(1, 2, 1)
+            plt.title(titles[0])
+            plt.imshow(Left_Images[dp_i,:,:,0], cmap=plt.cm.gray)
+            #plt.plot(x0, y0, 'r-')
+            #plt.plot(x1, y1, 'y-')
+            #plt.plot(x2, y2, 'r-')
+            plt.gca().invert_yaxis()
+
+            plt.subplot(1, 2, 2)
+            plt.title(titles[1])
+            plt.imshow(Right_Images[dp_i,:,:,0], cmap=plt.cm.gray)
+            plt.gca().invert_yaxis()
+
+            plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
+            plt.close()
+
 
 def main():
+
+    parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
+    parser.add_argument('--tests', type=int, default=0, metavar='TS', 
+                        help='creates a test batch and compares the batch to video data (default is off)')
+    args = parser.parse_args()
 
     roads = Roadgen(cfg)
 
@@ -160,6 +197,12 @@ def main():
     n_datapoints = int(1E5)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
+
+    train_data_dir = cfg['dir']['train_data']
+
+    #test condition switch
+    if args.tests > 0:
+        n_datapoints = args.tests
 
     # Data to store
     #print((n_datapoints, n_channels, height, train_width))
@@ -170,29 +213,37 @@ def main():
 
     # Generate X
     #Temporary generation location
-    for dp_i in range(n_datapoints):
-        X_train[dp_i, :, :, :] = roads.road_refiner(
-                                 roads.road_generator(y_train[dp_i]) )
-        print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+    for dp_i in range(int(n_datapoints/4) ):
+        X_train[4*dp_i, :, :, :] = roads.road_refiner(
+                                 roads.road_generator(y_train[4*dp_i], roads.line_width) )
+        X_train[4*dp_i+1, :, :, :] = roads.road_refiner(
+                                 roads.road_generator(y_train[4*dp_i+1], roads.line_width/2) )
+        X_train[4*dp_i+2, :, :, :] = roads.road_generator(y_train[4*dp_i+2], roads.line_width)
+        X_train[4*dp_i+3, :, :, :] = roads.road_generator(y_train[4*dp_i+3], roads.line_width/2)
+
+        print("%.2f%%" % ((100.0 * dp_i*4 / n_datapoints)), end='\r')
     print("Done")
 
-    # Normalize  testing
-    X_train *= (1. / np.max( [np.max(X_train ), 0] ) )
-    
-    #fixes the label array for use by the learning model
-    y_train = roads.model_tranform(y_train)
+    if args.tests > 0:
+        subdir = 'test'
+        model = Model(None, None, None)
+        roads.save_images(model.video_to_frames(), X_train, '%s/%s' %(train_data_dir, subdir))
+    else:
+        # Normalize  testing
+        X_train *= (1. / np.max( [np.max(X_train ), 0] ) )
+        
+        #fixes the label array for use by the learning model
+        y_train = roads.model_tranform(y_train)
 
+        #file management stuff
+        if not os.path.exists(train_data_dir):
+            os.makedirs(train_data_dir)
 
-    train_data_dir = cfg['dir']['train_data']
-    #file management stuff
-    if not os.path.exists(train_data_dir):
-        os.makedirs(train_data_dir)
-
-    # Save Files
-    np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
-    np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
-    np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
-    np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
+        # Save Files
+        np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
+        np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
+        np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
+        np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
 
 if __name__ == "__main__":
     main()
