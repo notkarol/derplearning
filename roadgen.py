@@ -50,6 +50,7 @@ class Roadgen:
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
         self.line_width = self.view_width/30
+        self.line_wiggle = self.max_road_width * 0.1
 
     def __del__(self):
         #Deconstructor
@@ -83,7 +84,14 @@ class Roadgen:
 
         return nd_labels
 
+    #returns a unit vector perpendicular to the input vector
+    def perpendicular(self, delta):
+        u_vector =  np.matmul( delta, [[0,-1],[1,0]] ) / np.sqrt(np.matmul( delta, delta ))
+            
+        return u_vector
+
     #clamp function to prevent predictions from exceeding the drawing boundaries of plot_curves
+    #believed to be defunct
     def clamp(self, array, max_val):
         array[array >= max_val] = max_val - 1
         array[array < 0] = 0
@@ -133,15 +141,37 @@ class Roadgen:
              dtype=np.uint8)
 
         for y_line in y_train:
-            x, y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
-            v_line = y_line
-            v_line[0,0] = y_line[0,0] + line_width
-            v_line[:,1] = y_line[:,1] + line_width * np.multiply((y_line[:,2] - y_line[:,0]), [[0,1],[1,0]]) / 
-                np.multiply( np.transpose(y_line[:,2]-y_line[:,0]), (y_line[:,2] - y_line[:,0]) )
-            v_line[:,2] = y_line[:,2] + line_width * np.multiply((y_line[:,2]-y_line[:,1]), [[0,1],[1,0]] / 
-                np.multiply( np.transpose(y_line[:,2]-y_line[:,1]), (y_line[:,2]-y_line[:,1]) )
-            vx, vy = bezier_curve(v_line[0, :], v_line[1, :], self.n_segments)
+            x,y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
+            true_line = np.array([x, y])
+            #Add some noise to the line so it's harder to overfit
+            noise_line = true_line + self.line_wiggle * np.random.randn(true_line.shape)
+
+            #Create the virtual points needed to give the line width:
+
+            polygon_path = np.zeros( (true_line.shape[0], 2 * true_line.shape[1] + 1) , dtype=float)
+
+            polygon_path[:, 1:(true_line.shape[1]-1) ] = (noise_line[:,1:true_line.shape[1]-1]
+                 + line_width * self.perpendicular(
+                noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) )
+            #Same code but subtracted and reverse order FIXME
+            polygon_path[:, (true_line.shape[1]+1) : (2*true_line.shape[1]-1) ] = (noise_line[:,
+                1:true_line.shape[1]-1] -line_width * self.perpendicular(
+                noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) )
+
+            #calculate the control points of a virtual line side by side to the original
+            vy_line = y_line
+            delta = y_line[:,1] - y_line[:,0]
+            vy_line[:,0] = y_line[:,0] + line_width * self.perpendicular(delta)[0]
+            delta = y_line[:,2] - y_line[:,0]
+            vy_line[:, 1] = y_line[:, 1] + line_width * self.perpendicular(delta)
+            delta = y_line[:,2] - y_line[:,1]
+            vy_line[:, 2] = y_line[:, 2] + line_width * self.perpendicular(delta)
+
+            vx, vy = bezier_curve(vy_line[0,:], vy_line[1, :], self.n_segments)
             for ls_i in range(len(x) - 1):
+                #delta = [x[ls_i+1] - x[ls_i], y[ls_i+1] - y[ls_i] ]
+                #v1 = [x[ls_i], y[ls_i]] + line_width * self.perpendicular(delta)
+                #v2 = [x[ls_i+1], y[ls_i+1]] + line_width * self.perpendicular(delta)
                 c = [int(x[ls_i] ), int(vx[ls_i]), int(vx[ls_i+1] ),
                      int(x[ls_i+1]), int(x[ls_i])]
                 r = [int(y[ls_i]), int(vy[ls_i]), int(vy[ls_i+1]), 
@@ -201,7 +231,7 @@ def main():
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = int(1E5)
+    n_datapoints = int(1E2)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
@@ -214,7 +244,7 @@ def main():
     # Data to store
     #print((n_datapoints, n_channels, height, train_width))
     X_train = np.zeros((n_datapoints, roads.view_height, roads.view_width,
-         roads.n_channels), dtype=np.float)
+         roads.n_channels), dtype=np.uint8)
     
     y_train = roads.coord_gen(n_datapoints)
 
@@ -242,7 +272,8 @@ def main():
             (train_data_dir, subdir), ['Camera', 'Virtual Generator'] )
     else:
         # Normalize  testing
-        X_train *= (1. / np.max( [np.max(X_train ), 0] ) )
+
+        X_norm = (X_train / np.max( X_train  ) )
         
         #fixes the label array for use by the learning model
         y_train = roads.model_tranform(y_train)
@@ -252,8 +283,8 @@ def main():
             os.makedirs(train_data_dir)
 
         # Save Files
-        np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
-        np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
+        np.save("%s/line_X_train.npy" % (train_data_dir) , X_norm[:n_train_datapoints])
+        np.save("%s/line_X_val.npy" % (train_data_dir) , X_norm[n_train_datapoints:])
         np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
         np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
 
