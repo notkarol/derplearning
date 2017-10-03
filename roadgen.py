@@ -50,7 +50,7 @@ class Roadgen:
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
         self.line_width = self.view_width/30
-        self.line_wiggle = self.max_road_width * 0.1
+        self.line_wiggle = self.max_road_width * 0
 
     def __del__(self):
         #Deconstructor
@@ -86,7 +86,7 @@ class Roadgen:
 
     #returns a unit vector perpendicular to the input vector
     def perpendicular(self, delta):
-        u_vector =  np.matmul( delta, [[0,-1],[1,0]] ) / np.sqrt(np.matmul( delta, delta ))
+        u_vector =  np.matmul( delta, [[0,-1],[1,0]] ) / np.sqrt(np.matmul( np.multiply(delta, delta), [[1],[1]] ))
             
         return u_vector
 
@@ -143,21 +143,38 @@ class Roadgen:
         for y_line in y_train:
             x,y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
             true_line = np.array([x, y])
-            #Add some noise to the line so it's harder to overfit
-            noise_line = true_line + self.line_wiggle * np.random.randn(true_line.shape)
 
-            #Create the virtual points needed to give the line width:
+            #Add some noise to the line so it's harder to overfit
+            noise_line = true_line + self.line_wiggle * np.random.randn(2, true_line.shape[1])
+
+            #Create the virtual point path needed to give the line width when drawn by polygon:
 
             polygon_path = np.zeros( (true_line.shape[0], 2 * true_line.shape[1] + 1) , dtype=float)
 
+            #Now we offset the noisy line perpendicularly by the line width to give it depth (rhs)
             polygon_path[:, 1:(true_line.shape[1]-1) ] = (noise_line[:,1:true_line.shape[1]-1]
-                 + line_width * self.perpendicular(
-                noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) )
-            #Same code but subtracted and reverse order FIXME
-            polygon_path[:, (true_line.shape[1]+1) : (2*true_line.shape[1]-1) ] = (noise_line[:,
-                1:true_line.shape[1]-1] -line_width * self.perpendicular(
-                noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) )
+                 + line_width * np.transpose(self.perpendicular(
+                np.transpose(noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) ) ) )
+            #Same code but subtracting width and reverse order to produce the lhs of the line
+            polygon_path[:, (2*true_line.shape[1]-2):(true_line.shape[1]) :-1 ] = (noise_line[:,1:true_line.shape[1]-1]
+                 - line_width * np.transpose(self.perpendicular(
+                np.transpose(noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) ) ) )
 
+            #These points determine the top end of the line:
+            polygon_path[:, true_line.shape[1]-1] = noise_line[:, true_line.shape[1]-1] + line_width
+            polygon_path[:, true_line.shape[1] ] = noise_line[:, true_line.shape[1]-1] - line_width
+
+            #Now we set the start and endpoints (they must be the same!)
+            polygon_path[:, 0] = noise_line[:, 0] + line_width
+            polygon_path[:, 2*true_line.shape[1] -1] = noise_line[:, 0] - line_width #This is the last unique point
+            polygon_path[:, 2*true_line.shape[1] ] = noise_line[:, 0] + line_width
+
+            print('polygon_path:')
+            for point in polygon_path:
+                print( point) 
+            rr, cc = polygon(polygon_path[0], polygon_path[1], ( self.view_height, self.gen_width) )
+            road_frame[rr, cc, 0] = 255
+            '''
             #calculate the control points of a virtual line side by side to the original
             vy_line = y_line
             delta = y_line[:,1] - y_line[:,0]
@@ -178,7 +195,7 @@ class Roadgen:
                     int(y[ls_i+1]), int(y[ls_i] ) ]
                 rr, cc = polygon(r, c, ( self.view_height, self.gen_width) )
                 road_frame[rr, cc, 0] = 255
-
+            '''
         return road_frame[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
     #applies canny edge detection algorithm to make generated data behave more like real world data
@@ -251,6 +268,7 @@ def main():
     # Generate X
     #Temporary generation location
     for dp_i in range(int(n_datapoints/4) ):
+        print(dp_i)
         X_train[4*dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[4*dp_i], 
                                     roads.line_width) )
