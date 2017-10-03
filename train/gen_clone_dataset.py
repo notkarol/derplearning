@@ -4,12 +4,11 @@ import cv2
 import numpy as np
 import os
 import sys
-import tensorflow as tf
 
 import drputil
 import srperm as srp
 
-def processRecording(target_config, writer, path):
+def processRecording(target_config, writer, path, target_dir):
     print('processRecording [%s]' % path)
     
     # Prepare our variables
@@ -40,6 +39,7 @@ def processRecording(target_config, writer, path):
         # Get the current sensor information
         timestamp = timestamps[frame_i]
         state = states[frame_i]
+        pert_id = 0
         
         # Perturb frame
         if target_config['perturb'] and hfov_ratio < 0.9:
@@ -59,14 +59,12 @@ def processRecording(target_config, writer, path):
         thumb = drputil.resizeImage(patch, size)
 
         # Prepare states
-        features = {'timestamp': drputil.getTfFeature(timestamp),
-                    camera: drputil.getTfFeature(thumb)}
-        for key in state:
-            features[key] = drputil.getTfFeature(state[key])
-        
-        # Prepare example and write it
-        example = tf.train.Example(features=tf.train.Features(feature=features))
-        writer.write(example.SerializeToString())
+        store_name = "%i_%02i.png" % (timestamp, pert_id)
+        writer.write("%.6f" % timestamp)
+        for state in target_config['states']:
+            writer.write(',%f' % states[frame_i][state])
+        writer.write("\n")
+        writer.flush()
         
     video_cap.release()
 
@@ -77,22 +75,22 @@ def main():
 
     # Import config for ho we want to store
     target_config = drputil.loadConfig(config_path)
+
+    # Create folder for experiment
+    experiment_dir = os.path.join(os.environ['DRP_SCRATCH'], target_config['name'])
+    if not os.path.exists(experiment_dir):
+        os.mkdir(experiment_dir)
     
-    # Open TF train data writer
-    train_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_train.tfrecords" % target_config['name'])
-    train_writer = tf.python_io.TFRecordWriter(train_path)
-    for recording_path in target_config['train_paths']:
-        processRecording(target_config, train_writer, recording_path)
-    train_writer.close()
+    # Process each recording for training and evaluation
+    for mode in ['train', 'eval']:
+        dataset_dir = os.path.join(experiment_dir, mode)
+        if not os.path.exists(dataset_dir):
+            os.mkdir(dataset_dir)
+        metadata_path = os.path.join(experiment_dir, 'metadata_%s.csv' % mode)
+        with open(metadata_path, 'w') as metadata_fd:
+            for recording_dir in target_config['%s_paths' % mode]: 
+                processRecording(target_config, metadata_fd, recording_dir, dataset_dir)
 
-    # Open TF eval data writer
-    eval_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_eval.tfrecords" % target_config['name'])
-    eval_writer = tf.python_io.TFRecordWriter(eval_path)
-    for recording_path in target_config['eval_paths']:
-        processRecording(target_config, eval_writer, recording_path)
-    eval_writer.close()
-
-    # Clean up video capture
 
 if __name__ == "__main__":
     main()
