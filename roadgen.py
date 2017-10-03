@@ -159,7 +159,7 @@ class Roadgen:
         return y_train
 
     #converts coordinates into images with curves on them
-    def road_generator(self, y_train, line_width):
+    def road_generator(self, y_train, line_width, seg_noise = 0):
         road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels),
              dtype=np.uint8)
 
@@ -173,7 +173,7 @@ class Roadgen:
             true_line = np.array([x, y])
 
             #Add some noise to the line so it's harder to overfit
-            noise_line = true_line + self.line_wiggle * np.random.randn(2, true_line.shape[1])
+            noise_line = true_line + seg_noise * np.random.randn(2, true_line.shape[1])
             #Create the virtual point path needed to give the line width when drawn by polygon:
 
             polygon_path = np.zeros( (true_line.shape[0], 2 * true_line.shape[1] + 1) , dtype=float)
@@ -274,7 +274,7 @@ def main():
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = int(1E2)
+    n_datapoints = int(1E5)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
@@ -294,19 +294,18 @@ def main():
     # Generate X
     #Temporary generation location
     for dp_i in range(int(n_datapoints/4) ):
-        print(dp_i)
         X_train[4*dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[4*dp_i], 
-                                    roads.line_width) )
+                                    roads.line_width, roads.line_wiggle) )
         X_train[4*dp_i+1, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[4*dp_i+1], 
-                                    roads.line_width/2) )
+                                    roads.line_width/2, roads.line_wiggle) )
         X_train[4*dp_i+2, :, :, :] = roads.road_generator(y_train[4*dp_i+2], 
-                                    roads.line_width)
+                                    roads.line_width, roads.line_wiggle)
         X_train[4*dp_i+3, :, :, :] = roads.road_generator(y_train[4*dp_i+3], 
-                                    roads.line_width/2)
+                                    roads.line_width/2, roads.line_wiggle)
 
-        print("%.2f%%" % ((100.0 * dp_i*4 / n_datapoints)), end='\r')
+        print("%.2f%%" % ((400.0 * dp_i / n_datapoints)), end='\r')
     print("Done")
 
     if args.tests > 0:
@@ -317,8 +316,10 @@ def main():
     else:
         # Normalize  testing
 
-        X_norm = (X_train / np.max( X_train  ) )
+        X_train = (X_train / np.max( X_train  ) )
         
+        X_train = X_train.astype(np.uint8)
+
         #fixes the label array for use by the learning model
         y_train = roads.model_tranform(y_train)
 
@@ -327,8 +328,8 @@ def main():
             os.makedirs(train_data_dir)
 
         # Save Files
-        np.save("%s/line_X_train.npy" % (train_data_dir) , X_norm[:n_train_datapoints])
-        np.save("%s/line_X_val.npy" % (train_data_dir) , X_norm[n_train_datapoints:])
+        np.save("%s/line_X_train.npy" % (train_data_dir) , X_train[:n_train_datapoints])
+        np.save("%s/line_X_val.npy" % (train_data_dir) , X_train[n_train_datapoints:])
         np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
         np.save("%s/line_y_val.npy" % (train_data_dir) , y_train[n_train_datapoints:])
 

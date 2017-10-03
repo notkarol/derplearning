@@ -41,9 +41,6 @@ def print_points( labels, model_out):
 #Saves images in side by side plots
 def compare_io(X_val, model_raw, directory = cfg['dir']['validation'], 
                 subdirectory = 'image_comparison' ):
-    #file management stuff
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
@@ -57,7 +54,11 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
     #Restoring the training data to a displayable color range
     X_large = X_val * max_intensity
 
-    model_view = road.road_generator(model_out)
+    #initialize the model view tensor
+    model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
+
+    for prnt_i in range(curves_to_print):
+        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
 
     road.save_images(X_large, model_view, '%s/%s' % (directory, subdirectory) )
 
@@ -120,9 +121,6 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
     #apply the model to generate coordinate prediction
     predictions = loaded_model.road_spotter(X_val)
 
-    #file management stuff
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
     compare_io(X_val, predictions, directory, subdirectory)
     print("Validation images saved to: %s/%s" %(directory, subdirectory) )
