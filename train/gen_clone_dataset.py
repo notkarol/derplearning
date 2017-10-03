@@ -54,13 +54,16 @@ def processRecording(target_config, writer, path, target_dir):
             patch = drputil.cropImage(perturbed_frame, bbox)
         else:
             patch = drputil.cropImage(frame, bbox)
-
+        
         # Get the patch into the target final size
         thumb = drputil.resizeImage(patch, size)
 
-        # Prepare states
-        store_name = "%i_%02i.png" % (timestamp, pert_id)
-        writer.write("%.6f" % timestamp)
+        # Store image
+        store_name = os.path.join(target_dir, "%i_%02i.png" % (timestamp, pert_id))
+        cv2.imwrite(store_name, thumb)
+        
+        # Write out states
+        writer.write("%i,%02i" % (timestamp, pert_id))
         for state in target_config['states']:
             writer.write(',%f' % states[frame_i][state])
         writer.write("\n")
@@ -78,18 +81,19 @@ def main():
 
     # Create folder for experiment
     experiment_dir = os.path.join(os.environ['DRP_SCRATCH'], target_config['name'])
-    if not os.path.exists(experiment_dir):
-        os.mkdir(experiment_dir)
+    drputil.mkdir(experiment_dir)
     
     # Process each recording for training and evaluation
     for mode in ['train', 'eval']:
         dataset_dir = os.path.join(experiment_dir, mode)
-        if not os.path.exists(dataset_dir):
-            os.mkdir(dataset_dir)
-        metadata_path = os.path.join(experiment_dir, 'metadata_%s.csv' % mode)
+        drputil.mkdir(dataset_dir)
+        class_dir = os.path.join(dataset_dir, 'default')
+        drputil.mkdir(class_dir)
+        
+        metadata_path = os.path.join(dataset_dir, 'metadata.csv')
         with open(metadata_path, 'w') as metadata_fd:
             for recording_dir in target_config['%s_paths' % mode]: 
-                processRecording(target_config, metadata_fd, recording_dir, dataset_dir)
+                processRecording(target_config, metadata_fd, recording_dir, class_dir)
 
 
 if __name__ == "__main__":

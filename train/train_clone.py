@@ -4,84 +4,92 @@ import cv2
 import numpy as np
 import os
 import sys
-import tensorflow as tf
-from tensorflow.contrib.learn.python.learn import learn_runner
-from tensorflow.contrib.learn.python.learn.utils import (saved_model_export_utils)
 
+import torch
+import torch.optim
+import torch.nn as nn
+import torch.utils.data
+from torch.autograd import Variable
+import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 import drputil
 
-def model_fn(features, labels, mode):
-    is_training = mode != tf.estimator.ModeKeys.PREDICT
+class Block(nn.Module):
+    def __init__(self, in_features, out_features, kernel_size=3, stride=1,
+                 padding=None, pool=None):
+        super(Block, self).__init__()
+        if padding is None:
+            padding = kernel_size // 2
+        self.conv1 = nn.Conv2d(in_features, out_features, kernel_size=kernel_size,
+                               stride=stride, padding=padding)
+        self.bn1 = nn.BatchNorm2d(out_features)
+        self.relu = nn.ReLU(inplace=True)
+
+        if pool == 'max':
+            self.pool = nn.MaxPool2d(2, stride=2, padding=0, return_indices=True)
+        else:
+            self.pool = None
+
+        
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        if self.pool is not None:
+            out = self.pool(out)
+        return out
+
     
-    x = features['front']
-    c1 = tf.layers.conv2d(x, filters=32, kernel_size=5, padding='same', activation=tf.nn.relu)
-    c1 = tf.layers.max_pooling2d(c1, 2, 2)
-    c2 = tf.layers.conv2d(c1, filters=32, kernel_size=3, padding='same', activation=tf.nn.relu)
-    c2 = tf.layers.max_pooling2d(c2, 2, 2)
-    c3 = tf.layers.conv2d(c2, filters=32, kernel_size=3, padding='same', activation=tf.nn.relu)
-    c3 = tf.layers.max_pooling2d(c3, 2, 2)
-    c4 = tf.layers.conv2d(c3, filters=32, kernel_size=3, padding='same', activation=tf.nn.relu)
-    c4 = tf.layers.max_pooling2d(c4, 2, 2)
-    fc1 = tf.contrib.layers.flatten(c4)
-    fc1 = tf.layers.dense(fc1, 64)
-    fc1 = tf.layers.dropout(fc1, rate=0.5, training=is_training)
-    out = tf.layers.dense(fc1, 2, name='servo_tensor') # make it based on labels['servo']
+class ModelA(nn.Module):
+    def __init__(self, config):
+        super(ModelA, self).__init__()
+        self.layer1 = Block( 3, 64, 7, pool='max')
+        self.layer2 = Block(64, 64, 5, pool='max')
+        self.layer3 = Block(64, 64, 3, pool='max')
+        self.layer4 = Block(64, 64, 3, pool='max')
+        self.fc1 = nn.Linear(8 * 2 * 64, 64)
+        self.fc2 = nn.Linear(64, len(config['predict']))
+        self.relu = nn.ReLU(inplace=True)
+        
+    def forward(self, x):
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = out.view(out.size(0), -1)
+        out = self.fc1(out)
+        out = self.relu(out)
+        out = nn.functional.dropout(out, training=self.training)
+        out = self.fc2(out)
+        print(out)
+        return out
 
-    if not is_training:
-        return tf.estimator.EstimatorSpec(mode=mode, predictions=out)
-
-    # Define loss
-    loss_op = tf.losses.mean_squared_error(labels['servo'], out)
-    optimizer = tf.train.AdamOptimizer(learning_rate=1E-3)
-    train_op = optimizer.minimize(loss=loss_op, global_step=tf.train.get_global_step())
-    eval_metric_ops = { 'servo': tf.reduce_mean(labels['servo'] - out, name='servo_mean'),
-                        'speed': tf.reduce_mean(labels['servo'][:, 0] - out[:, 0], name='speed_mean'),
-                        'steer': tf.reduce_mean(labels['servo'][:, 1] - out[:, 1], name='steer_mean')}
-    estim_specs = tf.estimator.EstimatorSpec(mode=mode, loss=loss_op, predictions=out,
-                                             train_op=train_op, eval_metric_ops={})
-    return estim_specs
-
-
-
-def read_and_decode(filenames, config):
-    """ Generate examples from all the specified tfrecord files """
-    # Prepare file queue
-    file_queue = tf.train.string_input_producer(filenames, name='queue')
-
-    # Prepare data readers
-    reader = tf.TFRecordReader()
-    key, entire_example = reader.read(file_queue)
-    feature = { 'front': tf.FixedLenFeature([], tf.string),
-                'speed': tf.FixedLenFeature([], tf.float32),
-                'steer': tf.FixedLenFeature([], tf.float32) }
-    features = tf.parse_single_example(entire_example, features=feature)
-
-    # Prepare label
-    label = tf.stack([features['speed'], features['steer']], 0)
-    label = tf.cast(label, tf.float32)
-
-    # Process example
-    camera = 'front'
-    front = tf.decode_raw(features['front'], tf.uint8)
-    front = tf.reshape(front, [config['patch'][camera]['height'],
-                               config['patch'][camera]['width'],
-                               config['patch'][camera]['depth']])
-    front = tf.cast(front, tf.float32)
-    front /= 256
     
-    # Return shuffled
-    examples, labels = tf.train.shuffle_batch(
-        tensors=[front, label],
-        batch_size=config['batch_size'],
-        num_threads=config['num_threads'],
-        enqueue_many=False,
-        capacity=2**10,
-        min_after_dequeue=2**9)
-    return {'front': examples}, {'servo': labels}
+def train_model(epoch, model, loader, optimizer, criterion):
+    model.train()
+    train_loss = 0
+    for batch_idx, (example, label) in enumerate(loader):
+        example, label = Variable(example.cuda()), Variable(label.cuda())
+        optimizer.zero_grad()
+        out = model(example)
+        loss = criterion(out, label)
+        train_loss += loss
+        loss.backward()
+        optimizer.step()
+        print(batch_idx, loss)
+    print("Train [%03i]: %.6f" % (epoch, train_loss))
 
-def get_input_fn(filenames, config):
-    return lambda: read_and_decode(filenames, config)
-
+        
+def eval_model(epoch, model, loader, optimizer):
+    model.eval()
+    eval_loss = 0
+    for batch_idx, (example, label) in enumerate(loader):
+        example, label = Variable(example.cuda()), Variable(label.cuda())
+        out = model(example)
+        eval_loss += criterion(out, label)
+    print("Eval  [%03i]: %.6f" % (epoch, eval_loss))
+        
+    
 def main():
 
     # Load arguemnts
@@ -91,28 +99,28 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
     # Make sure we have somewhere to run the experiment
-    output_path = os.path.join(os.environ["DRP_SCRATCH"], config['name'])
-    if not os.path.exists(output_path):
-        os.mkdir(output_path)
+    experiment_path = os.path.join(os.environ["DRP_SCRATCH"], config['name'])
 
     # prepare data fetchers
-    train_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_train.tfrecords" % config['name'])
-    eval_path = os.path.join(os.environ["DRP_SCRATCH"], "%s_eval.tfrecords" % config['name'])
-    input_fn = get_input_fn([train_path], config)
-    
-    # Prepare classifier
-    classifier = tf.estimator.Estimator(model_fn=model_fn, model_dir=output_path)
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                                                                std=[0.2, 0.2, 0.2])])
+    train_dir = os.path.join(experiment_path, 'train')
+    eval_dir = os.path.join(experiment_path, 'eval')
+    train_set = datasets.ImageFolder(train_dir, transform)
+    eval_set = datasets.ImageFolder(eval_dir, transform)
 
-    # setup logging
-    tensors_to_log = {"servo": "servo_mean", "speed": "speed_mean", "steer": "steer_mean"}
-    logging_hook = tf.train.LoggingTensorHook(tensors=tensors_to_log, every_n_iter=100)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=config['batch_size'],
+                                               shuffle='True', num_workers=config['num_threads'])
+    eval_loader = torch.utils.data.DataLoader(eval_set, batch_size=config['batch_size'],
+                                              num_workers=config['num_threads'])
 
-    # Train
-    classifier.train(input_fn=input_fn,
-                     steps=100,
-                     hooks=[logging_hook])
-    eval_results = classifier.evaluate(input_fn=get_input_fn([eval_path], config))
-    print(eval_results)
+    model = ModelA(config).cuda()
+    criterion = nn.MSELoss().cuda()
+    optimizer = torch.optim.Adam(model.parameters(), config['learning_rate'])
+
+    for epoch in range(config['num_epochs']):
+        train_model(epoch, model, train_loader, optimizer, criterion)
+        eval_model(epoch, model, eval_loader, optimizer)
     
 
 if __name__ == "__main__":

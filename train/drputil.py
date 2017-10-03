@@ -5,7 +5,6 @@ import os
 import pickle
 import sys
 import yaml
-import tensorflow as tf
 
 class Bbox:
     def __init__(self, x, y, w, h):
@@ -17,21 +16,11 @@ class Bbox:
         return str(self)
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
-    
 
-def getTfFeature(value):
-    
-    vals = value if type(value) is list else [value]
-        
-    if type(vals[0]) is int:
-        return tf.train.Feature(int64_list=tf.train.Int64List(value=vals))
-    elif type(vals[0]) is float:
-        return tf.train.Feature(float_list=tf.train.FloatList(value=vals))
-    elif type(vals[0]) is np.ndarray:
-        return tf.train.Feature(bytes_list=tf.train.BytesList(value=[x.tobytes() for x in vals]))
-    else:
-        return tf.train.Feature(bytes_list=tf.train.BytesList(value=vals))
 
+def mkdir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
 
 def loadConfig(path, name='config'):
     if os.path.isdir(path):
@@ -69,6 +58,7 @@ def getPatchSize(target_config, camera):
 def cropImage(image, bbox):
     crop = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
     return crop
+
 
 def resizeImage(image, size):
     return cv2.resize(image, size)
