@@ -42,15 +42,15 @@ class Roadgen:
         self.input_height = config['line']['input_height']
 
         #Attributes of the road line drawing.
-        self.max_road_width = self.gen_width/3.5 #The widest possible road that can be drawn (radius)
+        self.max_road_width = self.gen_width/2.5 #The widest possible road that can be drawn (radius)
         self.min_road_height = self.view_height/2 #The minimum value for the 2nd and 3rd road control points
         self.horz_noise_fraction = 0.3 #size of the noise envelope below max_width where road lines may exist
         self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = self.view_width/30
-        self.line_wiggle = self.max_road_width * 0
+        self.line_width = self.view_width * .00825
+        self.line_wiggle = self.max_road_width * 0.005
 
     def __del__(self):
         #Deconstructor
@@ -85,6 +85,7 @@ class Roadgen:
         return nd_labels
 
     #returns a unit vector perpendicular to the input vector
+    #Aka a unit vector normal to the curve as defined by delta
     def perpendicular(self, delta):
         u_vector =  np.matmul( delta, [[0,-1],[1,0]] ) / np.sqrt(np.matmul( np.multiply(delta, delta), [[1],[1]] ))
             
@@ -116,6 +117,28 @@ class Roadgen:
         y_noise = np.random.randint(0, self.max_road_width * self.horz_noise_fraction,
             (n_datapoints, self.n_lines, self.n_dimensions, self.n_points) )
 
+        '''
+        FIXME rotation code for road is incomplete
+        #prepare a normal tensor wrt the center line:
+        y_norm = np.zeros(y_train.shape[:,1,:,:], float)
+
+        y_norm[:, :, 0] = self.perpendicular(y_train[:,1,:,1] - y_train[:,1,:,0])
+        y_norm[:, :, 1] = self.perpendicular(y_train[:,1,:,2] - y_train[:,1,:,0])
+        y_norm[:, :, 2] = self.perpendicular(y_train[:,1,:,2] - y_train[:,1,:,1])
+
+        #prepare a road width vector:
+        y_width[:,0,:] = np.multiply( 
+                (self.max_road_width * (1 - self.horz_noise_fraction) -
+                 y_noise[:, 0, 1, :]),(1 - self.lane_convergence * 
+                 y_train[:, 1, 1, : ]/self.view_height) )
+
+        #Multiply the road width tensor by the normal to road path vector
+        y_train[:, 0, :, 1:] = y_train[:, 1, :, 1:] - np.multiply(
+                y_norm[:, :, 1:] ,y_width[:, 1:])
+
+        
+        '''
+
         #Left lines
         y_train[:, 0, 0, : ] = y_train[:, 1, 0, : ] - np.multiply( 
                 (self.max_road_width * (1 - self.horz_noise_fraction) -
@@ -140,13 +163,17 @@ class Roadgen:
         road_frame = np.zeros((self.view_height, self.gen_width, self.n_channels),
              dtype=np.uint8)
 
+        #line width randomizer:
+
+        line_width += max(line_width/4 *np.random.randn(), -line_width*3/4)
+
         for y_line in y_train:
+            
             x,y = bezier_curve(y_line[ 0, : ], y_line[1, :], self.n_segments)
             true_line = np.array([x, y])
 
             #Add some noise to the line so it's harder to overfit
             noise_line = true_line + self.line_wiggle * np.random.randn(2, true_line.shape[1])
-
             #Create the virtual point path needed to give the line width when drawn by polygon:
 
             polygon_path = np.zeros( (true_line.shape[0], 2 * true_line.shape[1] + 1) , dtype=float)
@@ -160,20 +187,19 @@ class Roadgen:
                  - line_width * np.transpose(self.perpendicular(
                 np.transpose(noise_line[:,2:] - noise_line[:, :noise_line.shape[1]-2]) ) ) )
 
-            #These points determine the top end of the line:
-            polygon_path[:, true_line.shape[1]-1] = noise_line[:, true_line.shape[1]-1] + line_width
-            polygon_path[:, true_line.shape[1] ] = noise_line[:, true_line.shape[1]-1] - line_width
+            #These points determine the bottom end of the line:
+            polygon_path[:, true_line.shape[1]-1] = noise_line[:, true_line.shape[1]-1] - [line_width, 0]
+            polygon_path[:, true_line.shape[1] ] = noise_line[:, true_line.shape[1]-1] + [line_width, 0]
 
             #Now we set the start and endpoints (they must be the same!)
-            polygon_path[:, 0] = noise_line[:, 0] + line_width
-            polygon_path[:, 2*true_line.shape[1] -1] = noise_line[:, 0] - line_width #This is the last unique point
-            polygon_path[:, 2*true_line.shape[1] ] = noise_line[:, 0] + line_width
+            polygon_path[:, 0] = noise_line[:, 0] - [line_width, 0]
+            polygon_path[:, 2*true_line.shape[1] -1] = noise_line[:, 0] + [line_width, 0] #This is the last unique point
+            polygon_path[:, 2*true_line.shape[1] ] = noise_line[:, 0] - [line_width, 0]
 
-            print('polygon_path:')
-            for point in polygon_path:
-                print( point) 
-            rr, cc = polygon(polygon_path[0], polygon_path[1], ( self.view_height, self.gen_width) )
+            #Actually draw the polygon
+            rr, cc = polygon((polygon_path.astype(int)[1]), polygon_path.astype(int)[0], ( self.view_height, self.gen_width) )
             road_frame[rr, cc, 0] = 255
+            #print(rr)
             '''
             #calculate the control points of a virtual line side by side to the original
             vy_line = y_line
