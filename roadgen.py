@@ -44,16 +44,16 @@ class Roadgen:
         self.input_height = config['line']['input_height']
 
         #Attributes of the road line drawing.
-        self.max_road_width = self.view_width/2 #The widest possible road that can be drawn (radius)
+        self.max_road_width = self.view_width * 0.75 #The widest possible road that can be drawn (radius)
         #self.min_road_height = self.gen_height/2 #The minimum value for the 2nd and 3rd road control points
-        self.horz_noise_fraction = 0.1 #size of the noise envelope below max_width where road lines may exist
+        self.horz_noise_fraction = 0.8 #size of the noise envelope below max_width where road lines may exist
             #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
-        self.lane_convergence = .5 #rate at which lanes converge approaching horizon
+        self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
         self.line_width = self.view_width * .006
-        self.line_wiggle = self.max_road_width * 0.002
+        self.line_wiggle = self.view_width * 0.0001
 
     def __del__(self):
         #Deconstructor
@@ -64,7 +64,7 @@ class Roadgen:
         
         #normalization
         nd_labels[:, :, 0, :] /= self.gen_width
-        nd_labels[:, :, 1, :] /= self.view_height
+        nd_labels[:, :, 1, :] /= self.gen_height
 
         #reshaping
         twod_labels =  np.reshape(nd_labels, (nd_labels.shape[0], self.n_lines * self.n_points *
@@ -81,10 +81,10 @@ class Roadgen:
         nd_labels[:,:,0,:] *= self.gen_width
         nd_labels[:,:,1,:] *= self.view_height
 
-        #Clamp model outputs (consider making this switched)
+        '''#Clamp model outputs (consider making this switched)
         nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
         nd_labels[:,:,1,:] = self.clamp(nd_labels[:,:,1,:], self.view_height)
-
+        '''
         return nd_labels
 
     #returns a unit vector perpendicular to the input vector
@@ -99,6 +99,11 @@ class Roadgen:
     def unit_vector(self, delta):
         return delta / np.sqrt(np.matmul(np.multiply(delta,delta),[1, 1]) )
 
+    #measures a vector's length and returns that
+    def vector_len(self, vector):
+        return np.sqrt(np.matmul(np.multiply(vector,vector),[1, 1]) )
+
+
     # Generate coordinate of beizier control points for a road
     def coord_gen(self, n_datapoints):
         y_train = np.zeros( (n_datapoints, self.n_lines, self.n_dimensions, 
@@ -110,7 +115,7 @@ class Roadgen:
         y_noise = np.random.randint(0, self.max_road_width * self.horz_noise_fraction,
             (n_datapoints, self.n_lines - 1, self.n_points) )
 
-        #Defining the road's 'start' at the base of the camera's view point
+        #Defining the road's 'start' at the base of the camera's view point (not the base of the generation window)
         #Centerline base definition:
         y_train[:, 1, 0, 0 ] = np.random.randint(self.cropsize[0], 
             (self.gen_width - self.cropsize[0]), (n_datapoints))
@@ -118,6 +123,8 @@ class Roadgen:
         y_train[:, 0, 0, 0 ] = y_train[:, 1, 0, 0 ] - (self.max_road_width - y_noise[:, 0, 0])
         #Right line base point
         y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
+        #Road start elevation:
+        y_train[:, :, 1, 0] = int(self.cropsize[1] * .5)
 
         #places the vanishing point either on the side of the view window or at the top of the screen
         vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
@@ -164,12 +171,16 @@ class Roadgen:
                 y_train[dp_i, :, 0, 2] = self.gen_width - 1
                 y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_height + self.gen_width)
 
+                #Assign the central control point:
+                y_train[dp_i, 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
+                y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
+
                 #Set the left side no.1 control point
                 y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - self.unit_vector(y_train[dp_i, 1, :, 1 ] - [0, self.gen_width])
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
                 #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + self.unit_vector(y_train[dp_i, 1, :, 1 ])
+                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + self.unit_vector(y_train[dp_i, 1, :, 1 ] - [0, self.gen_width])
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
 
@@ -211,10 +222,30 @@ class Roadgen:
         return rr, cc
 
     # Draws dashed lines like the one in the center of the road
-    def dashed_line(self, coordinates, dash_length = self.view_height/8 , dash_width = self.view_width/32):
+    def dashed_line(self, coordinates, dash_length, dash_width ):
+        #estimate the curve lenght to generate a segment count which will approxmiate the desired dash lenght
+        est_curve_len = (self.vector_len(coordinates[:,2] - coordinates[:,0] ) + 
+                        self.vector_len(coordinates[:,1] - coordinates[:,0] ) + 
+                        self.vector_len(coordinates[:,2] - coordinates[:,1] ) )/2
+        segments = int(est_curve_len/dash_length)
+        x, y = bezier_curve(coordinates[0, :] - self.cropsize[0], 
+                coordinates[1, :] - self.cropsize[1], segments)
+        dash_line = np.array([x, y])
 
-        segments = np.sqrt(np.matmul(np.multiply(coordinates[:,0],coordinates[:,2]),[1, 1]) )
-        return rr, cc
+        #initializing empty indexs
+        rrr = np.empty(0, dtype=int)
+        ccc = np.empty(0, dtype=int)
+        for dash in range( int(segments/2) ):
+            offset = .5*dash_width * self.perpendicular(dash_line[:,dash*2]-dash_line[:,dash*2+1])
+            d_path = np.array( [ dash_line[:,dash*2] + offset, dash_line[:,dash*2 +1] + offset, 
+                        dash_line[:,dash*2+1] - offset, dash_line[:,dash*2 ] - offset,
+                        dash_line[:,dash*2] + offset] )
+            rr, cc = polygon(d_path.astype(int)[:,1], d_path.astype(int)[:,0], 
+                            (self.view_height, self.view_width) )
+            rrr = np.append(rrr, rr)
+            ccc = np.append(ccc, cc)
+
+        return rrr, ccc
 
     #converts coordinates into images with curves on them
     def road_generator(self, y_train, line_width, seg_noise = 0):
@@ -225,9 +256,14 @@ class Roadgen:
 
         line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
 
-        for y_line in y_train:
-            rr, cc = self.poly_line( y_line, line_width, seg_noise)
-            road_frame[rr, cc, 0] = 255
+        rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
+        road_frame[rr, cc, 0] = 255
+
+        rr, cc = self.dashed_line(y_train[1], self.view_height/4, line_width*2)
+        road_frame[rr, cc, 0] = 255
+
+        rr, cc = self.poly_line( y_train[2], line_width, seg_noise)
+        road_frame[rr, cc, 0] = 255
 
         return road_frame #[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
@@ -301,14 +337,6 @@ def main():
         X_train[dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[dp_i], 
                                     roads.line_width, roads.line_wiggle * dp_i%5) )
-        '''X_train[2*dp_i+1, :, :, :] = roads.road_refiner(
-                                    roads.road_generator(y_train[2*dp_i+1], 
-                                    roads.line_width/2, roads.line_wiggle* dp_i%10) )
-        X_train[4*dp_i+2, :, :, :] = roads.road_generator(y_train[4*dp_i+2], 
-                                    roads.line_width, roads.line_wiggle* dp_i%10)
-        X_train[4*dp_i+3, :, :, :] = roads.road_generator(y_train[4*dp_i+3], 
-                                    roads.line_width/2, roads.line_wiggle* dp_i%10)
-        '''
         print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
     print("Done")
 
