@@ -118,12 +118,15 @@ def main():
     criterion = nn.MSELoss().cuda()
     optimizer = torch.optim.Adam(model.parameters(), config['learning_rate'])
 
+    lowest_loss = 1
     for epoch in range(config['num_epochs']):
         tmean, tstd = step(epoch, config, model, train_loader, optimizer, criterion, is_train=True)
         emean, estd = step(epoch, config, model, eval_loader, optimizer, criterion, is_train=False)
         print("epoch %03i train loss:%.6f std:%.6f eval loss:%.6f std:%.6f]" %
               (epoch, tmean, tstd, emean, estd))
-    
+        if emean < lowest_loss:
+            lowest_loss = emean
+            torch.save(model, os.path.join(experiment_path, "model_%03i.pt" % epoch))
     
 if __name__ == "__main__":
     main()
