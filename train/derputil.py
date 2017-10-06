@@ -6,6 +6,8 @@ import pickle
 import sys
 import yaml
 
+IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
+
 class Bbox:
     def __init__(self, x, y, w, h):
         self.x = int(x + 0.5) # first col
@@ -17,6 +19,14 @@ class Bbox:
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
+def has_image_ext(filename):
+    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+    
+
+def load_image(path):
+    with open(path, 'rb') as f:
+        with Image.open(f) as img:
+            return img.convert('RGB')                    
 
 def mkdir(path):
     if not os.path.exists(path):

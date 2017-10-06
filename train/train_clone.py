@@ -12,7 +12,7 @@ import torch.utils.data
 from torch.autograd import Variable
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import drputil
+import derputil
 
 class Block(nn.Module):
     def __init__(self, in_features, out_features, kernel_size=3, stride=1,
@@ -93,13 +93,13 @@ def eval_model(epoch, model, loader, optimizer):
 def main():
 
     # Load arguemnts
-    config = drputil.loadConfig(sys.argv[1])
+    config = derputil.loadConfig(sys.argv[1])
     if len(sys.argv) >= 3:
         gpu = sys.argv[2]
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
     # Make sure we have somewhere to run the experiment
-    experiment_path = os.path.join(os.environ["DRP_SCRATCH"], config['name'])
+    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], config['name'])
 
     # prepare data fetchers
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],

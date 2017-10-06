@@ -5,18 +5,18 @@ import numpy as np
 import os
 import sys
 
-import drputil
+import derputil
 import srperm as srp
 
 def processRecording(target_config, writer, path, target_dir):
     print('processRecording [%s]' % path)
     
     # Prepare our variables
-    timestamps, states = drputil.readState(path)
-    source_config = drputil.loadConfig(path)
+    timestamps, states = derputil.readState(path)
+    source_config = derputil.loadConfig(path)
     camera = 'front'
-    bbox = drputil.getPatchBbox(source_config, target_config, camera)
-    size = drputil.getPatchSize(target_config, camera)
+    bbox = derputil.getPatchBbox(source_config, target_config, camera)
+    size = derputil.getPatchSize(target_config, camera)
     hfov_ratio = target_config['patch'][camera]['hfov'] / source_config['camera'][camera]['hfov']
     frame_i = -1
     video_path = os.path.join(path, 'camera_%s.mp4' % camera)
@@ -51,19 +51,19 @@ def processRecording(target_config, writer, path, target_dir):
                                            source_config['camera'][camera]['hfov'],
                                            source_config['camera'][camera]['vfov'])
             state['steer'] = srp.shiftsteer(state['steer'], rotation, shift)
-            patch = drputil.cropImage(perturbed_frame, bbox)
+            patch = derputil.cropImage(perturbed_frame, bbox)
         else:
-            patch = drputil.cropImage(frame, bbox)
+            patch = derputil.cropImage(frame, bbox)
         
         # Get the patch into the target final size
-        thumb = drputil.resizeImage(patch, size)
+        thumb = derputil.resizeImage(patch, size)
 
         # Store image
         store_name = os.path.join(target_dir, "%i_%02i.png" % (timestamp, pert_id))
         cv2.imwrite(store_name, thumb)
         
         # Write out states
-        writer.write("%i,%02i" % (timestamp, pert_id))
+        writer.write("%i_%02i" % (timestamp, pert_id))
         for state in target_config['states']:
             writer.write(',%f' % states[frame_i][state])
         writer.write("\n")
@@ -77,23 +77,28 @@ def main():
     config_path = sys.argv[1]
 
     # Import config for ho we want to store
-    target_config = drputil.loadConfig(config_path)
+    target_config = derputil.loadConfig(config_path)
 
     # Create folder for experiment
-    experiment_dir = os.path.join(os.environ['DRP_SCRATCH'], target_config['name'])
-    drputil.mkdir(experiment_dir)
+    experiment_dir = os.path.join(os.environ['DERP_SCRATCH'], target_config['name'])
+    derputil.mkdir(experiment_dir)
     
     # Process each recording for training and evaluation
     for mode in ['train', 'eval']:
+
+        # Makesure dataset folder exists
         dataset_dir = os.path.join(experiment_dir, mode)
-        drputil.mkdir(dataset_dir)
-        class_dir = os.path.join(dataset_dir, 'default')
-        drputil.mkdir(class_dir)
-        
-        metadata_path = os.path.join(dataset_dir, 'metadata.csv')
-        with open(metadata_path, 'w') as metadata_fd:
+        derputil.mkdir(dataset_dir)
+
+        # Write states
+        states_path = os.path.join(dataset_dir, 'states.csv')
+        with open(states_path, 'w') as states_fd:
+            # Write header
+            states_fd.write(",".join(['key'] + target_config['states']) + "\n")
+
+            # Add each recording in paths
             for recording_dir in target_config['%s_paths' % mode]: 
-                processRecording(target_config, metadata_fd, recording_dir, class_dir)
+                processRecording(target_config, states_fd, recording_dir, dataset_dir)
 
 
 if __name__ == "__main__":
