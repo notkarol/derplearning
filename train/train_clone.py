@@ -13,6 +13,7 @@ from torch.autograd import Variable
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import derputil
+from derpfetcher import DerpFetcher
 
 class Block(nn.Module):
     def __init__(self, in_features, out_features, kernel_size=3, stride=1,
@@ -26,7 +27,9 @@ class Block(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
         if pool == 'max':
-            self.pool = nn.MaxPool2d(2, stride=2, padding=0, return_indices=True)
+            self.pool = nn.MaxPool2d(2, stride=2, padding=0)
+        elif pool == 'avg':
+            self.pool = nn.AvgPool2d(2, stride=2, padding=0)
         else:
             self.pool = None
 
@@ -43,53 +46,50 @@ class Block(nn.Module):
 class ModelA(nn.Module):
     def __init__(self, config):
         super(ModelA, self).__init__()
-        self.layer1 = Block( 3, 64, 7, pool='max')
-        self.layer2 = Block(64, 64, 5, pool='max')
+        self.lrn = nn.CrossMapLRN2d(3)
+        self.layer1 = Block(3,  96, 5, stride=2)
+        self.layer2 = Block(96, 64, 3, pool='max')
         self.layer3 = Block(64, 64, 3, pool='max')
         self.layer4 = Block(64, 64, 3, pool='max')
         self.fc1 = nn.Linear(8 * 2 * 64, 64)
         self.fc2 = nn.Linear(64, len(config['predict']))
         self.relu = nn.ReLU(inplace=True)
-        
+
     def forward(self, x):
-        out = self.layer1(x)
+        out = self.lrn(x)
+        out = self.layer1(out)
+        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
         out = self.relu(out)
-        out = nn.functional.dropout(out, training=self.training)
+        out = nn.functional.dropout(out, p=0.5, training=self.training)
         out = self.fc2(out)
-        print(out)
         return out
 
     
-def train_model(epoch, model, loader, optimizer, criterion):
-    model.train()
-    train_loss = 0
-    for batch_idx, (example, label) in enumerate(loader):
+def step(epoch, config, model, loader, optimizer, criterion, is_train):
+    if is_train:
+        model.train()
+    else:
+        model.eval()
+    step_loss = []
+    for batch_idx, (example, state) in enumerate(loader):
+        label = torch.stack([state[x] for x in config['predict']], dim=1).float()
         example, label = Variable(example.cuda()), Variable(label.cuda())
-        optimizer.zero_grad()
+        if is_train:
+            optimizer.zero_grad()
         out = model(example)
         loss = criterion(out, label)
-        train_loss += loss
-        loss.backward()
-        optimizer.step()
-        print(batch_idx, loss)
-    print("Train [%03i]: %.6f" % (epoch, train_loss))
+        step_loss.append(loss.data.mean())
+        if is_train:
+            loss.backward()
+            optimizer.step()
+    return np.mean(step_loss), np.std(step_loss)
 
-        
-def eval_model(epoch, model, loader, optimizer):
-    model.eval()
-    eval_loss = 0
-    for batch_idx, (example, label) in enumerate(loader):
-        example, label = Variable(example.cuda()), Variable(label.cuda())
-        out = model(example)
-        eval_loss += criterion(out, label)
-    print("Eval  [%03i]: %.6f" % (epoch, eval_loss))
-        
-    
+
 def main():
 
     # Load arguemnts
@@ -106,8 +106,8 @@ def main():
                                                                                 std=[0.2, 0.2, 0.2])])
     train_dir = os.path.join(experiment_path, 'train')
     eval_dir = os.path.join(experiment_path, 'eval')
-    train_set = datasets.ImageFolder(train_dir, transform)
-    eval_set = datasets.ImageFolder(eval_dir, transform)
+    train_set = DerpFetcher(train_dir, transform)
+    eval_set = DerpFetcher(eval_dir, transform)
 
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=config['batch_size'],
                                                shuffle='True', num_workers=config['num_threads'])
@@ -119,9 +119,11 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), config['learning_rate'])
 
     for epoch in range(config['num_epochs']):
-        train_model(epoch, model, train_loader, optimizer, criterion)
-        eval_model(epoch, model, eval_loader, optimizer)
+        tmean, tstd = step(epoch, config, model, train_loader, optimizer, criterion, is_train=True)
+        emean, estd = step(epoch, config, model, eval_loader, optimizer, criterion, is_train=False)
+        print("epoch %03i train loss:%.6f std:%.6f eval loss:%.6f std:%.6f]" %
+              (epoch, tmean, tstd, emean, estd))
     
-
+    
 if __name__ == "__main__":
     main()

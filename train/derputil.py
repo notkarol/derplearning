@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import os
 import pickle
+import PIL.Image
 import sys
 import yaml
 
@@ -19,13 +20,14 @@ class Bbox:
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
+    
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
     
 
 def load_image(path):
     with open(path, 'rb') as f:
-        with Image.open(f) as img:
+        with PIL.Image.open(f) as img:
             return img.convert('RGB')                    
 
 def mkdir(path):
