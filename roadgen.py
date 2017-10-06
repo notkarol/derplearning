@@ -52,7 +52,7 @@ class Roadgen:
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = self.view_width * .00825
+        self.line_width = self.view_width * .006
         self.line_wiggle = self.max_road_width * 0.002
 
     def __del__(self):
@@ -93,7 +93,7 @@ class Roadgen:
         u_vector =  np.matmul( delta, [[0,-1],[1,0]] ) / np.sqrt(np.matmul( np.multiply(delta, delta), [[1],[1]] ))
             
         return u_vector
-        
+
 
     #Converts a vector into a unit vector with the same orientation
     def unit_vector(self, delta):
@@ -104,10 +104,6 @@ class Roadgen:
         y_train = np.zeros( (n_datapoints, self.n_lines, self.n_dimensions, 
             self.n_points), np.float)
 
-        '''y_train[:, 1, 1, 1:] = np.sort(np.random.randint(self.min_road_height, 
-            self.gen_height, (n_datapoints, (self.n_points - 1) ) ) )
-        #note that by sorting the height control points we get non-uniform distributions
-        '''
         #noise for the side lines
         y_noise = np.zeros((n_datapoints, self.n_lines-1 ,
             self.n_points) , dtype=np.int)
@@ -177,54 +173,6 @@ class Roadgen:
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
 
-        '''
-        #FIXME rotation code for road is incomplete
-        #prepare a normal tensor wrt the center line:
-        y_norm = np.zeros( (self.n_dimensions, self.n_points), float)
-        
-        y_norm[:, 1, :, 0] = self.perpendicular(y_train[:,1,:,1] - y_train[:,1,:,0])
-        y_norm[:, 1, :, 1] = self.perpendicular(y_train[:,1,:,2] - y_train[:,1,:,0])
-        y_norm[:, 1, :, 2] = self.perpendicular(y_train[:,1,:,2] - y_train[:,1,:,1])
-        
-        #prepare a road width vector:
-        y_width = np.zeros( (n_datapoints, 2, self.n_points), dtype=np.float)
-        y_width[:, 0, :] = np.multiply( 
-                (self.max_road_width - y_noise[:, 0, 1, :]),
-                (1 - self.lane_convergence *  y_train[:, 1, 1, : ]/self.gen_height) )
-
-        y_width[:, 1, :] = np.multiply( 
-                (self.max_road_width - y_noise[:, 2, 1, :]),
-                (1 - self.lane_convergence *  y_train[:, 1, 1, : ]/self.gen_height) )
-
-        #Multiply the road width tensor by the normal to road path vector
-        for dp_i in range(n_datapoints):
-            y_norm[ :, 0] = np.transpose(self.perpendicular(np.transpose(y_train[dp_i,1,:,1] - y_train[dp_i,1,:,0]) ) )
-            y_norm[ :, 1] = np.transpose(self.perpendicular(np.transpose(y_train[dp_i,1,:,2] - y_train[dp_i,1,:,0]) ) )
-            y_norm[ :, 2] = np.transpose(self.perpendicular(np.transpose(y_train[dp_i,1,:,2] - y_train[dp_i,1,:,1]) ) )
-            y_train[dp_i, 0, :, :] = y_train[dp_i, 1, :, :] - np.multiply(
-                y_norm[ :, :] ,y_width[dp_i, 0, :])
-            y_train[dp_i, 2, :, :] = y_train[dp_i, 1, :, :] + np.multiply(
-                y_norm[ :, :] ,y_width[dp_i, 1, :])
-
-        '''
-        '''
-
-        #Left lines
-        y_train[:, 0, 0, : ] = y_train[:, 1, 0, : ] - np.multiply( 
-                (self.max_road_width - y_noise[:, 0, 1, :]),
-                (1 - self.lane_convergence *  y_train[:, 1, 1, : ]/self.gen_height) )
-        y_train[:, 0, 1, : ] = y_train[:, 1, 1, : ]
-
-        #Right lines
-        y_train[:, 2, 0, : ] = y_train[:, 1, 0, : ] + np.multiply( 
-                (self.max_road_width - y_noise[:, 2, 1, :]),
-                (1 - self.lane_convergence * y_train[:, 1, 1, : ]/self.gen_height) ) 
-        y_train[:, 2, 1, : ] = y_train[:, 1, 1, : ]
-
-        #Invert generation values so that roads are drawn right side up:
-        #y_train[:,:, 1, :] = self.view_height - 1 - y_train[:,:, 1, :]
-        '''
-
         return y_train
 
     def poly_line(self, coordinates, line_width, seg_noise = 0):
@@ -262,6 +210,12 @@ class Roadgen:
 
         return rr, cc
 
+    # Draws dashed lines like the one in the center of the road
+    def dashed_line(self, coordinates, dash_length = self.view_height/8 , dash_width = self.view_width/32):
+
+        segments = np.sqrt(np.matmul(np.multiply(coordinates[:,0],coordinates[:,2]),[1, 1]) )
+        return rr, cc
+
     #converts coordinates into images with curves on them
     def road_generator(self, y_train, line_width, seg_noise = 0):
         road_frame = np.zeros((self.view_height, self.view_width, self.n_channels),
@@ -269,34 +223,12 @@ class Roadgen:
 
         #line width randomizer:
 
-        line_width += max(line_width/4 *np.random.randn(), -line_width*3/4)
+        line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         for y_line in y_train:
             rr, cc = self.poly_line( y_line, line_width, seg_noise)
             road_frame[rr, cc, 0] = 255
-            #print(rr)
-            '''
-            #calculate the control points of a virtual line side by side to the original
-            vy_line = y_line
-            delta = y_line[:,1] - y_line[:,0]
-            vy_line[:,0] = y_line[:,0] + line_width * self.perpendicular(delta)[0]
-            delta = y_line[:,2] - y_line[:,0]
-            vy_line[:, 1] = y_line[:, 1] + line_width * self.perpendicular(delta)
-            delta = y_line[:,2] - y_line[:,1]
-            vy_line[:, 2] = y_line[:, 2] + line_width * self.perpendicular(delta)
 
-            vx, vy = bezier_curve(vy_line[0,:], vy_line[1, :], self.n_segments)
-            for ls_i in range(len(x) - 1):
-                #delta = [x[ls_i+1] - x[ls_i], y[ls_i+1] - y[ls_i] ]
-                #v1 = [x[ls_i], y[ls_i]] + line_width * self.perpendicular(delta)
-                #v2 = [x[ls_i+1], y[ls_i+1]] + line_width * self.perpendicular(delta)
-                c = [int(x[ls_i] ), int(vx[ls_i]), int(vx[ls_i+1] ),
-                     int(x[ls_i+1]), int(x[ls_i])]
-                r = [int(y[ls_i]), int(vy[ls_i]), int(vy[ls_i+1]), 
-                    int(y[ls_i+1]), int(y[ls_i] ) ]
-                rr, cc = polygon(r, c, ( self.view_height, self.gen_width) )
-                road_frame[rr, cc, 0] = 255
-            '''
         return road_frame #[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
     #applies canny edge detection algorithm to make generated data behave more like real world data
@@ -325,9 +257,6 @@ class Roadgen:
             plt.subplot(1, 2, 1)
             plt.title(titles[0])
             plt.imshow(Left_Images[dp_i,:,:,0], cmap=plt.cm.gray)
-            #plt.plot(x0, y0, 'r-')
-            #plt.plot(x1, y1, 'y-')
-            #plt.plot(x2, y2, 'r-')
             plt.gca().invert_yaxis()
 
             plt.subplot(1, 2, 2)
@@ -371,7 +300,7 @@ def main():
     for dp_i in range(int(n_datapoints) ):
         X_train[dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[dp_i], 
-                                    roads.line_width*((1+ dp_i%2)/2), roads.line_wiggle * dp_i%5) )
+                                    roads.line_width, roads.line_wiggle * dp_i%5) )
         '''X_train[2*dp_i+1, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[2*dp_i+1], 
                                     roads.line_width/2, roads.line_wiggle* dp_i%10) )
