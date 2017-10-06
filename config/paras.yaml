@@ -6,10 +6,10 @@ states: ['speed', 'steer']
 predict: ['speed', 'steer']
 model_clone: "A"
 perturb: false
-batch_size: 64
+batch_size: 32
 num_threads: 2
-learning_rate: 0.001
-num_epochs: 64
+learning_rate: 0.0001
+num_epochs: 100
 
 # What we want our models to predict
 labels:
