@@ -130,6 +130,7 @@ class Model:
     #OOM error will occur if too large a batch is passed in through frame
     def road_spotter(self, frame):
 
+        frame = frame/np.max(frame)
         road_lines = self.model.predict(frame)
 
         return np.reshape(road_lines, (frame.shape[0], self.n_lines, self.n_dimensions, self.n_points) )

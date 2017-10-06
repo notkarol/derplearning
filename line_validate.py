@@ -45,14 +45,10 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
 
-    max_intensity = 255
     curves_to_print = model_raw.shape[0]
 
     #reshaping the model output vector to make it easier to work with
     model_out = road.model_interpret(model_raw)
-
-    #Restoring the training data to a displayable color range
-    X_large = X_val * max_intensity
 
     #initialize the model view tensor
     model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
@@ -60,7 +56,7 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
     for prnt_i in range(curves_to_print):
         model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
 
-    road.save_images(X_large, model_view, '%s/%s' % (directory, subdirectory) )
+    road.save_images(X_val, model_view, '%s/%s' % (directory, subdirectory) )
 
 
 #Prints plot of curves against the training data Saves plots in files
@@ -137,7 +133,9 @@ def main():
     #load data
     X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
     y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
-    
+    #Restoring the training data to a displayable color range
+    max_intensity = 255
+    X_large = X_val * max_intensity
 
     #file management stuff
     directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
@@ -145,7 +143,7 @@ def main():
     
     #Validates against virtually generated data
     val_count = 256
-    val_training(X_val[:val_count], loaded_model, directory, subdirectory)
+    val_training(X_large[:val_count], loaded_model, directory, subdirectory)
 
     #Validates model against recorded data
     subdirectory = 'video_comparison' 
