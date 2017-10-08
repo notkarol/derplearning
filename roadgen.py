@@ -7,7 +7,10 @@ import argparse
 from skimage.draw import polygon
 from bezier import bezier_curve
 from model import Model
+import matplotlib
+#matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+#import matplotlib.animation.ImageMagickWriter as gifpipe
 
 '''
 Running this file generates 3 line road training data
@@ -124,7 +127,7 @@ class Roadgen:
         #Right line base point
         y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
         #Road start elevation:
-        y_train[:, :, 1, 0] = int(self.cropsize[1] * .5)
+        y_train[:, :, 1, 0] = int(self.cropsize[1] * .75)
 
         #places the vanishing point either on the side of the view window or at the top of the screen
         vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
@@ -187,7 +190,7 @@ class Roadgen:
         return y_train
 
     def poly_line(self, coordinates, line_width, seg_noise = 0):
-        #Note that we subtrack generation offsets from the curve coordinates before calculating the line segment locations
+        #Note that we subtract generation offsets from the curve coordinates before calculating the line segment locations
         x,y = bezier_curve(coordinates[ 0, : ]-self.cropsize[0],
                  coordinates[1, :] - self.cropsize[1], self.n_segments)
         true_line = np.array([x, y])
@@ -247,8 +250,17 @@ class Roadgen:
 
         return rrr, ccc
 
+    #Makes randomly shaped polygon noise to screw with the learning algorythm
+    def poly_noise(self, origin, max_size=[128,24],  max_verticies=10):
+        vert_count = np.random.randint(3,max_verticies)
+        verts = np.matmul(np.ones([vert_count+1, 1]), [origin] )
+        verts[1:vert_count, 0] = origin[ 0] + np.random.randint(0, max_size[0], vert_count -1)
+        verts[1:vert_count, 1] = origin[ 1] + np.random.randint(0, max_size[1], vert_count -1)
+
+        return polygon(verts[:,1], verts[:,0], (self.view_height, self.view_width) )
+
     #converts coordinates into images with curves on them
-    def road_generator(self, y_train, line_width, seg_noise = 0):
+    def road_generator(self, y_train, line_width, seg_noise = 0, poly_noise=0):
         road_frame = np.zeros((self.view_height, self.view_width, self.n_channels),
              dtype=np.uint8)
 
@@ -264,6 +276,11 @@ class Roadgen:
 
         rr, cc = self.poly_line( y_train[2], line_width, seg_noise)
         road_frame[rr, cc, 0] = 255
+
+        while poly_noise:
+            rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),np.random.randint(0, self.gen_height) ] )
+            road_frame[rr,cc, 0] = 255
+            poly_noise -= 1
 
         return road_frame #[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
@@ -290,12 +307,12 @@ class Roadgen:
         for dp_i in range(curves_to_print):
 
             #This is the actual save images part
-            plt.subplot(1, 2, 1)
+            plt.subplot(2, 1, 1)
             plt.title(titles[0])
             plt.imshow(Left_Images[dp_i,:,:,0], cmap=plt.cm.gray)
             plt.gca().invert_yaxis()
 
-            plt.subplot(1, 2, 2)
+            plt.subplot(2, 1, 2)
             plt.title(titles[1])
             plt.imshow(Right_Images[dp_i,:,:,0], cmap=plt.cm.gray)
             plt.gca().invert_yaxis()
@@ -303,6 +320,42 @@ class Roadgen:
             plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
             plt.close()
 
+    '''
+    #Saves images in side by side plots
+    def save_gif(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
+        
+        
+        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
+
+        #Video config stuff:
+        gifWriter = gifpipe()
+        metadata = dict(title='gif Test', artist='Matplotlib',
+                        comment='gif support!')
+        writer = gifWriter(fps=15, metadata=metadata)
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        #FIXME, adapt tutorial for this case
+        fig = plt.figure()
+        with writer.saving(fig, "writer_test.gif", curves_to_print):
+            for dp_i in range(curves_to_print):
+
+                #This is the actual save images part
+                plt.subplot(2, 1, 1)
+                plt.title(titles[0])
+                plt.imshow(Top_Images[dp_i,:,:,:])
+                #plt.gca().invert_yaxis()
+
+                plt.subplot(2, 1, 2)
+                plt.title(titles[1])
+                plt.imshow(Bot_Images[dp_i,:,:,0])
+                #plt.gca().invert_yaxis()
+
+                writer.grabframe()
+                #plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
+                plt.close()
+        '''
 
 def main():
 
@@ -314,7 +367,7 @@ def main():
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = int(1E5)
+    n_datapoints = int(1E2)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
@@ -336,7 +389,8 @@ def main():
     for dp_i in range(int(n_datapoints) ):
         X_train[dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[dp_i], 
-                                    roads.line_width, roads.line_wiggle * dp_i%5) )
+                                    roads.line_width, roads.line_wiggle * dp_i%7,
+                                    np.random.randint(0, 6) ) )
         print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
     print("Done")
 

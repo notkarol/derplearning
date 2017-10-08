@@ -91,7 +91,7 @@ class Model:
 
     #extracts frames from video for use by the validation function
     #this allows us to validate the model with real world images instead of simulated images.
-    def video_to_frames(self, folder="data/20170812T214343Z-paras", max_frames=256):
+    def video_to_frames(self, folder="data/20170812T214343Z-paras", max_frames=256, edge_detect=1, grayscale=1):
         # Prepare video frames by extracting the patch and thumbnail for training
         video_path = os.path.join(folder, 'video.mp4')
         print(video_path)
@@ -100,8 +100,14 @@ class Model:
         #initializing the car's perspective
         #viewer = Model(None, None, None)
 
+        #Set the output color channel:
+        channels = 3
+        if grayscale:
+            channels = 1
+
         #initializing the output array
-        frames = np.zeros([max_frames, lm_cfg['line']['input_height'] , lm_cfg['line']['input_width'], 1])
+        frames = np.zeros([max_frames, lm_cfg['line']['input_height'] , 
+                    lm_cfg['line']['input_width'], channels])
 
         counter = 0
         while video_cap.isOpened() and counter < max_frames:
@@ -110,12 +116,16 @@ class Model:
             if not ret: break
 
             prepared = self.preprocess(frame)[0]
-            prepared = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
-            prepared = cv2.flip(prepared, 0)
-            prepared = cv2.Canny(prepared,100,200)
-            prepared[prepared < 128] = 0
-            prepared[prepared >= 128] = 255
-            prepared = np.reshape(prepared, (lm_cfg['line']['input_height'] , lm_cfg['line']['input_width'] ,1))
+            channel = prepared.shape[2]
+            if grayscale:
+                prepared = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
+            if edge_detect:
+                prepared = cv2.flip(prepared, 0)
+                prepared = cv2.Canny(prepared,100,200)
+                prepared[prepared < 128] = 0
+                prepared[prepared >= 128] = 255
+            prepared = np.reshape(prepared, (lm_cfg['line']['input_height'] , 
+                                            lm_cfg['line']['input_width'] ,channels))
             frames[counter] = prepared
             counter += 1
 

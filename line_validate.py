@@ -122,10 +122,31 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
     print("Validation images saved to: %s/%s" %(directory, subdirectory) )
 
 
+def gif_validate(X_raw, X_val, loaded_model, directory):
+    #Creates tensors to compare to source images, plots both side by side, and saves the plots
+    road = Roadgen(cfg)
 
+    #Runing the model on the loaded data:
+    predictions = loaded_model.road_spotter(X_val)
+    curves_to_print = X_val.shape[0]
+
+    #reshaping the model output vector to make it easier to work with
+    model_out = road.model_interpret(predictions)
+
+    #initialize the model view tensor
+    model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
+
+    for prnt_i in range(curves_to_print):
+        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
+
+    road.save_gif(X_raw, model_view, '%s' % (directory) )
+    print("Validation gif saved to: %s" %(directory) )
 
 def main():
     
+    #Set max number of frames to validate:
+    val_count = 256
+
     #loading the model
     model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir']['model_name'] )
     loaded_model = Model(None, '%s.yaml' % model_path, '%s.h5' % model_path)
@@ -137,19 +158,28 @@ def main():
     max_intensity = 255
     X_large = X_val * max_intensity
 
+    #Loading video data for validation:
+    folder = "data/20170812T214343Z-paras"
+    X_video = loaded_model.video_to_frames(folder, val_count)
+
     #file management stuff
     directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
     subdirectory = 'virtual_comparison'
     
+    #Creating a validation gif:
+    X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, grayscale=0)
+    gif_validate(X_raw, X_video, loaded_model, directory)
+
     #Validates against virtually generated data
-    val_count = 256
     val_training(X_large[:val_count], loaded_model, directory, subdirectory)
 
     #Validates model against recorded data
     subdirectory = 'video_comparison' 
-    folder = "data/20170812T214343Z-paras"
-    X_video = loaded_model.video_to_frames(folder, val_count)
+    
+    #Creating validation comparison images:
     val_training(X_video, loaded_model, directory, subdirectory)
+
+    
     
 
 if __name__ == "__main__":
