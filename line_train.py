@@ -102,7 +102,7 @@ def main():
         # Update learning rate
         lr = args.lr / (i + 1)
         model.optimizer.lr.assign(lr)
-        print("Epoch %i/%i" % (i,args.epochs) )
+        print("Epoch %i/%i" % (i+1,args.epochs) )
         print("Setting learning rate to", lr)
         
         # Fit model

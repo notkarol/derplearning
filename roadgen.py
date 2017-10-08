@@ -56,7 +56,7 @@ class Roadgen:
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
         self.line_width = self.view_width * .006
-        self.line_wiggle = self.view_width * 0.0001
+        self.line_wiggle = self.view_width * 0.00005
 
     def __del__(self):
         #Deconstructor
@@ -82,7 +82,7 @@ class Roadgen:
                                         self.n_points))
         #denormalize labels
         nd_labels[:,:,0,:] *= self.gen_width
-        nd_labels[:,:,1,:] *= self.view_height
+        nd_labels[:,:,1,:] *= self.gen_height
 
         '''#Clamp model outputs (consider making this switched)
         nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
@@ -362,12 +362,13 @@ def main():
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
     parser.add_argument('--tests', type=int, default=0, metavar='TS', 
                         help='creates a test batch and compares the batch to video data (default is off)')
+    parser.add_argument('--datapoints', type=int, default=1E5, help='determines how many frames to generate')
     args = parser.parse_args()
 
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = int(1E2)
+    n_datapoints = args.datapoints
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
@@ -389,7 +390,7 @@ def main():
     for dp_i in range(int(n_datapoints) ):
         X_train[dp_i, :, :, :] = roads.road_refiner(
                                     roads.road_generator(y_train[dp_i], 
-                                    roads.line_width, roads.line_wiggle * dp_i%7,
+                                    roads.line_width, roads.line_wiggle * dp_i%5,
                                     np.random.randint(0, 6) ) )
         print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
     print("Done")

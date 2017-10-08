@@ -93,20 +93,6 @@ def plot_curves( val_points, model_out):
         plt.savefig('valplots/model_%06i.png' % i, dpi=100, bbox_inches='tight')
         plt.close()
 
-'''Defunt, move all funtionality to model.py
-#function loads model parameters
-def load_model(model_path):
-    # load YAML and create model
-    yaml_file = open('%s.yaml' % model_path, 'r')
-    loaded_model_yaml = yaml_file.read()
-    yaml_file.close()
-    loaded_model = model_from_yaml(loaded_model_yaml)
-    # load weights into new model
-    loaded_model.load_weights('%s.h5' % model_path)
-    print("Loaded model from disk")
-
-    return loaded_model
-'''
 
 #function invokes Model class, and saves the predictions as images
 def val_training(X_val, loaded_model, directory, subdirectory ):
@@ -168,7 +154,7 @@ def main():
     
     #Creating a validation gif:
     X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, grayscale=0)
-    gif_validate(X_raw, X_video, loaded_model, directory)
+    #gif_validate(X_raw, X_video, loaded_model, directory)
 
     #Validates against virtually generated data
     val_training(X_large[:val_count], loaded_model, directory, subdirectory)
