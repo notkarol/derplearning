@@ -26,7 +26,7 @@ Function list:
 # defines the structure of the model to be trained
 ''' Note, I cut the number of blocks from 4 to 2 to deal with an out of bounds error
      on the converging layers when using 96x16 dim. current dim is 192x32 '''
-def create_model(input_shape, n_output, n_blocks=2):
+def create_model(input_shape, n_output, n_blocks=3):
     model = Sequential()
     model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))
     model.add(BatchNormalization())

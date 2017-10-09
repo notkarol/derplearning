@@ -16,7 +16,7 @@ line:
     cropped_height: 320
 
     #Model input characteristics
-    n_channels: 1
+    n_channels: 3
     input_width: 192 # visible space
     input_height: 32 
 

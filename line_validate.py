@@ -108,7 +108,7 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
     print("Validation images saved to: %s/%s" %(directory, subdirectory) )
 
 
-def gif_validate(X_raw, X_val, loaded_model, directory):
+def mp4_validate(X_raw, X_val, loaded_model, directory):
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
 
@@ -125,7 +125,7 @@ def gif_validate(X_raw, X_val, loaded_model, directory):
     for prnt_i in range(curves_to_print):
         model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
 
-    road.save_gif(X_raw, model_view, '%s' % (directory) )
+    road.save_video(X_raw, model_view, '%s' % (directory) )
     print("Validation gif saved to: %s" %(directory) )
 
 def main():
@@ -153,8 +153,8 @@ def main():
     subdirectory = 'virtual_comparison'
     
     #Creating a validation gif:
-    X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, grayscale=0)
-    #gif_validate(X_raw, X_video, loaded_model, directory)
+    X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
+    #mp4_validate(X_raw, X_video, loaded_model, directory)
 
     #Validates against virtually generated data
     val_training(X_large[:val_count], loaded_model, directory, subdirectory)
@@ -162,9 +162,11 @@ def main():
     #Validates model against recorded data
     subdirectory = 'video_comparison' 
     
-    #Creating validation comparison images:
+    #Creating video validation comparison images:
     val_training(X_video, loaded_model, directory, subdirectory)
 
+    from giffer import create_gif
+    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .02)
     
     
 

@@ -91,7 +91,7 @@ class Model:
 
     #extracts frames from video for use by the validation function
     #this allows us to validate the model with real world images instead of simulated images.
-    def video_to_frames(self, folder="data/20170812T214343Z-paras", max_frames=256, edge_detect=1, grayscale=1):
+    def video_to_frames(self, folder="data/20170812T214343Z-paras", max_frames=256, edge_detect=1, channels_out=1):
         # Prepare video frames by extracting the patch and thumbnail for training
         video_path = os.path.join(folder, 'video.mp4')
         print(video_path)
@@ -100,14 +100,9 @@ class Model:
         #initializing the car's perspective
         #viewer = Model(None, None, None)
 
-        #Set the output color channel:
-        channels = 3
-        if grayscale:
-            channels = 1
-
         #initializing the output array
         frames = np.zeros([max_frames, lm_cfg['line']['input_height'] , 
-                    lm_cfg['line']['input_width'], channels])
+                    lm_cfg['line']['input_width'], channels_out])
 
         counter = 0
         while video_cap.isOpened() and counter < max_frames:
@@ -117,7 +112,7 @@ class Model:
 
             prepared = self.preprocess(frame)[0]
             channel = prepared.shape[2]
-            if grayscale:
+            if channels_out==1:
                 prepared = cv2.cvtColor(prepared, cv2.COLOR_BGR2GRAY)
             if edge_detect:
                 prepared = cv2.flip(prepared, 0)
@@ -125,7 +120,7 @@ class Model:
                 prepared[prepared < 128] = 0
                 prepared[prepared >= 128] = 255
             prepared = np.reshape(prepared, (lm_cfg['line']['input_height'] , 
-                                            lm_cfg['line']['input_width'] ,channels))
+                                            lm_cfg['line']['input_width'] ,channels_out))
             frames[counter] = prepared
             counter += 1
 
@@ -153,8 +148,11 @@ class Model:
         #road_map = np.zeros(np.shape(road_spots), np.float)
 
         #First we deal with all the points
-        road_map[:, 1, :] = self.camera_height * np.tan(self.camera_to_ground_arc + road_spots[:, 0, :] * self.camera_arc_x/self.crop_ratio[1])
-        road_map[:, 0, :] = np.multiply( np.power( ( np.power(self.camera_height, 2) + np.power(road_map[:, 1, :], 2) ), 0.5 ) , np.tan(self.camera_offset_y + (road_spots[:, 1, :]-0.5)*self.camera_arc_y ) )
+        road_map[:, 1, :] = self.camera_height * np.tan(self.camera_to_ground_arc + 
+                    road_spots[:, 0, :] * self.camera_arc_x/self.crop_ratio[1])
+        road_map[:, 0, :] = np.multiply( np.power( ( np.power(self.camera_height, 2) +
+                     np.power(road_map[:, 1, :], 2) ), 0.5 ) , np.tan(self.camera_offset_y +
+                      (road_spots[:, 1, :]-0.5)*self.camera_arc_y ) )
 
         return road_map
 

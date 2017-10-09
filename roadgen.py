@@ -10,6 +10,7 @@ from model import Model
 import matplotlib
 #matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import imageio
 #import matplotlib.animation.ImageMagickWriter as gifpipe
 
 '''
@@ -127,7 +128,7 @@ class Roadgen:
         #Right line base point
         y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
         #Road start elevation:
-        y_train[:, :, 1, 0] = int(self.cropsize[1] * .75)
+        y_train[:, :, 1, 0] = int(self.gen_height - self.cropsize[1] * .75)
 
         #places the vanishing point either on the side of the view window or at the top of the screen
         vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
@@ -142,18 +143,20 @@ class Roadgen:
                 y_train[dp_i, 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
                 y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
 
+                #Calculate the control point axis:
+                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.gen_height, 0] )
                 #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - self.unit_vector(y_train[dp_i, 1, :, 1 ])
+                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
                 #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + self.unit_vector(y_train[dp_i, 1, :, 1 ])
+                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
             elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
                 #define the vanishing point at the top of the camera's perspective
                 y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_height
-                y_train[dp_i, :, 1, 2] = self.gen_height - 1
+                y_train[dp_i, :, 1, 2] = 0
 
                 # Define the middle control points as members of a horizontal line chosen with the center point lying in the view window
                 #First assign the line containing the control points an elevation:
@@ -178,12 +181,14 @@ class Roadgen:
                 y_train[dp_i, 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
                 y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
 
+                #Calculate the control point axis:
+                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.view_height, self.gen_width])
                 #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - self.unit_vector(y_train[dp_i, 1, :, 1 ] - [0, self.gen_width])
+                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
                 #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + self.unit_vector(y_train[dp_i, 1, :, 1 ] - [0, self.gen_width])
+                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
 
@@ -261,26 +266,28 @@ class Roadgen:
 
     #converts coordinates into images with curves on them
     def road_generator(self, y_train, line_width, seg_noise = 0, poly_noise=0):
-        road_frame = np.zeros((self.view_height, self.view_width, self.n_channels),
+        road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
              dtype=np.uint8)
 
+        #Initialize a snowy background:
+        road_frame = np.random.randint(200, 255, (self.view_height, self.view_width, self.n_channels) )
+
         #line width randomizer:
-
         line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
-
-        rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
-        road_frame[rr, cc, 0] = 255
-
-        rr, cc = self.dashed_line(y_train[1], self.view_height/4, line_width*2)
-        road_frame[rr, cc, 0] = 255
-
-        rr, cc = self.poly_line( y_train[2], line_width, seg_noise)
-        road_frame[rr, cc, 0] = 255
 
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),np.random.randint(0, self.gen_height) ] )
-            road_frame[rr,cc, 0] = 255
+            road_frame[rr,cc, :] = np.random.randint(0, 150)
             poly_noise -= 1
+
+        rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
+        road_frame[rr, cc, :] = np.random.randint(0, 100)
+
+        rr, cc = self.dashed_line(y_train[1], self.view_height/4, line_width*2)
+        road_frame[rr, cc, 1:] = np.random.randint(0, 100)
+
+        rr, cc = self.poly_line( y_train[2], line_width, seg_noise)
+        road_frame[rr, cc, :] = np.random.randint(0, 100)
 
         return road_frame #[ :, self.cropsize:(self.cropsize+self.view_width),:]
 
@@ -295,10 +302,10 @@ class Roadgen:
         return np.reshape(road_frame, (self.input_height, self.input_width, 1) )
 
     #Saves images in side by side plots
-    def save_images(self, Left_Images, Right_Images, directory , titles = ('Input Image','Model Perception') ):
+    def save_images(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
         
         max_intensity = 255
-        curves_to_print = min(Right_Images.shape[0],Left_Images.shape[0])
+        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
 
 
         if not os.path.exists(directory):
@@ -309,29 +316,29 @@ class Roadgen:
             #This is the actual save images part
             plt.subplot(2, 1, 1)
             plt.title(titles[0])
-            plt.imshow(Left_Images[dp_i,:,:,0], cmap=plt.cm.gray)
-            plt.gca().invert_yaxis()
+            plt.imshow(Top_Images[dp_i,:,:,:])
+            #plt.gca().invert_yaxis()
 
             plt.subplot(2, 1, 2)
             plt.title(titles[1])
-            plt.imshow(Right_Images[dp_i,:,:,0], cmap=plt.cm.gray)
-            plt.gca().invert_yaxis()
+            plt.imshow(Bot_Images[dp_i,:,:,:])
+            #plt.gca().invert_yaxis()
 
             plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
             plt.close()
-
     '''
-    #Saves images in side by side plots
-    def save_gif(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
-        
-        
-        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
+    def create_gif(n_images, directory, output_name, duration):
+        images = []
+        for dp_i in range(n_images):
+            images.append(imageio.imread('%s/%06i.png' % (directory, dp_i) ) )
+        output_file = '%s.gif' % (output_name)
+        imageio.mimsave(output_file, images, duration=duration)
 
-        #Video config stuff:
-        gifWriter = gifpipe()
-        metadata = dict(title='gif Test', artist='Matplotlib',
-                        comment='gif support!')
-        writer = gifWriter(fps=15, metadata=metadata)
+    
+    #Saves images in side by side plots
+    def save_video(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
+
+        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -355,20 +362,25 @@ class Roadgen:
                 writer.grabframe()
                 #plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
                 plt.close()
-        '''
+
+        ani = animation.FuncAnimation(fig,update_img,300,interval=30)
+        writer = animation.writers['ffmpeg'](fps=30)
+
+        ani.save('demo.mp4',writer=writer,dpi=dpi)
+       ''' 
 
 def main():
 
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
     parser.add_argument('--tests', type=int, default=0, metavar='TS', 
                         help='creates a test batch and compares the batch to video data (default is off)')
-    parser.add_argument('--datapoints', type=int, default=1E5, help='determines how many frames to generate')
+    parser.add_argument('--frames', type=int, default=1E5, help='determines how many frames to generate')
     args = parser.parse_args()
 
     roads = Roadgen(cfg)
 
     #Move these parameters into an argparser
-    n_datapoints = args.datapoints
+    n_datapoints = int(args.frames)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
 
@@ -380,7 +392,7 @@ def main():
 
     # Data to store
     #print((n_datapoints, n_channels, height, train_width))
-    X_train = np.zeros((n_datapoints, roads.view_height, roads.view_width,
+    X_train = np.zeros( (n_datapoints, roads.view_height, roads.view_width,
          roads.n_channels), dtype=np.uint8)
     
     y_train = roads.coord_gen(n_datapoints)
@@ -388,18 +400,17 @@ def main():
     # Generate X
     #Temporary generation location
     for dp_i in range(int(n_datapoints) ):
-        X_train[dp_i, :, :, :] = roads.road_refiner(
-                                    roads.road_generator(y_train[dp_i], 
+        X_train[dp_i, :, :, :] =  roads.road_generator(y_train[dp_i], 
                                     roads.line_width, roads.line_wiggle * dp_i%5,
-                                    np.random.randint(0, 6) ) )
+                                    np.random.randint(0, 6) ) 
         print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
     print("Done")
 
     if args.tests > 0:
         subdir = 'test'
         model = Model(None, None, None)
-        roads.save_images(model.video_to_frames(), X_train, '%s/%s' % 
-            (train_data_dir, subdir), ['Camera', 'Virtual Generator'] )
+        roads.save_images(model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
+             X_train, '%s/%s' % (train_data_dir, subdir), ['Camera', 'Virtual Generator'] )
     else:
         # Normalize  testing
 
