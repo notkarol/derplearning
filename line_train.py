@@ -26,7 +26,7 @@ Function list:
 # defines the structure of the model to be trained
 ''' Note, I cut the number of blocks from 4 to 2 to deal with an out of bounds error
      on the converging layers when using 96x16 dim. current dim is 192x32 '''
-def create_model(input_shape, n_output, n_blocks=3):
+def create_model(input_shape, n_output, n_blocks=2):
     model = Sequential()
     model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))
     model.add(BatchNormalization())
@@ -75,10 +75,10 @@ def main():
 
 
     # Load Data
-    X_train = np.load('%s/line_X_train.npy' % (args.train_data))
-    X_val = np.load('%s/line_X_val.npy' % (args.train_data))
-    y_train = np.load('%s/line_y_train.npy' % (args.train_data))
-    y_val = np.load('%s/line_y_val.npy' % (args.train_data))
+    X_train = np.load('%s/line_X_train_000.npy' % (args.train_data))
+    X_val = np.load('%s/line_X_val_000.npy' % (args.train_data))
+    y_train = np.load('%s/line_y_train_000.npy' % (args.train_data))
+    y_val = np.load('%s/line_y_val_000.npy' % (args.train_data))
 
     print(X_train.shape, y_train.shape)
     
@@ -105,9 +105,16 @@ def main():
         print("Epoch %i/%i" % (i+1,args.epochs) )
         print("Setting learning rate to", lr)
         
-        # Fit model
-        model.fit(X_train, y_train, batch_size=args.bs, epochs=1,
-                  validation_data=(X_val, y_val), shuffle=True)
+        for j in range(9):
+            print("Training set %03i" % j)
+            # Load Data
+            X_train = np.load('%s/line_X_train_%03i.npy' % (args.train_data, j))
+            X_val = np.load('%s/line_X_val_%03i.npy' % (args.train_data, j))
+            y_train = np.load('%s/line_y_train_%03i.npy' % (args.train_data, j))
+            y_val = np.load('%s/line_y_val_%03i.npy' % (args.train_data, j))
+            # Fit model
+            model.fit(X_train, y_train, batch_size=args.bs, epochs=1,
+                      validation_data=(X_val, y_val), shuffle=True)
         
         # serialize model to YAML
         model_yaml = model.to_yaml()

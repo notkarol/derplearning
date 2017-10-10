@@ -54,7 +54,8 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
     model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
 
     for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
+        model_view[prnt_i] = road.denormalize(
+            road.road_generator(model_out[prnt_i], road.line_width/2) )
 
     road.save_images(X_val, model_view, '%s/%s' % (directory, subdirectory) )
 
@@ -69,7 +70,7 @@ def plot_curves( val_points, model_out):
     n_segments = 10
     width = 64
     height = 64
-    max_intensity = 256
+    max_intensity = 255
     curves_to_print = model_out.shape[0]
 
     for i in range(curves_to_print):
@@ -123,11 +124,12 @@ def mp4_validate(X_raw, X_val, loaded_model, directory):
     model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
 
     for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2)
-
+        model_view[prnt_i] = road.denormalize(
+            road.road_generator(model_out[prnt_i], road.line_width/2) )
+        
     road.save_video(X_raw, model_view, '%s' % (directory) )
     print("Validation gif saved to: %s" %(directory) )
-
+ 
 def main():
     
     #Set max number of frames to validate:
@@ -137,23 +139,26 @@ def main():
     model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir']['model_name'] )
     loaded_model = Model(None, '%s.yaml' % model_path, '%s.h5' % model_path)
 
+    #Pulling up roadgen to help deal with virtually generated data:
+    road = Roadgen(cfg)
+
     #load data
-    X_val = np.load('%s/line_X_val.npy' % cfg['dir']['train_data'])
-    y_val = np.load('%s/line_y_val.npy' % cfg['dir']['train_data'])
+    X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
+    y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
     #Restoring the training data to a displayable color range
     max_intensity = 255
-    X_large = X_val * max_intensity
+    X_large = road.denormalize(X_val)
 
     #Loading video data for validation:
     folder = "data/20170812T214343Z-paras"
-    X_video = loaded_model.video_to_frames(folder, val_count)
+    X_video = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
 
     #file management stuff
     directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
     subdirectory = 'virtual_comparison'
     
     #Creating a validation gif:
-    X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
+    #X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
     #mp4_validate(X_raw, X_video, loaded_model, directory)
 
     #Validates against virtually generated data
