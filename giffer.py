@@ -9,7 +9,7 @@ def create_gif(n_images, directory, output_name, duration):
     images = []
     for dp_i in range(n_images):
         images.append(imageio.imread('%s/%06i.png' % (directory, dp_i) ) )
-    output_file = '%s.gif' % (output_name)
+    output_file = '%s/%s.gif' % (directory, output_name)
     imageio.mimsave(output_file, images, duration=duration)
 
 

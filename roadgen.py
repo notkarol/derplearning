@@ -54,7 +54,7 @@ class Roadgen:
         #self.min_road_height = self.gen_height/2 #The minimum value for the 2nd and 3rd road control points
         self.horz_noise_fraction = 0.8 #size of the noise envelope below max_width where road lines may exist
             #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
-        self.lane_convergence = .6 #rate at which lanes converge approaching horizon
+        self.lane_convergence = .5 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
@@ -119,6 +119,7 @@ class Roadgen:
 
     # Generate coordinate of beizier control points for a road
     #FIXME: control point generation for turns is currently garbage
+    #FIXME: Split the vanishing point into 3 points
     #Needs: more variability, realism (esp for right hand turns)
     def coord_gen(self, n_datapoints):
         y_train = np.zeros( (n_datapoints, self.n_lines, self.n_dimensions, 
@@ -157,11 +158,11 @@ class Roadgen:
                 #Calculate the control point axis:
                 u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.gen_height, 0] )
                 #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
+                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
                 #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
+                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
             elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
@@ -193,13 +194,13 @@ class Roadgen:
                 y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
 
                 #Calculate the control point axis:
-                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.view_height, self.gen_width])
+                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.gen_height, self.gen_width])
                 #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
+                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
                 #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
+                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
                     * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
                     (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
 
@@ -240,6 +241,7 @@ class Roadgen:
 
         return rr, cc
 
+
     # Draws dashed lines like the one in the center of the road
     def dashed_line(self, coordinates, dash_length, dash_width ):
         #estimate the curve lenght to generate a segment count which will approxmiate the desired dash lenght
@@ -276,6 +278,8 @@ class Roadgen:
         return polygon(verts[:,1], verts[:,0], (self.view_height, self.view_width) )
 
     #converts coordinates into images with curves on them
+    # FIXME: add an input which turns off random line size and background color so that 
+    # the model doesn't look high on drugs when it shows off it's prediction
     def road_generator(self, y_train, line_width, seg_noise = 0, poly_noise=0):
         road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
              dtype=float)
@@ -283,8 +287,9 @@ class Roadgen:
         #Initialize a snowy background:
         road_frame *= .2 * rng.random_sample() +.8
 
-        #line width randomizer:
-        line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
+        if seg_noise:
+            #line width randomizer:
+            line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),
@@ -330,12 +335,12 @@ class Roadgen:
             #This is the actual save images part
             plt.subplot(2, 1, 1)
             plt.title(titles[0])
-            plt.imshow(Top_Images[dp_i,:,:,:])
+            plt.imshow(255 - Top_Images[dp_i,:,:,::-1])
             #plt.gca().invert_yaxis()
 
             plt.subplot(2, 1, 2)
             plt.title(titles[1])
-            plt.imshow(Bot_Images[dp_i,:,:,:])
+            plt.imshow(255 - Bot_Images[dp_i,:,:,::-1])
             #plt.gca().invert_yaxis()
 
             plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')

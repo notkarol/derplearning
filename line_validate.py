@@ -171,7 +171,7 @@ def main():
     val_training(X_video, loaded_model, directory, subdirectory)
 
     from giffer import create_gif
-    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .02)
+    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .08)
     
     
 
