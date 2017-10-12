@@ -5,18 +5,17 @@ import cv2
 import numpy as np
 import numpy.random as rng
 import argparse
+from scipy.misc import imsave
 from skimage.draw import polygon
 from bezier import bezier_curve
 from model import Model
 import matplotlib
-#matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import imageio
-#import matplotlib.animation.ImageMagickWriter as gifpipe
 
 '''
 Running this file generates 3 line road training data
-v2 only draws 3 lines on the ground.
+v5 draws 3 color lines on the ground the middle one being dashed.
 '''
 
 import yaml
@@ -52,13 +51,12 @@ class Roadgen:
         #Attributes of the road line drawing.
         self.max_road_width = self.view_width * 0.75 #The widest possible road that can be drawn (radius)
         #self.min_road_height = self.gen_height/2 #The minimum value for the 2nd and 3rd road control points
-        self.horz_noise_fraction = 0.8 #size of the noise envelope below max_width where road lines may exist
-            #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
+        self.horz_noise_fraction = 0.5 #size of the noise envelope below max_width where road lines may exist            #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
         self.lane_convergence = .5 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = self.view_width * .006
+        self.line_width = self.view_width * .007
         self.line_wiggle = self.view_width * 0.00005
 
     def __del__(self):
@@ -243,6 +241,7 @@ class Roadgen:
 
 
     # Draws dashed lines like the one in the center of the road
+    # FIXME add noise to the dashed line generator to cut down on overfitting(may be superfluous)
     def dashed_line(self, coordinates, dash_length, dash_width ):
         #estimate the curve lenght to generate a segment count which will approxmiate the desired dash lenght
         est_curve_len = (self.vector_len(coordinates[:,2] - coordinates[:,0] ) + 
@@ -278,14 +277,17 @@ class Roadgen:
         return polygon(verts[:,1], verts[:,0], (self.view_height, self.view_width) )
 
     #converts coordinates into images with curves on them
-    # FIXME: add an input which turns off random line size and background color so that 
-    # the model doesn't look high on drugs when it shows off it's prediction
     def road_generator(self, y_train, line_width, rand_gen=1, seg_noise = 0, poly_noise=0):
         road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
-             dtype=float)
+             dtype=np.uint8)
+
+        #set max intensity:
+        max_intensity = 256
 
         #Initialize a snowy background:
-        road_frame *= rand_gen * .2 * rng.random_sample() +.8
+        road_frame[ :, :, 0] *= rng.randint(0, .4 * max_intensity)
+        road_frame[ :, :, 1] *= rng.randint(0, .4 * max_intensity)
+        road_frame[ :, :, 2] *= rng.randint(0, .4 * max_intensity)
 
         if seg_noise:
             #line width randomizer:
@@ -294,38 +296,28 @@ class Roadgen:
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),
                     np.random.randint(0, self.gen_height) ] )
-            road_frame[rr,cc, :] = .8 * rng.random_sample(self.n_channels)
+            road_frame[rr,cc, :] = rng.randint(0, .8 *max_intensity, self.n_channels)
             poly_noise -= 1
 
         rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
-        road_frame[rr, cc, :] = .3 * rng.random_sample(self.n_channels)
+        road_frame[rr, cc, :] = rng.randint(.8* max_intensity, max_intensity, self.n_channels)
 
         rr, cc = self.dashed_line(y_train[1], self.view_height/4, line_width*2)
-        road_frame[rr, cc, 1:] = .3 * rng.random_sample() 
-        road_frame[rr, cc, 0] = .3 * rng.random_sample() + .7
+        road_frame[rr, cc, 1:] = rng.randint(.7 * max_intensity, max_intensity) 
+        road_frame[rr, cc, 0] = rng.randint(0,  .3 * max_intensity) 
 
         rr, cc = self.poly_line( y_train[2], line_width, seg_noise)
-        road_frame[rr, cc, :] = .3 * rng.random_sample(self.n_channels) 
+        road_frame[rr, cc, :] = rng.randint(.8* max_intensity, max_intensity, self.n_channels) 
 
-        return road_frame #[ :, self.cropsize:(self.cropsize+self.view_width),:]
+        return road_frame
 
-
-    #applies canny edge detection algorithm to make generated data behave more like real world data
-    def road_refiner(self, road_frame):
-
-        #road_frame = np.reshape(road_frame, (16, 96,1))
-        road_frame = cv2.Canny(road_frame, 50, 200)
-        #road_frame[road_frame < 128] = 0
-        #road_frame[road_frame >= 128] = 255
-
-        return np.reshape(road_frame, (self.input_height, self.input_width, 1) )
 
     #Saves images in side by side plots
     def save_images(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
         
-        max_intensity = 255
-        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
+        max_intensity = 256
 
+        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
 
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -335,59 +327,24 @@ class Roadgen:
             #This is the actual save images part
             plt.subplot(2, 1, 1)
             plt.title(titles[0])
-            plt.imshow(255 - Top_Images[dp_i,:,:,::-1])
+            plt.imshow(Top_Images.astype(np.uint8)[dp_i,:,:,::-1], vmin=0, vmax=255)
             #plt.gca().invert_yaxis()
 
             plt.subplot(2, 1, 2)
             plt.title(titles[1])
-            plt.imshow(255 - Bot_Images[dp_i,:,:,::-1])
+            plt.imshow(Bot_Images.astype(np.uint8)[dp_i,:,:,::-1], vmin=0, vmax=255)
             #plt.gca().invert_yaxis()
 
             plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
             plt.close()
-    '''
-    def create_gif(n_images, directory, output_name, duration):
-        images = []
-        for dp_i in range(n_images):
-            images.append(imageio.imread('%s/%06i.png' % (directory, dp_i) ) )
-        output_file = '%s.gif' % (output_name)
-        imageio.mimsave(output_file, images, duration=duration)
+
+    def training_saver(self, y_train, save_name):
+        imsave(save_name, self.road_generator(y_train, 
+                                    line_width=self.line_width,
+                                    seg_noise=self.line_wiggle * dp_i%5,
+                                    poly_noise=np.random.randint(0, 20) ) )
 
     
-    #Saves images in side by side plots
-    def save_video(self, Top_Images, Bot_Images, directory , titles = ('Input Image','Model Perception') ):
-
-        curves_to_print = min(Top_Images.shape[0],Bot_Images.shape[0])
-
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        #FIXME, adapt tutorial for this case
-        fig = plt.figure()
-        with writer.saving(fig, "writer_test.gif", curves_to_print):
-            for dp_i in range(curves_to_print):
-
-                #This is the actual save images part
-                plt.subplot(2, 1, 1)
-                plt.title(titles[0])
-                plt.imshow(Top_Images[dp_i,:,:,:])
-                #plt.gca().invert_yaxis()
-
-                plt.subplot(2, 1, 2)
-                plt.title(titles[1])
-                plt.imshow(Bot_Images[dp_i,:,:,0])
-                #plt.gca().invert_yaxis()
-
-                writer.grabframe()
-                #plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
-                plt.close()
-
-        ani = animation.FuncAnimation(fig,update_img,300,interval=30)
-        writer = animation.writers['ffmpeg'](fps=30)
-
-        ani.save('demo.mp4',writer=writer,dpi=dpi)
-       ''' 
-
 def main():
 
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
@@ -403,21 +360,62 @@ def main():
     n_datapoints = int(args.frames)
     train_split = 0.9
     n_train_datapoints = int(train_split * n_datapoints)
-    training_sets = args.sets
+    #training_sets = args.sets
 
+    #file management stuff
     train_data_dir = cfg['dir']['train_data']
+    validation_data_dir = cfg['dir']['val_data']
+    if not os.path.exists(train_data_dir):
+        os.makedirs(train_data_dir)
+    if not os.path.exists(vallidation_data_dir):
+        os.makedirs(validation_data_dir)
 
     #test condition switch
     if args.tests > 0:
         n_datapoints = args.tests
-        training_sets = 1
+        #training_sets = 1
 
+    #Generate Lables
+    y_train = roads.coord_gen(n_datapoints)
+
+    #Temporary generation location
+    X_mat = np.zeros(roads.view_height, roads.view_width, roads.n_channels)
+
+    #test condition switch    
+    if args.tests > 0:
+        subdir = 'test'
+        model = Model(None, None, None)
+        roads.save_images(model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
+             X_train, '%s/%s' % (train_data_dir, subdir), 
+             ['Camera', 'Virtual Generator'] )
+    else:
+        # Generate X
+        #loop to create training data:
+        for dp_i in range(train_datapoints ):
+            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
+            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+        print("Training dataset generated.")
+
+        #Loop to create validation data:
+        for dp_i in range(n_datapoints-train_datapoints ):
+            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i + train_datapoints])
+            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+        print("Validation dataset generated.")
+
+        #fixes the label array for use by the learning model
+        y_train = roads.model_tranform(y_train)
+
+        #Save the data labels with their respective image datasets
+        np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
+        np.save("%s/line_y_val.npy" % (validation_data_dir) , y_train[n_train_datapoints:])
+
+    
+'''
     # Data to store
     #print((n_datapoints, n_channels, height, train_width))
-    X_train = np.zeros( (n_datapoints, roads.view_height, roads.view_width,
-         roads.n_channels), dtype=float)
+    X _train = np.zeros( (n_datapoints, roads.view_height, roads.view_width,
+         roads.n_channels), dtype=np.uint8)
     
-
 
     for train_set in range(training_sets):
         #Generate Y
@@ -427,8 +425,9 @@ def main():
         #Temporary generation location
         for dp_i in range(int(n_datapoints) ):
             X_train[dp_i, :, :, :] =  roads.road_generator(y_train[dp_i], 
-                                        roads.line_width, roads.line_wiggle * dp_i%5,
-                                        np.random.randint(0, 20) ) 
+                                        line_width=roads.line_width,
+                                        seg_noise=roads.line_wiggle * dp_i%5,
+                                        poly_noise=np.random.randint(0, 20) ) 
             print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
         print("Done")
 
@@ -436,7 +435,7 @@ def main():
             subdir = 'test'
             model = Model(None, None, None)
             roads.save_images(model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
-                 roads.denormalize(X_train), '%s/%s' % (train_data_dir, subdir), 
+                 X_train, '%s/%s' % (train_data_dir, subdir), 
                  ['Camera', 'Virtual Generator'] )
         else:
             #fixes the label array for use by the learning model
@@ -451,6 +450,6 @@ def main():
             np.save("%s/line_X_val_%03i.npy" % (train_data_dir, train_set) , X_train[n_train_datapoints:])
             np.save("%s/line_y_train_%03i.npy" % (train_data_dir, train_set) , y_train[:n_train_datapoints])
             np.save("%s/line_y_val_%03i.npy" % (train_data_dir, train_set) , y_train[n_train_datapoints:])
-
+'''
 if __name__ == "__main__":
     main()

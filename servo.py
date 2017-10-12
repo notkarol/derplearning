@@ -5,16 +5,7 @@ import usb.core
 import usb.util
 
 '''
-defines servo class which is used to create control outputs using the following member functions:
-  __init__
-  __del__
-  move_faster
-  move_slower
-  turn_right
-  turn_left
-  convert
-  move
-  turn
+defines servo class which is used to create control outputs
 '''
 
 class Servo:

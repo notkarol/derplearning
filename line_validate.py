@@ -109,6 +109,7 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
     print("Validation images saved to: %s/%s" %(directory, subdirectory) )
 
 
+'''
 def mp4_validate(X_raw, X_val, loaded_model, directory):
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
@@ -129,9 +130,23 @@ def mp4_validate(X_raw, X_val, loaded_model, directory):
         
     road.save_video(X_raw, model_view, '%s' % (directory) )
     print("Validation gif saved to: %s" %(directory) )
- 
+ '''
+
 def main():
     
+    #Arguments which select which form of validation to conduct
+    parser = argparse.ArgumentParser(
+        description='Functions for validating model related code and trained models')
+    parser.add_argument('--roadgen', type=int, default=0,
+        help='designates a number of training images to be compared against camera data. Does not require a trained model. (default=0)')
+    parser.add_argument('--vr', type=int, default=0, 
+        help='defines a number of images from the validation data to load for validation analysis(default=0)')
+    parser.add_argument('--video', type=string, default="data/20170812T214343Z-paras",
+        help='defines a video source file for real world validation. When empty disables video validation')
+    parser.add_argument('--gif', type=int, default=0, 
+        help='When!=0 creates a gif of the video validation')
+    args = parser.parse_args()
+
     #Set max number of frames to validate:
     val_count = 256
 
