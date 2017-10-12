@@ -55,7 +55,7 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
 
     for prnt_i in range(curves_to_print):
         model_view[prnt_i] = road.denormalize(
-            road.road_generator(model_out[prnt_i], road.line_width/2) )
+            road.road_generator(model_out[prnt_i], road.line_width/2, rand_gen=0) )
 
     road.save_images(X_val, model_view, '%s/%s' % (directory, subdirectory) )
 
@@ -143,11 +143,11 @@ def main():
     road = Roadgen(cfg)
 
     #load data
-    X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
-    y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
+    #X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
+    #y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
     #Restoring the training data to a displayable color range
-    max_intensity = 255
-    X_large = road.denormalize(X_val)
+    #max_intensity = 255
+    #X_large = road.denormalize(X_val)
 
     #Loading video data for validation:
     folder = "data/20170812T214343Z-paras"
@@ -162,7 +162,7 @@ def main():
     #mp4_validate(X_raw, X_video, loaded_model, directory)
 
     #Validates against virtually generated data
-    val_training(X_large[:val_count], loaded_model, directory, subdirectory)
+    #val_training(X_large[:val_count], loaded_model, directory, subdirectory)
 
     #Validates model against recorded data
     subdirectory = 'video_comparison' 
@@ -171,7 +171,7 @@ def main():
     val_training(X_video, loaded_model, directory, subdirectory)
 
     from giffer import create_gif
-    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .08)
+    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .05)
     
     
 

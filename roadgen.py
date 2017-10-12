@@ -280,16 +280,16 @@ class Roadgen:
     #converts coordinates into images with curves on them
     # FIXME: add an input which turns off random line size and background color so that 
     # the model doesn't look high on drugs when it shows off it's prediction
-    def road_generator(self, y_train, line_width, seg_noise = 0, poly_noise=0):
+    def road_generator(self, y_train, line_width, rand_gen=1, seg_noise = 0, poly_noise=0):
         road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
              dtype=float)
 
         #Initialize a snowy background:
-        road_frame *= .2 * rng.random_sample() +.8
+        road_frame *= rand_gen * .2 * rng.random_sample() +.8
 
         if seg_noise:
             #line width randomizer:
-            line_width += max(line_width/3 *np.random.randn(), -line_width*3/4)
+            line_width += rand_gen * max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),

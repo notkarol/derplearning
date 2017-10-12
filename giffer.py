@@ -2,30 +2,30 @@
 import sys
 import imageio
 
+import yaml
+with open("config/line_model.yaml", 'r') as yamlfile:
+        cfg = yaml.load(yamlfile)
+
 VALID_EXTENSIONS = ('png', 'jpg')
 
 
-def create_gif(n_images, directory, output_name, duration):
+def create_gif(n_images, soource_directory, output_name, duration):
     images = []
     for dp_i in range(n_images):
         images.append(imageio.imread('%s/%06i.png' % (directory, dp_i) ) )
-    output_file = '%s/%s.gif' % (directory, output_name)
+    output_file = '%s.gif' % ( output_name)
     imageio.mimsave(output_file, images, duration=duration)
 
 
 if __name__ == "__main__":
-    script = sys.argv.pop(0)
+    
+    #file management stuff
+    directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
+    subdirectory = 'virtual_comparison'
+    
 
-    if len(sys.argv) < 2:
-        print('Usage: python {} <duration> <path to images separated by space>'.format(script))
-        sys.exit(1)
-
-    duration = float(sys.argv.pop(0))
+    val_count = 255
+    duration = .05
     filenames = sys.argv
 
-
-    if not all(f.lower().endswith(VALID_EXTENSIONS) for f in filenames):
-        print('Only png and jpg files allowed')
-        sys.exit(1)
-
-    create_gif(filenames, duration)
+    create_gif(val_count, '%s/%s' % (directory, subdirectory), '%s/%s' %(directory, subdirectory), .05)
