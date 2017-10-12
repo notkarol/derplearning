@@ -1,6 +1,7 @@
 #Directory Assitance:
 dir:
-    train_data: line_train_data
+    train_data: line_train_data/training
+    val_data: line_train_data/validation
     model: 'DRP_MODEL'
     model_name: 'line_005'
     validation: 'line_validation'
