@@ -8,25 +8,29 @@ import numpy as np
 import keras
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import model_from_yaml
-from skimage.draw import line_aa
-
+#from skimage.draw import line_aa
+from scipy.misc import imread
 from model import Model
-from bezier import bezier_curve, verify_plot
+#from bezier import bezier_curve, verify_plot
 from roadgen import Roadgen
 '''
-Function List:
-    print_points
-    clamp
-    save_images
-    plot_curves
-    val_training
-    video_to_frames
-    main
+Contains functions which validate the quality of road_gen, a model on virtual data,
+and a model on video data.
 '''
 
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
         cfg = yaml.load(yamlfile)
+
+#Loads png images as arrays and assembles them into block
+def load_images(directory, filenames)
+    first = imread('%s/%s' % (directory, filenames[0] ) )
+
+    block = np.zeros( (filenames.shape[0], first.shape), dtype= np.uint8 )
+
+    for frame in range(filenames):
+        block[frame] = imread('%s/%s' % (directory, filenames[0] ) )
+    return block
 
 #Prints to command line the points used to produce an image
 def print_points( labels, model_out):
@@ -39,9 +43,7 @@ def print_points( labels, model_out):
 
     
 #Saves images in side by side plots
-def compare_io(X_val, model_raw, directory = cfg['dir']['validation'], 
-                subdirectory = 'image_comparison' ):
-
+def compare_io(X_val, model_raw, directory = '%s/image_comparison' cfg['dir']['validation']):
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
 
@@ -57,7 +59,7 @@ def compare_io(X_val, model_raw, directory = cfg['dir']['validation'],
         model_view[prnt_i] = road.denormalize(
             road.road_generator(model_out[prnt_i], road.line_width/2, rand_gen=0) )
 
-    road.save_images(X_val, model_view, '%s/%s' % (directory, subdirectory) )
+    road.save_images(X_val, model_view, directory )
 
 
 #Prints plot of curves against the training data Saves plots in files
@@ -106,7 +108,7 @@ def val_training(X_val, loaded_model, directory, subdirectory ):
 
 
     compare_io(X_val, predictions, directory, subdirectory)
-    print("Validation images saved to: %s/%s" %(directory, subdirectory) )
+    print("Validation images saved to: %s" % directory )
 
 
 '''
@@ -150,6 +152,10 @@ def main():
     #Set max number of frames to validate:
     val_count = 256
 
+    #file management stuff
+    directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
+    subdirectory = 'virtual_comparison'
+    
     #loading the model
     model_path = "%s/%s" % (cfg['dir']['model'], cfg['dir']['model_name'] )
     loaded_model = Model(None, '%s.yaml' % model_path, '%s.h5' % model_path)
@@ -157,37 +163,40 @@ def main():
     #Pulling up roadgen to help deal with virtually generated data:
     road = Roadgen(cfg)
 
-    #load data
-    #X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
-    #y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
-    #Restoring the training data to a displayable color range
-    #max_intensity = 255
-    #X_large = road.denormalize(X_val)
+    if args.roadgen:
+        test_dir = 'line_train_data/test'
+        filenames = road.training_saver(road.coord_gen(args.roadgen), test_dir)
+        
+        X_train = load_images(directory=test_dir, filnames=)
 
-    #Loading video data for validation:
-    folder = "data/20170812T214343Z-paras"
-    X_video = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
+        road.save_images(loaded_model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
+             X_train, '%s/%s' % (train_data_dir, subdir), 
+             ['Camera', 'Virtual Generator'] )
 
-    #file management stuff
-    directory = "%s/ver_%s" % (cfg['dir']['validation'], cfg['dir']['model_name'])
-    subdirectory = 'virtual_comparison'
+    #Virtual Validation branch
+    if args.vr:
+        #load data
+        X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
+        y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
+
+        #Validates against virtually generated data
+        val_training(X_large[:args.vr], loaded_model, directory, subdirectory)
     
-    #Creating a validation gif:
-    #X_raw = loaded_model.video_to_frames(folder, val_count, edge_detect=0, channels_out=3)
-    #mp4_validate(X_raw, X_video, loaded_model, directory)
+    if args.video:
+        #Loading video data for validation:
+        folder = "data/20170812T214343Z-paras"
+        X_video = loaded_model.video_to_frames(folder, args.video, edge_detect=0, channels_out=3)
+        
+        #Validates model against recorded data
+        subdirectory = 'video_comparison' 
+        
+        #Creating video validation comparison images:
+        val_training(X_video, loaded_model, '%s/%s' (directory, subdirectory) )
 
-    #Validates against virtually generated data
-    #val_training(X_large[:val_count], loaded_model, directory, subdirectory)
-
-    #Validates model against recorded data
-    subdirectory = 'video_comparison' 
-    
-    #Creating video validation comparison images:
-    val_training(X_video, loaded_model, directory, subdirectory)
-
-    from giffer import create_gif
-    create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .05)
-    
+    if args.gif:
+        from giffer import create_gif
+        create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .05)
+        
     
 
 if __name__ == "__main__":

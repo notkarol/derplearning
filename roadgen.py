@@ -344,7 +344,26 @@ class Roadgen:
                                     seg_noise=self.line_wiggle * dp_i%5,
                                     poly_noise=np.random.randint(0, 20) ) )
 
-    
+    '''batch gen creats a folder and then fills that folder with:
+        n_datapoints of png files
+        a numpy file with the label array
+        a names file with an array of all the image names'''
+    def batch_gen(self, first_name=0, n_datapoints, directory)
+        #Generate Lables
+        y_train = self.coord_gen(n_datapoints)
+
+        #Temporary generation location
+        X_mat = np.zeros(self.view_height, self.view_width, self.n_channels)
+
+        filenames = [first_name::(n_datapoints+first_name)]
+        # Generate X
+        for dp_i in range(n_datapoints ):
+            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
+            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+        print("%s dataset generated." % directory)
+
+
+#Generates a batch of training data    
 def main():
 
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')

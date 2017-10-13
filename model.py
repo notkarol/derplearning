@@ -123,7 +123,7 @@ class Model:
                                             lm_cfg['line']['input_width'] ,channels_out))
             frames[counter] = prepared
             counter += 1
-
+ 
         #cleanup      
         video_cap.release()
 
