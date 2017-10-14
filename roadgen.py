@@ -1,14 +1,15 @@
  #!/usr/bin/env python3
 import os
+import argparse
 import PIL
 import cv2
 import numpy as np
 import numpy.random as rng
-import argparse
 from scipy.misc import imsave
+from scipy.misc import imread
 from skimage.draw import polygon
 from bezier import bezier_curve
-from model import Model
+#from model import Model
 import matplotlib
 import matplotlib.pyplot as plt
 import imageio
@@ -338,29 +339,69 @@ class Roadgen:
             plt.savefig('%s/%06i.png' % (directory, dp_i), dpi=200, bbox_inches='tight')
             plt.close()
 
+    #Function generates roads using a label vector passed to it
+    # saves those generated roads in a location designated by the save name.
     def training_saver(self, y_train, save_name):
         imsave(save_name, self.road_generator(y_train, 
                                     line_width=self.line_width,
-                                    seg_noise=self.line_wiggle * dp_i%5,
-                                    poly_noise=np.random.randint(0, 20) ) )
+                                    seg_noise=self.line_wiggle * rng.randint(0, 4),
+                                    poly_noise=rng.randint(0, 20) ) )
 
     '''batch gen creats a folder and then fills that folder with:
         n_datapoints of png files
         a numpy file with the label array
-        a names file with an array of all the image names'''
-    def batch_gen(self, first_name=0, n_datapoints, directory)
+        a meta file describing batch breakpoints (useful for matching lable files with images)'''
+    def batch_gen(self, n_datapoints, data_dir):
+        #Creates needed directories
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+
+        #branch builds on previous branch
+        if os.path.exists('%s/batch_meta.npy' % data_dir):
+            batch_sizes = np.load('%s/batch_meta.npy' % data_dir)
+            batch_iter = batch_sizes.shape[0] -1
+            
+            #Make a new larger array to store batch data
+            newb_sizes = np.zeros(batch_iter + 2)
+            newb_sizes[:batch_iter+1] = batch_sizes
+            newb_sizes[batch_iter+1] = n_datapoints + newb_sizes[batch_iter]
+        else :
+            batch_iter = 0
+            newb_sizes = [0, n_datapoints]
+        
         #Generate Lables
         y_train = self.coord_gen(n_datapoints)
 
         #Temporary generation location
-        X_mat = np.zeros(self.view_height, self.view_width, self.n_channels)
+        #X_mat = np.zeros(self.view_height, self.view_width, self.n_channels)
 
-        filenames = [first_name::(n_datapoints+first_name)]
         # Generate X
         for dp_i in range(n_datapoints ):
-            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
-            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-        print("%s dataset generated." % directory)
+            self.training_saver(y_train=y_train[dp_i], 
+                                save_name='%s/%09i.png' % (data_dir, dp_i) )
+            print("Generation %.2f%% complete." % ((100.0 * dp_i / n_datapoints)), end='\r')
+        
+
+        np.save("%s/y_%03i.npy" % (data_dir, batch_iter) , y_train)
+        np.save("%s/batch_meta.npy" % (data_dir) , newb_sizes)
+        print("%s dataset %i generated." % (data_dir, batch_iter) )
+
+    '''Loads the designated batch from the given directory
+     and returns a tensor of the selected images.'''
+    def batch_loader(self, data_dir, batch_iter):
+
+        batch_meta = np.load('%s/batch_meta.npy' % data_dir)
+        batch_size = int(batch_meta[batch_iter+1] - batch_meta[batch_iter] )
+        batch = np.zeros( ( (batch_size),
+                            self.view_height,
+                            self.view_width,
+                            self.n_channels), 
+                        dtype= np.uint8 )
+
+        for dp_i in range(batch_size):
+            batch[dp_i] = imread('%s/%09i.png' % (data_dir, (batch_meta[batch_iter] + dp_i) ) )
+        return batch
+
 
 
 #Generates a batch of training data    

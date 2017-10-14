@@ -1,5 +1,6 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+import argparse
 import sys
 import cv2
 from PIL import Image
@@ -13,6 +14,7 @@ from scipy.misc import imread
 from model import Model
 #from bezier import bezier_curve, verify_plot
 from roadgen import Roadgen
+
 '''
 Contains functions which validate the quality of road_gen, a model on virtual data,
 and a model on video data.
@@ -21,7 +23,7 @@ and a model on video data.
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
         cfg = yaml.load(yamlfile)
-
+'''
 #Loads png images as arrays and assembles them into block
 def load_images(directory, filenames)
     first = imread('%s/%s' % (directory, filenames[0] ) )
@@ -31,6 +33,7 @@ def load_images(directory, filenames)
     for frame in range(filenames):
         block[frame] = imread('%s/%s' % (directory, filenames[0] ) )
     return block
+'''
 
 #Prints to command line the points used to produce an image
 def print_points( labels, model_out):
@@ -43,7 +46,7 @@ def print_points( labels, model_out):
 
     
 #Saves images in side by side plots
-def compare_io(X_val, model_raw, directory = '%s/image_comparison' cfg['dir']['validation']):
+def compare_io(X_val, model_raw, directory = '%s/image_comparison' % cfg['dir']['validation']):
     #Creates tensors to compare to source images, plots both side by side, and saves the plots
     road = Roadgen(cfg)
 
@@ -143,7 +146,8 @@ def main():
         help='designates a number of training images to be compared against camera data. Does not require a trained model. (default=0)')
     parser.add_argument('--vr', type=int, default=0, 
         help='defines a number of images from the validation data to load for validation analysis(default=0)')
-    parser.add_argument('--video', type=string, default="data/20170812T214343Z-paras",
+    #"data/20170812T214343Z-paras" is a good default video to select
+    parser.add_argument('--video', default=0,
         help='defines a video source file for real world validation. When empty disables video validation')
     parser.add_argument('--gif', type=int, default=0, 
         help='When!=0 creates a gif of the video validation')
@@ -165,12 +169,13 @@ def main():
 
     if args.roadgen:
         test_dir = 'line_train_data/test'
-        filenames = road.training_saver(road.coord_gen(args.roadgen), test_dir)
+        road.batch_gen(n_datapoints=args.roadgen, data_dir=test_dir)
         
-        X_train = load_images(directory=test_dir, filnames=)
+        X_train = road.batch_loader(data_dir=test_dir, batch_iter=0)
+        #y_train = np.load("%s/y_%03i.npy" % (test_dir, 0) )
 
-        road.save_images(loaded_model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
-             X_train, '%s/%s' % (train_data_dir, subdir), 
+        road.save_images(loaded_model.video_to_frames(edge_detect=0, channels_out=road.n_channels),
+             X_train, '%s' % (test_dir), 
              ['Camera', 'Virtual Generator'] )
 
     #Virtual Validation branch
