@@ -11,6 +11,7 @@ from keras.layers import Conv2D, MaxPooling2D, SeparableConv2D
 from keras.models import model_from_yaml
 from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
+from roadgen import Roadgen
 
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
@@ -62,9 +63,14 @@ def main():
                         help='number of epochs to train (default: 32)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
+    parser.add_argument('--sets', type=int, default=50,
+            help='number of batches to train on')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
+    #parser directory assistance
     parser.add_argument('--train_data', default=cfg['dir']['train_data'], 
             help='training data source directory(default: %s)' % cfg['dir']['train_data'])
+    parser.add_argument('--val_data', default=cfg['dir']['val_data'], 
+            help='validation data source directory(default: %s)' % cfg['dir']['val_data'])
     parser.add_argument('--model_dir', default=cfg['dir']['model'], 
             help='model files save directory(default: %s)' % cfg['dir']['model'])
     parser.add_argument('--model_name', default=cfg['dir']['model_name'], 
@@ -73,17 +79,17 @@ def main():
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
+    #invoke the roagen class for data pipe management fucntions:
+    pipe = Roadgen(cfg)
+    
+    # Load a data sameple:
+    X_val = pipe.normalize(pipe.batch_loader(args.train_data, 0) )
+    y_val = pipe.label_norm(np.load('%s/y_%03i.npy' % (args.val_data, 0) ) )
+    print(X_val.shape, y_val.shape)
 
-    # Load Data
-    X_train = np.load('%s/line_X_train_000.npy' % (args.train_data))
-    X_val = np.load('%s/line_X_val_000.npy' % (args.train_data))
-    y_train = np.load('%s/line_y_train_000.npy' % (args.train_data))
-    y_val = np.load('%s/line_y_val_000.npy' % (args.train_data))
-
-    print(X_train.shape, y_train.shape)
     
     # initiate RMSprop optimizer
-    model = create_model(X_train.shape[1:], y_train.shape[1])
+    model = create_model(X_val.shape[1:], y_val.shape[1])
     if args.opt == 'adam':
         print("Using adam")
         opt = keras.optimizers.adam(lr=args.lr)
@@ -102,16 +108,15 @@ def main():
         # Update learning rate
         lr = args.lr / (i + 1)
         model.optimizer.lr.assign(lr)
-        print("Epoch %i/%i" % (i+1,args.epochs) )
         print("Setting learning rate to", lr)
         
-        for j in range(9):
-            print("Training set %03i" % j)
+        for j in range(args.sets):
+            print("Epoch %i/%i - Training set %03i" % (i+1,args.epochs, j) )
             # Load Data
-            X_train = np.load('%s/line_X_train_%03i.npy' % (args.train_data, j))
-            X_val = np.load('%s/line_X_val_%03i.npy' % (args.train_data, j))
-            y_train = np.load('%s/line_y_train_%03i.npy' % (args.train_data, j))
-            y_val = np.load('%s/line_y_val_%03i.npy' % (args.train_data, j))
+            X_train = pipe.normalize(pipe.batch_loader(args.train_data, j) )
+            #X_val = pipe.batch_loader(args.train_data, 0)
+            y_train = pipe.label_norm(np.load('%s/y_%03i.npy' % (args.train_data, j) ) )
+            #y_val = np.load('%s/y_%03i.npy' % (args.val_data, 0))
             # Fit model
             model.fit(X_train, y_train, batch_size=args.bs, epochs=1,
                       validation_data=(X_val, y_val), shuffle=True)

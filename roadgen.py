@@ -65,7 +65,7 @@ class Roadgen:
         pass
 
     #Reshape a label tensor to 2d and normalizes data for use by the ANN:
-    def model_tranform(self, nd_labels):
+    def label_norm(self, nd_labels):
         
         #normalization
         nd_labels[:, :, 0, :] /= self.gen_width
@@ -92,7 +92,13 @@ class Roadgen:
         '''
         return nd_labels
 
+    #normalizes an image tensor to be floats on the range 0. - 1.
+    def normalize(self, frames):
+        return  ((frames.astype(float) - np.mean(frames, axis=0, dtype=float))/ 
+                np.std(frames, axis=0, dtype=float) )
+
     #Scales an image tensor by a maximum intensity and recasts as uint8 for display purposes
+    #FIXME I don't remember if this is still used and it's currently out of date
     def denormalize(self, frame):
         
         frame =  np.uint8(frame *self.max_intensity)
@@ -352,6 +358,9 @@ class Roadgen:
         a numpy file with the label array
         a meta file describing batch breakpoints (useful for matching lable files with images)'''
     def batch_gen(self, n_datapoints, data_dir):
+        #Cast n_datapoints as an int if it has not already happened:
+        n_datapoints = int(n_datapoints)
+
         #Creates needed directories
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
@@ -371,9 +380,6 @@ class Roadgen:
         
         #Generate Lables
         y_train = self.coord_gen(n_datapoints)
-
-        #Temporary generation location
-        #X_mat = np.zeros(self.view_height, self.view_width, self.n_channels)
 
         # Generate X
         for dp_i in range(n_datapoints ):
@@ -409,19 +415,27 @@ def main():
 
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
     parser.add_argument('--tests', type=int, default=0, metavar='TS', 
-                        help='creates a test batch and compares the batch to video data (default is off)')
-    parser.add_argument('--frames', type=int, default=1E4, help='determines how many frames to generate')
-    parser.add_argument('--sets', type=int, default = 50, help='determines how many training files are generated')
+        help='creates a test batch and compares the batch to video data (default is off)')
+    parser.add_argument('--frames', type=int, default=1E4,
+        help='determines how many frames per batch')
+    parser.add_argument('--batches', type=int, default = 50,
+        help='determines how many training batches to generate')
+    parser.add_argument('--val_batches', type=int, default = 1,
+        help='determines how many validation batches to generate')    
     args = parser.parse_args()
 
     roads = Roadgen(cfg)
 
-    #Move these parameters into an argparser
-    n_datapoints = int(args.frames)
-    train_split = 0.9
-    n_train_datapoints = int(train_split * n_datapoints)
-    #training_sets = args.sets
+    #generate the training data
+    for batch in range(args.batches):
+        roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['train_data'])
 
+    #generate the validation data
+    for batch in range(args.val_batches):
+        roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['val_data'])        
+
+
+    '''
     #file management stuff
     train_data_dir = cfg['dir']['train_data']
     validation_data_dir = cfg['dir']['val_data']
@@ -429,18 +443,24 @@ def main():
         os.makedirs(train_data_dir)
     if not os.path.exists(vallidation_data_dir):
         os.makedirs(validation_data_dir)
+    '''
 
+    '''
     #test condition switch
     if args.tests > 0:
         n_datapoints = args.tests
         #training_sets = 1
 
+
+    for 
+    
     #Generate Lables
     y_train = roads.coord_gen(n_datapoints)
 
     #Temporary generation location
     X_mat = np.zeros(roads.view_height, roads.view_width, roads.n_channels)
 
+    
     #test condition switch    
     if args.tests > 0:
         subdir = 'test'
@@ -449,26 +469,29 @@ def main():
              X_train, '%s/%s' % (train_data_dir, subdir), 
              ['Camera', 'Virtual Generator'] )
     else:
-        # Generate X
-        #loop to create training data:
-        for dp_i in range(train_datapoints ):
-            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
-            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-        print("Training dataset generated.")
+    '''
 
-        #Loop to create validation data:
-        for dp_i in range(n_datapoints-train_datapoints ):
-            roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i + train_datapoints])
-            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-        print("Validation dataset generated.")
+    '''
+    # Generate X
+    #loop to create training data:
+    for dp_i in range(train_datapoints ):
+        roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
+        print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+    print("Training dataset generated.")
 
-        #fixes the label array for use by the learning model
-        y_train = roads.model_tranform(y_train)
+    #Loop to create validation data:
+    for dp_i in range(n_datapoints-train_datapoints ):
+        roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i + train_datapoints])
+        print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
+    print("Validation dataset generated.")
 
-        #Save the data labels with their respective image datasets
-        np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
-        np.save("%s/line_y_val.npy" % (validation_data_dir) , y_train[n_train_datapoints:])
+    #fixes the label array for use by the learning model
+    y_train = roads.model_tranform(y_train)
 
+    #Save the data labels with their respective image datasets
+    np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
+    np.save("%s/line_y_val.npy" % (validation_data_dir) , y_train[n_train_datapoints:])
+    '''
     
 '''
     # Data to store

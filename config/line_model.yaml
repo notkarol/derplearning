@@ -3,7 +3,7 @@ dir:
     train_data: line_train_data/training
     val_data: line_train_data/validation
     model: 'DRP_MODEL'
-    model_name: 'line_005'
+    model_name: 'line_006'
     validation: 'line_validation'
 
 line:
