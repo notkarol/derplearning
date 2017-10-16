@@ -199,7 +199,10 @@ def main():
 
     if args.gif:
         from giffer import create_gif
-        create_gif(val_count, '%s/%s' % (directory, subdirectory), subdirectory, .05)
+        subdirectory = 'video_comparison'
+        create_gif(n_images=args.gif, source_directory='%s/%s' % (directory, subdirectory), 
+            output_name='%s/%s' % (directory, subdirectory), duration=.1)
+        print('gif created with name: %s/%s' % (directory, subdirectory) )
         
     
 

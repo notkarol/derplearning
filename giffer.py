@@ -9,10 +9,10 @@ with open("config/line_model.yaml", 'r') as yamlfile:
 VALID_EXTENSIONS = ('png', 'jpg')
 
 
-def create_gif(n_images, soource_directory, output_name, duration):
+def create_gif(n_images, source_directory, output_name, duration):
     images = []
     for dp_i in range(n_images):
-        images.append(imageio.imread('%s/%06i.png' % (directory, dp_i) ) )
+        images.append(imageio.imread('%s/%06i.png' % (source_directory, dp_i) ) )
     output_file = '%s.gif' % ( output_name)
     imageio.mimsave(output_file, images, duration=duration)
 
