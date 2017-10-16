@@ -91,7 +91,8 @@ class Model:
 
     #extracts frames from video for use by the validation function
     #this allows us to validate the model with real world images instead of simulated images.
-    def video_to_frames(self, folder="data/20170812T214343Z-paras", max_frames=256, edge_detect=1, channels_out=1):
+    def video_to_frames(self, folder="data/20170812T214343Z-paras",
+             max_frames=256, edge_detect=1, channels_out=1):
         # Prepare video frames by extracting the patch and thumbnail for training
         video_path = os.path.join(folder, 'video.mp4')
         print(video_path)
@@ -135,7 +136,8 @@ class Model:
     #OOM error will occur if too large a batch is passed in through frame
     def road_spotter(self, frame):
 
-        frame = frame/np.max(frame)
+        #frame = (frame.astype(float) - np.mean(frame, dtype=float))/ 
+        #        np.std(frame, dtype=float)
         road_lines = self.model.predict(frame)
 
         return np.reshape(road_lines, (frame.shape[0], self.n_lines, self.n_dimensions, self.n_points) )

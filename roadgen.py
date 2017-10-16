@@ -378,13 +378,13 @@ class Roadgen:
             batch_iter = 0
             newb_sizes = [0, n_datapoints]
         
-        #Generate Lables
+        #Generate Labels
         y_train = self.coord_gen(n_datapoints)
 
         # Generate X
         for dp_i in range(n_datapoints ):
             self.training_saver(y_train=y_train[dp_i], 
-                                save_name='%s/%09i.png' % (data_dir, dp_i) )
+                                save_name='%s/%09i.png' % (data_dir, dp_i + newb_sizes[batch_iter]) )
             print("Generation %.2f%% complete." % ((100.0 * dp_i / n_datapoints)), end='\r')
         
 
@@ -418,7 +418,7 @@ def main():
         help='creates a test batch and compares the batch to video data (default is off)')
     parser.add_argument('--frames', type=int, default=1E4,
         help='determines how many frames per batch')
-    parser.add_argument('--batches', type=int, default = 50,
+    parser.add_argument('--batches', type=int, default = 9,
         help='determines how many training batches to generate')
     parser.add_argument('--val_batches', type=int, default = 1,
         help='determines how many validation batches to generate')    

@@ -63,7 +63,7 @@ def main():
                         help='number of epochs to train (default: 32)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
-    parser.add_argument('--sets', type=int, default=50,
+    parser.add_argument('--sets', type=int, default=9,
             help='number of batches to train on')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
     #parser directory assistance

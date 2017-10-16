@@ -54,13 +54,12 @@ def compare_io(X_val, model_raw, directory = '%s/image_comparison' % cfg['dir'][
 
     #reshaping the model output vector to make it easier to work with
     model_out = road.model_interpret(model_raw)
-
+    print('predictions denormalized')
     #initialize the model view tensor
     model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
 
     for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.denormalize(
-            road.road_generator(model_out[prnt_i], road.line_width/2, rand_gen=0) )
+        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2, rand_gen=0) 
 
     road.save_images(X_val, model_view, directory )
 
@@ -101,16 +100,16 @@ def plot_curves( val_points, model_out):
 
 
 #function invokes Model class, and saves the predictions as images
-def val_training(X_val, loaded_model, directory, subdirectory ):
+def val_training(X_val, loaded_model, directory ):
     #predictions = np.zeros((X_val.shape[0], cfg['line']['n_lines'], 
      #       cfg['line']['n_dimensions'], cfg['line']['n_points']), np.float )
-
+    road = Roadgen(cfg)
 
     #apply the model to generate coordinate prediction
-    predictions = loaded_model.road_spotter(X_val)
+    predictions = loaded_model.road_spotter(road.normalize(X_val) )
+    print('predictions made')
 
-
-    compare_io(X_val, predictions, directory, subdirectory)
+    compare_io(X_val=X_val, model_raw=predictions, directory=directory)
     print("Validation images saved to: %s" % directory )
 
 
@@ -147,7 +146,7 @@ def main():
     parser.add_argument('--vr', type=int, default=0, 
         help='defines a number of images from the validation data to load for validation analysis(default=0)')
     #"data/20170812T214343Z-paras" is a good default video to select
-    parser.add_argument('--video', default=0,
+    parser.add_argument('--video', type=int, default=0,
         help='defines a video source file for real world validation. When empty disables video validation')
     parser.add_argument('--gif', type=int, default=0, 
         help='When!=0 creates a gif of the video validation')
@@ -181,11 +180,11 @@ def main():
     #Virtual Validation branch
     if args.vr:
         #load data
-        X_val = np.load('%s/line_X_val_000.npy' % cfg['dir']['train_data'])
-        y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
+        X_large = road.batch_loader(cfg['dir']['train_data'], 0)
+        #y_val = np.load('%s/line_y_val_000.npy' % cfg['dir']['train_data'])
 
         #Validates against virtually generated data
-        val_training(X_large[:args.vr], loaded_model, directory, subdirectory)
+        val_training(X_large[:args.vr], loaded_model, '%s/%s' % (directory, subdirectory) )
     
     if args.video:
         #Loading video data for validation:
@@ -196,7 +195,7 @@ def main():
         subdirectory = 'video_comparison' 
         
         #Creating video validation comparison images:
-        val_training(X_video, loaded_model, '%s/%s' (directory, subdirectory) )
+        val_training(X_video, loaded_model, '%s/%s' % (directory, subdirectory) )
 
     if args.gif:
         from giffer import create_gif
