@@ -50,10 +50,10 @@ class Roadgen:
         self.input_height = config['line']['input_height']
 
         #Attributes of the road line drawing.
-        self.max_road_width = self.view_width * 0.75 #The widest possible road that can be drawn (radius)
+        self.max_road_width = self.view_width * 0.5 #The widest possible road that can be drawn (radius)
         #self.min_road_height = self.gen_height/2 #The minimum value for the 2nd and 3rd road control points
         self.horz_noise_fraction = 0.5 #size of the noise envelope below max_width where road lines may exist            #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
-        self.lane_convergence = .5 #rate at which lanes converge approaching horizon
+        self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
@@ -118,11 +118,46 @@ class Roadgen:
     def unit_vector(self, delta):
         return delta / np.sqrt(np.matmul(np.multiply(delta,delta),[1, 1]) )
 
-    #measures a vector's length and returns that
+    #measures a vector's length and returns that as a scalar
     def vector_len(self, vector):
         return np.sqrt(np.matmul(np.multiply(vector,vector),[1, 1]) )
 
-    # Generate coordinate of beizier control points for a road
+    #function defines the location of the middle control points
+    #for a single curve frame:
+    def middle_points(self, y_train, y_noise, orientation=[0,0]):
+        #Assign the central control point:
+        y_train[ 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
+        y_train[ 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
+
+        '''Calculate the control point axis:
+        control point axis is defined by a unit vector parallel to a line
+        originating at the midpoint of the line's start and end and 
+        terminating at the curves second control point'''
+        u_delta = self.unit_vector(y_train[ 1, :, 1 ] - 
+                (y_train[ 1, :, 0 ] + (y_train[ 1, :, 2 ] - y_train[ 1, :, 0 ] )/2 ) )
+
+        print(u_delta)
+        #scales the sideways road outputs to account for pitch
+        vertical_excursion = np.absolute(u_delta[1]) * self.max_road_width
+
+        #fixes the generation axis so that it doesn't make figure 8 roads
+        u_delta = orientation*np.absolute(u_delta)        
+        print(u_delta)
+
+        #Set the left side no.1 control point
+        y_train[ 0, :, 1] = (y_train[ 1, :, 1 ] + u_delta
+            * np.multiply( (self.max_road_width - y_noise[ 0, 1]),
+            (1 - self.lane_convergence + self.lane_convergence *
+                np.maximum(.2, (y_train[ 1, 1, 1 ] + vertical_excursion) )/self.gen_height) ) )
+        #Set the right side no.1 control point
+        y_train[ 2, :, 1] = (y_train[ 1, :, 1 ] - u_delta
+            * np.multiply( (self.max_road_width - y_noise[ 1, 1]),
+            (1 - self.lane_convergence + self.lane_convergence *
+                np.maximum(.2, (y_train[ 1, 1, 1 ] - vertical_excursion) )/self.gen_height) ) )
+
+        return y_train
+
+    # Generate coordinate of bezier control points for a road
     #FIXME: control point generation for turns is currently garbage
     #FIXME: Split the vanishing point into 3 points
     #Needs: more variability, realism (esp for right hand turns)
@@ -151,25 +186,22 @@ class Roadgen:
         vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
 
         '''This loop applies the vanishing point and then generates control points in a semi-logical way
-        between the road's orgin and vanishing point '''
+        between the road's origin and vanishing point '''
         for dp_i in range(n_datapoints):
             if(vanishing_point[dp_i] < self.gen_height):
                 #Assign the vanishing point:
                 y_train[dp_i, :, 1, 2] = vanishing_point[dp_i]
-                #Assign the central control point:
-                y_train[dp_i, 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
-                y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
-
-                #Calculate the control point axis:
-                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.gen_height, 0] )
-                #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
-                    * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
-                #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
-                    * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
+                
+                #These lines give the vanishing point width when sideways:
+                term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
+                    (1 - self.lane_convergence + self.lane_convergence * 
+                        y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
+                y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
+                y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
+                
+                #Assign the control points for the side lines
+                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[1, -1] )
+                
             elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
                 #define the vanishing point at the top of the camera's perspective
                 y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_height
@@ -194,20 +226,15 @@ class Roadgen:
                 y_train[dp_i, :, 0, 2] = self.gen_width - 1
                 y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_height + self.gen_width)
 
-                #Assign the central control point:
-                y_train[dp_i, 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
-                y_train[dp_i, 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
-
-                #Calculate the control point axis:
-                u_delta = self.unit_vector(y_train[dp_i, 1, :, 1 ] - [self.gen_height, self.gen_width])
-                #Set the left side no.1 control point
-                y_train[dp_i, 0, :, 1] = (y_train[dp_i, 1, :, 1 ] + u_delta
-                    * np.multiply( (self.max_road_width - y_noise[dp_i, 0, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
-                #Set the right side no.1 control point
-                y_train[dp_i, 2, :, 1] = (y_train[dp_i, 1, :, 1 ] - u_delta
-                    * np.multiply( (self.max_road_width - y_noise[dp_i, 1, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) )
+                #These lines give the vanishing point width when sideways:
+                term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
+                    (1 - self.lane_convergence + self.lane_convergence
+                        * y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
+                y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
+                y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
+                
+                #Assign side lines
+                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[ -1, -1] )
 
         return y_train
 
@@ -217,7 +244,7 @@ class Roadgen:
                  coordinates[1, :] - self.cropsize[1], self.n_segments)
         true_line = np.array([x, y])
 
-        #Add some noise to the line so it's harder to overfit
+        #Add some noise to the line so it's harder to over fit
         noise_line = true_line + seg_noise * np.random.randn(2, true_line.shape[1])
         #Create the virtual point path needed to give the line width when drawn by polygon:
 
@@ -248,9 +275,9 @@ class Roadgen:
 
 
     # Draws dashed lines like the one in the center of the road
-    # FIXME add noise to the dashed line generator to cut down on overfitting(may be superfluous)
+    # FIXME add noise to the dashed line generator to cut down on over-fitting(may be superfluous)
     def dashed_line(self, coordinates, dash_length, dash_width ):
-        #estimate the curve lenght to generate a segment count which will approxmiate the desired dash lenght
+        #estimate the curve length to generate a segment count which will approximate the desired dash lenght
         est_curve_len = (self.vector_len(coordinates[:,2] - coordinates[:,0] ) + 
                         self.vector_len(coordinates[:,1] - coordinates[:,0] ) + 
                         self.vector_len(coordinates[:,2] - coordinates[:,1] ) )/2
@@ -259,7 +286,7 @@ class Roadgen:
                 coordinates[1, :] - self.cropsize[1], segments)
         dash_line = np.array([x, y])
 
-        #initializing empty indexs
+        #initializing empty indices
         rrr = np.empty(0, dtype=int)
         ccc = np.empty(0, dtype=int)
         for dash in range( int(segments/2) ):
@@ -274,7 +301,7 @@ class Roadgen:
 
         return rrr, ccc
 
-    #Makes randomly shaped polygon noise to screw with the learning algorythm
+    #Makes randomly shaped polygon noise to screw with the learning algorithm
     def poly_noise(self, origin, max_size=[128,24],  max_verticies=10):
         vert_count = np.random.randint(3,max_verticies)
         verts = np.matmul(np.ones([vert_count+1, 1]), [origin] )

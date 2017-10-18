@@ -30,17 +30,19 @@ class Model:
         self.model_path = model_path
         self.weights_path = weights_path
 
+        '''
         self.source_size = (640, 480)
         self.crop_size = (640, 160)
         self.crop_x = 0
         self.crop_y = self.source_size[1] - self.crop_size[1]
         self.target_size = (128, 32)
+        '''
 
-        # Temporary
+        # Line Model input characteristics:
         self.source_size = (1920, 1080)
-        self.crop_size = (1920, 320)
-        self.crop_x = 0
-        self.crop_y = 760
+        self.crop_size = (lm_cfg['line']['cropped_width'] , lm_cfg['line']['cropped_height'] )
+        self.crop_x = self.source_size[0] - self.crop_size[0] 
+        self.crop_y = self.source_size[1] - self.crop_size[1] 
         self.target_size = (lm_cfg['line']['input_width'] , lm_cfg['line']['input_height'])
 
         if model_path is not None and weights_path is not None:

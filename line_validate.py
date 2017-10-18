@@ -167,14 +167,16 @@ def main():
     road = Roadgen(cfg)
 
     if args.roadgen:
-        test_dir = 'line_train_data/test'
+        test_dir = 'line_train_data/test_data'
+        comp_dir = 'line_train_data/test_comparison'
+
         road.batch_gen(n_datapoints=args.roadgen, data_dir=test_dir)
         
         X_train = road.batch_loader(data_dir=test_dir, batch_iter=0)
         #y_train = np.load("%s/y_%03i.npy" % (test_dir, 0) )
 
         road.save_images(loaded_model.video_to_frames(edge_detect=0, channels_out=road.n_channels),
-             X_train, '%s' % (test_dir), 
+             X_train, '%s' % (comp_dir), 
              ['Camera', 'Virtual Generator'] )
 
     #Virtual Validation branch
