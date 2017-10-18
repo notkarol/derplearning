@@ -116,6 +116,8 @@ class Roadgen:
 
     #Converts a vector into a unit vector with the same orientation
     def unit_vector(self, delta):
+        '''if np.absolute(delta) == 0
+            raise Value_Error('Cannot calculate the unit vector of a size 0 vector!')'''
         return delta / np.sqrt(np.matmul(np.multiply(delta,delta),[1, 1]) )
 
     #measures a vector's length and returns that as a scalar
@@ -141,7 +143,7 @@ class Roadgen:
         vertical_excursion = np.absolute(u_delta[1]) * self.max_road_width
 
         #fixes the generation axis so that it doesn't make figure 8 roads
-        u_delta = orientation*np.absolute(u_delta)        
+        u_delta = orientation*np.absolute(u_delta)
         print(u_delta)
 
         #Set the left side no.1 control point
