@@ -13,7 +13,7 @@ from keras.models import model_from_yaml
 from scipy.misc import imread
 from model import Model
 #from bezier import bezier_curve, verify_plot
-from roadgen import Roadgen
+from roadgen3d import Roadgen
 
 '''
 Contains functions which validate the quality of road_gen, a model on virtual data,

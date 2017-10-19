@@ -11,7 +11,7 @@ from keras.layers import Conv2D, MaxPooling2D, SeparableConv2D
 from keras.models import model_from_yaml
 from keras.layers.merge import concatenate, add
 from keras.layers.normalization import BatchNormalization
-from roadgen import Roadgen
+from roadgen3d import Roadgen
 
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
