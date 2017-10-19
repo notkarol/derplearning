@@ -50,11 +50,11 @@ class Roadgen:
         #define camera characteristics
         #linear measurements given in mm
         self.cam_height = 380
-        self.cam_min_view = 420 #FIXME remeasure distance
+        self.cam_min_range = 600 #FIXME remeasure distance
         self.cam_res = np.array([1920, 1080])
         #arcs measured in radians
         #arc from bottom of camera view to vertical
-        self.cam_to_ground_arc = np.arctan(self.cam_min_view / self.cam_height)
+        self.cam_to_ground_arc = np.arctan(self.cam_min_range / self.cam_height)
         self.cam_arc_y = 80 * (np.pi / 180)
         self.cam_arc_x = 60 * (np.pi / 180)
         #measure of how close the center of the camera's view is to horizontal
@@ -65,7 +65,7 @@ class Roadgen:
         self.cam_max_range = self.cam_height * np.tan(self.cam_vlim_crop_x)
         #1/2 Minimum road view width of the camera in mm
         self.cam_near_rad =  np.power( (np.power(self.cam_height, 2)
-                + np.power(self.cam_min_view, 2) ), 0.5 ) * np.tan(self.cam_arc_y/2)
+                + np.power(self.cam_min_range, 2) ), 0.5 ) * np.tan(self.cam_arc_y/2)
         #1/2 Maximum road view width of the camera accounting for cropping 
         self.cam_far_rad = self.cam_height / np.cos(self.cam_vlim_crop_x) * np.tan(self.cam_arc_y/2)
 
@@ -149,6 +149,10 @@ class Roadgen:
     def vector_len(self, vector):
         return np.sqrt(np.matmul(np.multiply(vector,vector),[1, 1]) )
 
+    def rot_by_vector(self, rot_vect, vector):
+        rot_mat = np.array([[rot_vect[0], -rot_vect[1]], [rot_vect[1], rot_vect[0]] ])
+        return np.matmul(vector, rot_mat)
+
     #this code assumes x points forward and z points up.
     def cart2Spherical(self, xyz):
         sphere = np.zeros( (xyz.shape) )
@@ -210,8 +214,10 @@ class Roadgen:
     #for a single curve frame:
     def middle_points(self, y_train, y_noise, orientation=[0,0]):
         #Assign the central control point:
-        y_train[ 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
-        y_train[ 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
+        y_train[ 1, 1, 1] = np.random.randint(self.cam_min_range, self.cam_max_range)
+        cam_rad = (np.power(y_train[1, 1, 1]**2 + self.cam_height**2, .05) 
+                    / np.tan(self.cam_arc_y/2) )
+        y_train[ 1, 0, 1] = np.random.randint(-cam_rad, cam_rad)
 
         '''Calculate the control point axis:
         control point axis is defined by a unit vector parallel to a line
@@ -220,13 +226,17 @@ class Roadgen:
         u_delta = self.unit_vector(y_train[ 1, :, 1 ] - 
                 (y_train[ 1, :, 0 ] + (y_train[ 1, :, 2 ] - y_train[ 1, :, 0 ] )/2 ) )
 
+        #rotational correction:
+        rot_vect = self.unit_vector(y_train[ 1, :, 2 ] - y_train[ 1, :, 0 ] )
+        u_rot = self.rot_by_vector(rot_vect, u_delta)
+
+
         #print(u_delta)
-        #scales the sideways road outputs to account for pitch
-        vertical_excursion = np.absolute(u_delta[1]) * self.max_road_width
 
         #fixes the generation axis so that it doesn't make figure 8 roads
         u_delta = orientation*np.absolute(u_delta)
         #print(u_delta)
+
 
         #Set the left side no.1 control point
         y_train[ 0, :, 1] = (y_train[ 1, :, 1 ] + u_delta
@@ -261,7 +271,7 @@ class Roadgen:
         #Right line base point
         y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
         #Road start distance from car:
-        y_train[:, :, 1, 0] = self.cam_min_view * .75
+        y_train[:, :, 1, 0] = self.cam_min_range * .9
 
         #places the vanishing point either on the side of the view window or at the top of the screen
         #termination_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
@@ -273,9 +283,16 @@ class Roadgen:
             y_train[dp_i, :, 0, 2] = rng.randint(-self.cam_far_rad, self.cam_far_rad)
             y_train[dp_i, :, 1, 2] = self.cam_max_range
 
-            # Define the middle control points as members of a horizontal line chosen with the center point lying in the view window
-            #First assign the line containing the control points an elevation:
-            y_train[dp_i, :, 1, 1] = rng.randint(self.cam_min_view, self.cam_max_range)
+            #Left line terminal control point
+            y_train[dp_i, 0, 0, 2 ] = y_train[dp_i, 1, 0, 2 ] - (self.max_road_width - y_noise[dp_i, 0, 2]) 
+            #Right line terminal control point
+            y_train[dp_i, 2, 0, 2 ] = y_train[dp_i, 1, 0, 2 ] + (self.max_road_width - y_noise[dp_i, 1, 2])
+            
+
+            # Define the middle control points as members of a horizontal line chosen
+            # with the center point lying in the view window
+            # First assign the line containing the control points an elevation:
+            y_train[dp_i, :, 1, 1] = rng.randint(self.cam_min_range, self.cam_max_range)
             horiz_range = np.power(np.power( y_train[dp_i, 1, 1, 1], 2) + 
                 np.power(self.cam_height, 2), .5) * np.sin(self.cam_arc_y/2)
             #Centerline middle control point definition:
@@ -561,7 +578,7 @@ class Roadgen:
                             self.input_height,
                             self.input_width,
                             self.n_channels), 
-                        dtype= np.uint8 )
+                            dtype= np.uint8 )
 
         for dp_i in range(batch_size):
             batch[dp_i] = imread('%s/%09i.png' % (data_dir, (batch_meta[batch_iter] + dp_i) ) )

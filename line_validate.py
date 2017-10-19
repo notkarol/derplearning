@@ -1,4 +1,4 @@
-import os
+import os, shutil
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 import argparse
 import sys
@@ -59,7 +59,7 @@ def compare_io(X_val, model_raw, directory = '%s/image_comparison' % cfg['dir'][
     model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
 
     for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width/2, rand_gen=0) 
+        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width, rand_gen=0) 
 
     road.save_images(X_val, model_view, directory )
 
@@ -170,6 +170,8 @@ def main():
         test_dir = 'line_train_data/test_data'
         comp_dir = 'line_train_data/test_comparison'
 
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
         road.batch_gen(n_datapoints=args.roadgen, data_dir=test_dir)
         
         X_train = road.batch_loader(data_dir=test_dir, batch_iter=0)
