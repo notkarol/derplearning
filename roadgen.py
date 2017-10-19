@@ -38,12 +38,25 @@ class Roadgen:
         self.max_intensity = 255
 
         #parameters of the virtual view window
-        self.view_height = config['line']['input_height']
-        self.view_width = config['line']['input_width']
+        self.view_height = config['line']['cropped_height']
+        self.view_width = config['line']['cropped_width']
         self.gen_width = self.view_width * 2 # buffer onto each horizontal side to allow us to draw curves
         self.gen_height = self.view_height * 2
         self.cropsize = (int((self.gen_width - self.view_width) / 2), 
                 int((self.gen_height - self.view_height)/2) )
+
+        #define camera characteristics
+        #linear measurements given in mm
+        self.camera_height = 380
+        self.camera_min_view = 500 #FIXME remeasure distance
+        #arcs measured in radians
+        self.camera_res = np.array([1920, 1080])
+        self.camera_to_ground_arc = np.arctan(self.camera_min_view / self.camera_height)
+        self.camera_offset_y = 0
+        self.camera_arc_y = 80 * (np.pi / 180)
+        self.camera_arc_x = 60 * (np.pi / 180)
+        self.crop_ratio = [c / s for c, s in zip(self.crop_size, self.source_size)]
+
 
         #parameters of the final image size to be passed to the CNN
         self.input_width = config['line']['input_width']
@@ -123,6 +136,49 @@ class Roadgen:
     #measures a vector's length and returns that as a scalar
     def vector_len(self, vector):
         return np.sqrt(np.matmul(np.multiply(vector,vector),[1, 1]) )
+
+    #this code assumes x points forward and z points up.
+    def cart2Spherical(xyz):
+        sphere = np.zeros( (xyz.shape) )
+        xy = xyz[:,0]**2 + xyz[:,1]**2
+        sphere[:,0] = np.sqrt(xy + xyz[:,2]**2)
+        #sphere[:,1] = np.arctan2(np.sqrt(xy), xyz[:,2]) # for elevation angle defined from Z-axis down
+        sphere[:,1] = np.arctan2(xyz[:,2], np.sqrt(xy) ) # for elevation angle defined from XY-plane up
+        sphere[:,2] = np.arctan2(xyz[:,1], xyz[:,0] )
+        return sphere
+
+
+    '''Re-maps point on the xz plane to the xy plane based on camera characteristics
+    Assumes inputs are of the form: [point_ID, axis (x=0, z=1)]
+    [0,0] is assumed to be the road directly below the center of the car'''
+    def xz_to_xy(self, xz_points):
+
+        xy_points = np.zeros(xz_points.shape(), dtype=float)
+
+        #Convert coords from 2d to 3d and rearrange axes to conform to sphere function inputs
+        zxy = np.ones((xz_points.shape[0], 3), dtype=float)
+
+        zxy[:,0] = xz_points[:, 1]
+        zxy[:,1] = xz_points[:, 0]
+        zxy[:,2] *= -self.camera_height
+
+        #map ground x (mm) to camera pov x (pixels)
+        #first convert the points location into a radian arc measurement with the
+        #origin set at the middle of the camera with positive being up and right
+        sphere = cart2Spherical(xyz=zxy)
+
+        #Corrects for angle of camera relative to the ground
+        pov_sphere = sphere
+        pov_sphere[:,1] = sphere[:,1] - self.camera_offset_y 
+
+        #map angle offsets to pixel locations
+        #Assumes camera is of pinhole variety with linear map between angle and pixel location
+        #FIXME (convert to trig map)
+        xy_points[:,0] = self.camera_res[0]/self.camera_arc_x * pov_sphere[:,0]
+        xy_points[:,1] = self.camera_res[1]/self.camera_arc_x * pov_sphere[:,1]
+
+
+        return xy_points
 
     #function defines the location of the middle control points
     #for a single curve frame:
