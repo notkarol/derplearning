@@ -14,11 +14,13 @@ class Labeler(object):
     
 
     def update_label(self, id1, id2, marker):
-
-        # Update the labels that are to be stored
         if not marker:
-            beg, end = min(id1, id2), max(id1, id2)
-            self.labels[beg : end + 1] = marker
+            return
+        
+        # Update the labels that are to be stored
+        beg, end = min(id1, id2), max(id1, id2)
+        for i in range(beg, end + 1):
+            self.labels[i] = marker
 
         # Update the visual label bar
         beg_pos, end_pos = self.frame_pos(beg), self.frame_pos(end)
@@ -34,6 +36,7 @@ class Labeler(object):
 
         self.frame_id = frame_id - 1
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
+        self.read()
         self.show = True
         return True
 
@@ -53,8 +56,8 @@ class Labeler(object):
         self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
                                 interpolation=cv2.INTER_AREA)
         self.frame_id += 1
+        print(self.frame_id)
         return True
-
 
     
     def draw_bar_timemarker(self):
@@ -67,7 +70,7 @@ class Labeler(object):
 
     def draw_bar_zeroline(self):
         midpoint = self.frame.shape[0] + self.bhh + 1
-        self.window[midpoint, :, :] = self.gray50
+        self.window[midpoint - 1 : midpoint + 2, self.fwi, :] = self.label_bar
 
         
     def draw_bar_speed_steer(self):
@@ -88,7 +91,13 @@ class Labeler(object):
         # Display window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
 
-        
+
+    def save_labels(self):
+        with open(self.labels_path, 'w') as f:
+            for timestamp, label in zip(self.timestamps, self.labels):
+                f.write("%i,%s\n" % (timestamp, label))
+        print("Saved labels at ", self.labels_path)
+
     def handle_input(self):
         key = cv2.waitKey(1) & 0xFF
 
@@ -108,6 +117,8 @@ class Labeler(object):
         elif key == ord('r'):
             self.marker = ''
             self.show = True
+        elif key == ord('s'):
+            self.save_labels()
         elif key == 82:
             self.seek(self.frame_id + self.fps)
         elif key == 84:
@@ -116,6 +127,27 @@ class Labeler(object):
             self.seek(self.frame_id - 1)
         elif key == 83:
             self.seek(self.frame_id + 1)
+        elif key == ord('1'):
+            self.seek(int(self.n_frames * 0.0))
+        elif key == ord('2'):
+            self.seek(int(self.n_frames * 0.1))
+        elif key == ord('3'):
+            self.seek(int(self.n_frames * 0.2))
+        elif key == ord('4'):
+            self.seek(int(self.n_frames * 0.3))
+        elif key == ord('5'):
+            self.seek(int(self.n_frames * 0.4))
+        elif key == ord('6'):
+            self.seek(int(self.n_frames * 0.5))
+        elif key == ord('7'):
+            self.seek(int(self.n_frames * 0.6))
+        elif key == ord('8'):
+            self.seek(int(self.n_frames * 0.7))
+        elif key == ord('9'):
+            self.seek(int(self.n_frames * 0.8))
+        elif key == ord('0'):
+            self.seek(int(self.n_frames * 0.9))
+
         elif key != 255:
             print("Unknown key press: [%s]" % key)
             
@@ -125,7 +157,17 @@ class Labeler(object):
     def frame_pos(self, frame_id):
         return min(self.fw - 1, int(frame_id / len(self.timestamps) * self.fw))        
 
-    
+
+    def init_labels(self):
+        self.labels_path = os.path.join(self.recording_path, 'labels.csv')
+        self.labels = ['' for _ in range(self.n_frames)]
+        if os.path.exists(self.labels_path):
+            with open(self.labels_path) as f:
+                for i, line in enumerate(f.readlines()):
+                    timestamp, label = line.strip().split(",")
+                    self.labels[i] = label
+        
+                
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
         self.timestamps, self.state_dicts = derputil.readState(self.state_path)
@@ -141,14 +183,14 @@ class Labeler(object):
         self.cap = cv2.VideoCapture(self.video_path)
         self.n_frames = min(len(self.timestamps), int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)))
         self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-        self.frame_id = 0
+        self.frame_id = -1
         self.read()
 
         
     def init_window(self):
-        self.bhh = 100 # bar half height
         self.fh = self.frame.shape[0]
         self.fw = self.frame.shape[1]
+        self.bhh = 50 # bar half height
         self.fwi = np.arange(self.fw)
         self.window_shape = list(self.frame.shape)
         self.window_shape[0] += self.bhh* 2 + 1
@@ -166,13 +208,13 @@ class Labeler(object):
         self.paused = True
         self.show = False
         self.marker = ''
-        self.labels = ['' for _ in range(self.n_frames)]
-        self.label_bar = np.zeros((self.fw, 3), dtype=np.uint8)
-
+        self.label_bar = np.ones((self.fw, 3), dtype=np.uint8) * self.gray50
+        for i in range(self.n_frames):
+            self.update_label(i, i, self.labels[i])
+            
         
     def __init__(self, recording_path):
         self.recording_path = recording_path
-
 
         # Variables useful for later
         self.scale = 0.5
@@ -190,14 +232,15 @@ class Labeler(object):
         self.white = np.array([255, 255, 255], dtype=np.uint8)
         self.orange = np.array([255, 128, 0], dtype=np.uint8)
         self.purple = np.array([255, 0, 128], dtype=np.uint8)
-        self.marker_color = { '' : self.white,
+        self.marker_color = { '' : self.gray50,
                               'good': self.green,
                               'risk': self.orange,
                               'junk': self.red}
         
-        # Initialze 
+        # Initialze
         self.init_states()
         self.init_camera()
+        self.init_labels()
         self.init_window()
         self.display()
         
@@ -210,11 +253,14 @@ class Labeler(object):
         
         # Loop through video
         while self.cap.isOpened():
-            if not self.paused or self.show:
-                if not self.read():
-                    break
+            if not self.paused:
+                self.read()
+                self.show = True()
+
+            if self.show:
                 self.display()
                 self.show = False
+                
             if not self.handle_input():
                 break
 
