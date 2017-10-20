@@ -26,6 +26,19 @@ class Test_Roadgen3d(unittest.TestCase):
 	def test_cart2Spherical(self):
 		npt.assert_almost_equal(self.test0.cart2Spherical(np.array([[1,0,0]]) ), [[1, 0, 0]])
 
+	#checks to make sure the named function generates the appropriate rotational matrix
+	def test_rot_by_vector(self):
+		t_a0 = np.array([ 1, 0])
+		t_a1 = np.array([ 0, 1])
+		t_a2 = np.array([-1, 0])
+		t_a3 = np.array([ 0,-1])
+		t_a4 = np.array([22, 0])
+		t_a5 = np.array([ 0, 5])
+		t_a6 = np.array([ 3, 4])
+		
+		npt.assert_almost_equal(self.test0.rot_by_vector(t_a2, t_a3), t_a1 , decimal=7)
+		npt.assert_almost_equal(self.test0.rot_by_vector(t_a5, t_a4), np.array([0, -22]) , decimal=7)
+		npt.assert_almost_equal(self.test0.rot_by_vector(t_a6, t_a5), [4, 3] , decimal=7)
 
 if __name__ == '__main__':
 	unittest.main()
