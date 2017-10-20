@@ -12,12 +12,26 @@ class Labeler(object):
     def legal_position(self, pos):
         return 0 <= pos < self.n_frames
     
+
+    def update_label(self, id1, id2, marker):
+
+        # Update the labels that are to be stored
+        if not marker:
+            beg, end = min(id1, id2), max(id1, id2)
+            self.labels[beg : end + 1] = marker
+
+        # Update the visual label bar
+        beg_pos, end_pos = self.frame_pos(beg), self.frame_pos(end)
+        self.label_bar[beg_pos: end_pos + 1] = self.marker_color[marker]
+        
     
     def seek(self, frame_id):
         if not self.legal_position(frame_id):
             print("seek failed illegal", frame_id)
             return False
-        print("Seek", frame_id)
+
+        self.update_label(frame_id, self.frame_id, self.marker)
+
         self.frame_id = frame_id - 1
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
         self.show = True
@@ -28,35 +42,34 @@ class Labeler(object):
         if not self.legal_position(self.frame_id + 1):
             print("read failed illegal", frame_id)
             return False
+
         ret, frame = self.cap.read()
+        
         if not ret or frame is None:
             print("read failed frame", frame_id)
             return False
-        self.frame = frame
+
+        # Resize frame as needed
+        self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
+                                interpolation=cv2.INTER_AREA)
         self.frame_id += 1
         return True
 
+
+    
     def draw_bar_timemarker(self):
-        if self.marker == '':
-            color = self.white
-        elif self.marker == 'good':
-            color = self.green
-        elif self.marker == 'bad':
-            color = self.orange
-        else:
-            color = self.red
-        self.frame_pos = min(self.fw - 1, int(self.frame_id / len(self.timestamps) * self.fw))
-        self.window[self.fh:, self.frame_pos, :] = color
+        self.window[self.fh:, self.frame_pos(self.frame_id), :] = self.marker_color[self.marker]
 
         
     def draw_bar_blank(self):
-        self.window[self.frame.shape[0]:, self.frame_pos, :] = self.black
+        self.window[self.frame.shape[0]:, :, :] = self.black
 
 
     def draw_bar_zeroline(self):
         midpoint = self.frame.shape[0] + self.bhh + 1
         self.window[midpoint, :, :] = self.gray50
 
+        
     def draw_bar_speed_steer(self):
         self.window[self.speed_bar + self.fh + self.bhh + 1, self.fwi, :] = self.cyan
         self.window[self.steer_bar + self.fh + self.bhh + 1, self.fwi, :] = self.magenta
@@ -83,8 +96,19 @@ class Labeler(object):
             return False
         elif key == ord('p'):
             self.paused = not self.paused
-
-        if key == 82:
+        elif key == ord('q'):
+            self.marker = 'good'
+            self.show = True
+        elif key == ord('w'):
+            self.marker = 'risk'
+            self.show = True
+        elif key == ord('e'):
+            self.marker = 'junk'
+            self.show = True
+        elif key == ord('r'):
+            self.marker = ''
+            self.show = True
+        elif key == 82:
             self.seek(self.frame_id + self.fps)
         elif key == 84:
             self.seek(self.frame_id - self.fps)
@@ -93,11 +117,15 @@ class Labeler(object):
         elif key == 83:
             self.seek(self.frame_id + 1)
         elif key != 255:
-            print(key)
+            print("Unknown key press: [%s]" % key)
             
         return True
     
 
+    def frame_pos(self, frame_id):
+        return min(self.fw - 1, int(frame_id / len(self.timestamps) * self.fw))        
+
+    
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
         self.timestamps, self.state_dicts = derputil.readState(self.state_path)
@@ -106,11 +134,10 @@ class Labeler(object):
         for pos, d in enumerate(self.state_dicts):
             self.speeds[pos] = d['speed']
             self.steers[pos] = d['steer']
-        
-    
+
+            
     def init_camera(self):
         self.video_path = os.path.join(self.recording_path, 'camera_front.mp4')
-        self.frame_pos = 0
         self.cap = cv2.VideoCapture(self.video_path)
         self.n_frames = min(len(self.timestamps), int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)))
         self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
@@ -127,19 +154,29 @@ class Labeler(object):
         self.window_shape[0] += self.bhh* 2 + 1
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
 
-        old_x = np.linspace(0, 1, len(self.speeds))
-        new_x = np.linspace(0, 1, self.window_shape[1])
-        speed_f = interp1d(old_x, self.speeds)
-        steer_f = interp1d(old_x, self.steers) 
-        self.speed_bar = np.array([speed_f(x) * self.bhh + 0.5 for x in new_x], dtype=np.int)
-        self.steer_bar = np.array([steer_f(x) * self.bhh + 0.5 for x in new_x], dtype=np.int)
+        self.state_x = np.linspace(0, 1, len(self.timestamps))
+        self.window_x = np.linspace(0, 1, self.fw)
+        speed_f = interp1d(self.state_x, self.speeds)
+        steer_f = interp1d(self.state_x, self.steers) 
+        self.speed_bar = np.array([speed_f(x) * self.bhh + 0.5 for x in self.window_x],
+                                  dtype=np.int)
+        self.steer_bar = np.array([steer_f(x) * self.bhh + 0.5 for x in self.window_x],
+                                  dtype=np.int)
         
         self.paused = True
         self.show = False
         self.marker = ''
         self.labels = ['' for _ in range(self.n_frames)]
+        self.label_bar = np.zeros((self.fw, 3), dtype=np.uint8)
 
-        # Colors
+        
+    def __init__(self, recording_path):
+        self.recording_path = recording_path
+
+
+        # Variables useful for later
+        self.scale = 0.5
+        self.cap = None
         self.red = np.array([0, 0, 255], dtype=np.uint8)
         self.green = np.array([32, 192, 32], dtype=np.uint8)
         self.blue = np.array([255, 128, 0], dtype=np.uint8)
@@ -153,10 +190,11 @@ class Labeler(object):
         self.white = np.array([255, 255, 255], dtype=np.uint8)
         self.orange = np.array([255, 128, 0], dtype=np.uint8)
         self.purple = np.array([255, 0, 128], dtype=np.uint8)
+        self.marker_color = { '' : self.white,
+                              'good': self.green,
+                              'risk': self.orange,
+                              'junk': self.red}
         
-    def __init__(self, recording_path):
-        self.recording_path = recording_path
-
         # Initialze 
         self.init_states()
         self.init_camera()
@@ -182,7 +220,8 @@ class Labeler(object):
 
 
     def __del__(self):
-        self.cap.release()
+        if self.cap:
+            self.cap.release()
         cv2.destroyAllWindows()
 
     
