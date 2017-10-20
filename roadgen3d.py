@@ -42,32 +42,33 @@ class Roadgen:
         self.view_res = [config['line']['cropped_width'], config['line']['cropped_height'] ]
         self.view_height = self.view_res[1]
         self.view_width = self.view_res[0]
-        self.gen_width = self.view_res[0] * 2 # buffer onto each horizontal side to allow us to draw curves
+        '''self.gen_width = self.view_res[0] * 2 # buffer onto each horizontal side to allow us to draw curves
         self.gen_height = self.view_res[1] * 2
         self.cropsize = (int((self.gen_width - self.view_res[0]) / 2), 
                 int((self.gen_height - self.view_res[1])/2) )
+        '''
 
         #define camera characteristics
         #linear measurements given in mm
-        self.cam_height = 380
-        self.cam_min_range = 600 #FIXME remeasure distance
+        self.cam_arc_y = 100 * (np.pi / 180)
+        self.cam_arc_x = 56.25 * (np.pi / 180)
+        self.cam_height = 380 #mm elevation
+        self.cam_min_range = self.cam_height / np.tan(self.cam_arc_x/2) #600 #FIXME remeasure distance
         self.cam_res = np.array([1920, 1080])
         #arcs measured in radians
         #arc from bottom of camera view to vertical
         self.cam_to_ground_arc = np.arctan(self.cam_min_range / self.cam_height)
-        self.cam_arc_y = 80 * (np.pi / 180)
-        self.cam_arc_x = 60 * (np.pi / 180)
         #measure of how close the center of the camera's view is to horizontal
         self.cam_tilt_y = self.cam_to_ground_arc + self.cam_arc_x/2 - np.pi/2
         self.crop_ratio = self.view_res[1]/self.cam_res[1]
-        self.cam_vlim_crop_x = self.cam_to_ground_arc + self.cam_arc_x * self.crop_ratio
+        self.cam_vlim_crop_y = self.cam_to_ground_arc + self.cam_arc_x * self.crop_ratio
         #maximum view range of camera (assumes camera is cropped below horizon)
-        self.cam_max_range = self.cam_height * np.tan(self.cam_vlim_crop_x)
+        self.cam_max_range = self.cam_height * np.tan(self.cam_vlim_crop_y)
         #1/2 Minimum road view width of the camera in mm
         self.cam_near_rad =  np.power( (np.power(self.cam_height, 2)
                 + np.power(self.cam_min_range, 2) ), 0.5 ) * np.tan(self.cam_arc_y/2)
         #1/2 Maximum road view width of the camera accounting for cropping 
-        self.cam_far_rad = self.cam_height / np.cos(self.cam_vlim_crop_x) * np.tan(self.cam_arc_y/2)
+        self.cam_far_rad = self.cam_height / np.cos(self.cam_vlim_crop_y) * np.tan(self.cam_arc_y/2)
 
         #parameters of the final image size to be passed to the CNN
         self.input_size = (config['line']['input_width'], config['line']['input_height'] )
@@ -75,7 +76,7 @@ class Roadgen:
         self.input_height = self.input_size[1]
 
         #Attributes of the road line drawing.
-        self.max_road_width = 500 #The widest possible road that can be drawn (radius mm)
+        self.max_road_width = 300 #The widest possible road that can be drawn (radius mm)
         self.horz_noise_fraction = 0.3 #size of the noise envelope below max_width where road lines may exist
                     #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
         #self.lane_convergence = .6 #rate at which lanes converge approaching horizon
@@ -175,11 +176,11 @@ class Roadgen:
         xy_points = np.zeros(xz_points.shape, dtype=float)
 
         #Convert coords from 2d to 3d and rearrange axes to conform to sphere function inputs
-        zxy = np.ones((xz_points.shape[1], 3), dtype=float)
+        zxy = np.zeros((xz_points.shape[1], 3), dtype=float)
 
         zxy[:,0] = xz_points[1, :]
         zxy[:,1] = xz_points[0, :]
-        zxy[:,2] *= -self.cam_height
+        zxy[:,2] = -self.cam_height
 
         #map ground x (mm) to camera pov x (pixels)
         #first convert the points location into a radian arc measurement with the
@@ -198,7 +199,8 @@ class Roadgen:
 
         '''
         #Ray Trace version:
-        xy_points[0, :] = self.cam_res[0]/2 * np.tan(pov_sphere[:,2])/np.tan(self.cam_arc_y/2)
+        #FIXME Karol deleted a 1/2 scale factor as a kluge fix. We need to get to the bottom of this
+        xy_points[0, :] = self.cam_res[0] * np.tan(pov_sphere[:,2])/np.tan(self.cam_arc_y/2)
         xy_points[1, :] = self.cam_res[1]/2 * np.tan(pov_sphere[:,1])/np.tan(self.cam_arc_x/2)
         
 
@@ -411,13 +413,22 @@ class Roadgen:
             road_frame[ :, :, 1] *= rng.randint(0, .5 * max_intensity)
             road_frame[ :, :, 2] *= rng.randint(0, .5 * max_intensity)
 
+        '''
+        #checkers
+        for el in range(10):
+            rr, cc = self.poly_line(np.array([[-self.cam_far_rad, 0, self.cam_far_rad],
+                [el * 50 + self.cam_min_range, el * 50 + self.cam_min_range, el * 50 + self.cam_min_range] ] ),
+                 5)
+            road_frame[rr, cc, :] = 255
+        '''
+
         if seg_noise:
             #line width randomizer:
             line_width += rand_gen * max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         while poly_noise:
-            rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),
-                    np.random.randint(0, self.gen_height) ] )
+            rr, cc = self.poly_noise([np.random.randint(0, self.view_res[0]),
+                    np.random.randint(0, self.view_res[1]) ] )
             road_frame[rr,cc, :] = rng.randint(0, .9 *max_intensity, self.n_channels)
             poly_noise -= 1
 
