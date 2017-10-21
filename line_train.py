@@ -63,7 +63,7 @@ def main():
                         help='number of epochs to train (default: 32)')
     parser.add_argument('--bs', type=int, default=32, metavar='N',
                         help='batch size (default: 32)')
-    parser.add_argument('--sets', type=int, default=9,
+    parser.add_argument('--sets', type=int, default=30,
             help='number of batches to train on')
     parser.add_argument('--gpu', type=int, default=0, help='index of GPU to use')
     #parser directory assistance
@@ -123,7 +123,7 @@ def main():
         
         # serialize model to YAML
         model_yaml = model.to_yaml()
-        with open("%s/%s.yaml" % (args.model_dir, args.model_napythonme), "w") as yaml_file:
+        with open("%s/%s.yaml" % (args.model_dir, args.model_name), "w") as yaml_file:
             yaml_file.write(model_yaml)
         # serialize weights to HDF5
         model.save_weights("%s/%s.h5" % (args.model_dir, args.model_name))
