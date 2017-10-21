@@ -83,7 +83,7 @@ def main():
     pipe = Roadgen(cfg)
     
     # Load a data sameple:
-    X_val = pipe.normalize(pipe.batch_loader(args.train_data, 0) )
+    X_val = pipe.normalize(pipe.batch_loader(args.val_data, 0) )
     y_val = pipe.label_norm(np.load('%s/y_%03i.npy' % (args.val_data, 0) ) )
     print(X_val.shape, y_val.shape)
 
