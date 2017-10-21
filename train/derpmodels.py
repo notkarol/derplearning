@@ -44,14 +44,12 @@ class ModelA(nn.Module):
     def forward(self, x):
         out = self.c1(x)
         out = self.c2(out)
-        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
         out = self.c3(out)
         out = self.c4(out)
-        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
         out = self.elu(out)
-        out = nn.functional.dropout(out, p=0.5, training=self.training)
+        #out = nn.functional.dropout(out, p=0.5, training=self.training)
         out = self.fc2(out)
         return out
 
