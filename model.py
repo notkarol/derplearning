@@ -40,8 +40,8 @@ class Model:
         '''
 
         # Line Model input characteristics:
-        self.source_size = (car_cfg['camera']['front']['width'], 
-                            car_cfg['camera']['front']['height'])
+        self.source_size = (car_cfg['record']['width'], 
+                            car_cfg['record']['height'])
         self.crop_size = (  lm_cfg['line']['cropped_width'],
                             lm_cfg['line']['cropped_height'] )
         self.target_size = (lm_cfg['line']['input_width'] , 
@@ -101,7 +101,7 @@ class Model:
     def video_to_frames(self, folder="data/20170812T214343Z-paras",
              max_frames=256, edge_detect=1, channels_out=1):
         # Prepare video frames by extracting the patch and thumbnail for training
-        video_path = os.path.join(folder, 'video.mp4')
+        video_path = os.path.join(folder, 'camera_front.mp4')
         print(video_path)
         video_cap = cv2.VideoCapture(video_path)
 
