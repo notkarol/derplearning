@@ -13,8 +13,8 @@ line:
     n_dimensions: 2
 
     #cropped view characteristics
-    cropped_width: 1280
-    cropped_height: 320
+    cropped_width: 640
+    cropped_height: 160
 
     #Model input characteristics
     n_channels: 3

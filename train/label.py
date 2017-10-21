@@ -94,6 +94,7 @@ class Labeler(object):
 
     def save_labels(self):
         with open(self.labels_path, 'w') as f:
+            f.write("timestamp,status\n")
             for timestamp, label in zip(self.timestamps, self.labels):
                 f.write("%i,%s\n" % (timestamp, label))
         print("Saved labels at ", self.labels_path)
@@ -159,23 +160,18 @@ class Labeler(object):
 
 
     def init_labels(self):
-        self.labels_path = os.path.join(self.recording_path, 'labels.csv')
-        self.labels = ['' for _ in range(self.n_frames)]
+        self.labels_path = os.path.join(self.recording_path, 'label.csv')
         if os.path.exists(self.labels_path):
-            with open(self.labels_path) as f:
-                for i, line in enumerate(f.readlines()):
-                    timestamp, label = line.strip().split(",")
-                    self.labels[i] = label
+            _, _, self.labels = derputil.read_csv(self.labels_path, floats=False)
+        else:
+            self.labels = ["" for _ in range(self.n_frames)]
         
                 
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
-        self.timestamps, self.state_dicts = derputil.readState(self.state_path)
-        self.speeds = np.zeros(len(self.timestamps), dtype=np.float)
-        self.steers = np.zeros(len(self.timestamps), dtype=np.float)
-        for pos, d in enumerate(self.state_dicts):
-            self.speeds[pos] = d['speed']
-            self.steers[pos] = d['steer']
+        self.timestamps, self.state_headers, self.states = derputil.read_csv(self.state_path)
+        self.speeds = self.states[:, self.state_headers.index('speed')]
+        self.steers = self.states[:, self.state_headers.index('steer')]
 
             
     def init_camera(self):

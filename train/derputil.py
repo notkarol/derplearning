@@ -67,40 +67,27 @@ def getPatchSize(target_config, camera):
     return patch['width'], patch['height']
 
 
-def cropImage(image, bbox):
-    crop = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
-    return crop
-
-
-def resizeImage(image, size):
-    return cv2.resize(image, size)
-        
-
-def readState(path):
+def read_csv(path, floats=True):
     """
-    Read thhrough the state file and get our timestamps and recorded values.
-    Returns the non-timestamp headers, timestamps as a double array, and
-    all non-timestamp values in one 2D float32 array.
+    Read through the state file and get our timestamps and recorded values.
+    Returns the non-timestamp headers, timestamps as 
     """
-    if os.path.isdir(path):
-        state_path = os.path.join(path, 'state.csv')
-    else:
-        state_path = path
     timestamps = []
     states = []
-    with open(state_path) as f:
+    with open(path) as f:
         reader = csv.reader(f)
-        header = next(reader)
-        for row in reader:
-            state = {}
-            for h, r in zip(header, row):
-                if h == 'timestamp':
-                    timestamps.append(int(1E6 * float(r)))
-                    continue
-                if len(r) == 0:
-                    continue
-                state[h] = float(r)
+        headers = next(reader)[1:]
+        for line in reader:
+            if not len(line):
+                continue
+            state = []
+            timestamps.append(int(1E6 * float(line[0])))
+            for value in line[1:]:
+                value = float(value) if floats else value
+                state.append(value)
             states.append(state)
 
-    return timestamps, states
+    timestamps = np.array(timestamps, dtype=np.uint64)
+    states = np.array(states, dtype=np.float)
+    return timestamps, headers, states
 

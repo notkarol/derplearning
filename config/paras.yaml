@@ -1,20 +1,9 @@
 # Experiment Name:
 name: "paras"
-train_paths: [ "../data/20170812T214343Z-paras" ]
-eval_paths: [ "../data/20170812T214055Z-paras" ]
-states: ['speed', 'steer']
-predict: ['speed', 'steer']
-model_clone: "A"
-perturb: false
-batch_size: 32
-num_threads: 2
-learning_rate: 0.0001
-num_epochs: 100
-
-# What we want our models to predict
-labels:
-  speed: 1.0
-  steer: 1.0
+data_folders: [ "../data/" ]
+states: ['speed', 'steer', 'shift', 'rotation']
+n_perturbations: 0
+train_chance: 0.9
 
 # Recording
 camera:
@@ -32,6 +21,7 @@ camera:
     yaw: 0
     roll: 0
 
+# Dataset
 patch:
   front:
     hfov: 75

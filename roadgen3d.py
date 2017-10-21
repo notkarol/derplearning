@@ -54,7 +54,7 @@ class Roadgen:
         self.cam_arc_x = 56.25 * (np.pi / 180)
         self.cam_height = 380 #mm elevation
         self.cam_min_range = self.cam_height / np.tan(self.cam_arc_x/2) #600 #FIXME remeasure distance
-        self.cam_res = np.array([1280, 1080])
+        self.cam_res = np.array([640, 540])
         #arcs measured in radians
         #arc from bottom of camera view to vertical
         self.cam_to_ground_arc = np.arctan(self.cam_min_range / self.cam_height)
@@ -411,9 +411,13 @@ class Roadgen:
 
         if rand_gen:
             #Initialize a single tone background:
-            road_frame[ :, :, 0] *= rng.randint(0, .7 * max_intensity)
-            road_frame[ :, :, 1] *= rng.randint(0, .7 * max_intensity)
-            road_frame[ :, :, 2] *= rng.randint(0, .7 * max_intensity)
+            if np.random.rand() < 0.5:
+                road_frame[ :, :, 0] *= rng.randint(0, .7 * max_intensity)
+                road_frame[ :, :, 1] *= rng.randint(0, .7 * max_intensity)
+                road_frame[ :, :, 2] *= rng.randint(0, .7 * max_intensity)
+            else:
+                road_frame[ :, :, :] *= rng.randint(0, .7 * max_intensity)
+                
 
         '''
         #checkers
@@ -431,7 +435,8 @@ class Roadgen:
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.view_res[0]),
                     np.random.randint(-40, self.view_res[1] ) ] )
-            road_frame[rr,cc, :] = rng.randint(0, .85 *max_intensity, self.n_channels)
+            road_frame[rr,cc, :] = (road_frame[rr,cc,:] +
+                                    rng.randint(0, .5 *max_intensity, self.n_channels)) / 2
             poly_noise -= 1
 
         rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
