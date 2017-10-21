@@ -39,13 +39,13 @@ class Roadgen:
         self.max_intensity = 255
 
         #parameters of the virtual view window
-        self.view_res = [config['line']['cropped_width'], config['line']['cropped_height'] ]
-        self.view_height = self.view_res[1]
-        self.view_width = self.view_res[0]
-        '''self.gen_width = self.view_res[0] * 2 # buffer onto each horizontal side to allow us to draw curves
-        self.gen_height = self.view_res[1] * 2
-        self.cropsize = (int((self.gen_width - self.view_res[0]) / 2), 
-                int((self.gen_height - self.view_res[1])/2) )
+        self.view_res = [config['line']['gen_height'], config['line']['gen_width'] ]
+        #self.view_height = self.view_res[0]
+        #self.view_width = self.view_res[1]
+        '''self.gen_width = self.view_res[1] * 2 # buffer onto each horizontal side to allow us to draw curves
+        self.gen_height = self.view_res[0] * 2
+        self.cropsize = (int((self.gen_width - self.view_res[1]) / 2), 
+                int((self.gen_height - self.view_res[0])/2) )
         '''
 
         #define camera characteristics
@@ -60,7 +60,7 @@ class Roadgen:
         self.cam_to_ground_arc = np.arctan(self.cam_min_range / self.cam_height)
         #measure of how close the center of the camera's view is to horizontal
         self.cam_tilt_y = self.cam_to_ground_arc + self.cam_arc_x/2 - np.pi/2
-        self.crop_ratio = self.view_res[1]/self.cam_res[1]
+        self.crop_ratio = self.view_res[0]/self.cam_res[1]
         self.cam_vlim_crop_y = self.cam_to_ground_arc + self.cam_arc_x * self.crop_ratio
         #maximum view range of camera (assumes camera is cropped below horizon)
         self.cam_max_range = self.cam_height * np.tan(self.cam_vlim_crop_y)
@@ -215,7 +215,7 @@ class Roadgen:
 
         #move the origin from the center of the camera's view to the upper left corner:
         xy_points[0, :] = xy_points[0, :] + self.cam_res[0]/2
-        xy_points[1, :] = -xy_points[1, :] + self.cam_res[1]/2 - (self.cam_res[1] - self.view_res[1])
+        xy_points[1, :] = -xy_points[1, :] + self.cam_res[1]/2 - (self.cam_res[1] - self.view_res[0])
 
         return xy_points
 
@@ -353,7 +353,7 @@ class Roadgen:
             print(polygon_path[:,:self.debug])
 
         #Actually draw the polygon
-        rr, cc = polygon((polygon_path.astype(int)[1]), polygon_path.astype(int)[0], ( self.view_res[1], self.view_res[0]) )
+        rr, cc = polygon((polygon_path.astype(int)[1]), polygon_path.astype(int)[0], self.view_res )
 
         return rr, cc
 
@@ -361,7 +361,8 @@ class Roadgen:
     # Draws dashed lines like the one in the center of the road
     # FIXME add noise to the dashed line generator to cut down on over-fitting(may be superfluous)
     def dashed_line(self, coordinates, dash_length, dash_width ):
-        #estimate the curve length to generate a segment count which will approximate the desired dash lenght
+        #estimate the curve length to generate a segment count which will approximate the 
+        # desired dash length
         est_curve_len = (self.vector_len(coordinates[:,2] - coordinates[:,0] ) + 
                         self.vector_len(coordinates[:,1] - coordinates[:,0] ) + 
                         self.vector_len(coordinates[:,2] - coordinates[:,1] ) )/2
@@ -389,7 +390,7 @@ class Roadgen:
                                  dash_line[:,dash*2] + offset] )
             dd_path = self.xz_to_xy(np.array([d_path[:, 0], d_path[:, 1] ]) )
             rr, cc = polygon(dd_path.astype(int)[1], dd_path.astype(int)[0], 
-                            (self.view_height, self.view_width) )
+                            (self.view_res[0], self.view_res[1]) )
             rrr = np.append(rrr, rr)
             ccc = np.append(ccc, cc)
 
@@ -402,11 +403,11 @@ class Roadgen:
         verts[1:vert_count, 0] = origin[ 0] + np.random.randint(0, max_size[0], vert_count -1)
         verts[1:vert_count, 1] = origin[ 1] + np.random.randint(0, max_size[1], vert_count -1)
 
-        return polygon(verts[:,1], verts[:,0], (self.view_height, self.view_width) )
+        return polygon(verts[:,1], verts[:,0], self.view_res )
 
     #converts coordinates into images with curves on them
     def road_generator(self, y_train, line_width, rand_gen=1, seg_noise = 0, poly_noise=0):
-        road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
+        road_frame = np.ones((self.view_res[0], self.view_res[1], self.n_channels),
              dtype=np.uint8)
 
         #set max intensity:
@@ -436,8 +437,8 @@ class Roadgen:
             line_width += rand_gen * max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         while poly_noise:
-            rr, cc = self.poly_noise([np.random.randint(0, self.view_res[0]),
-                    np.random.randint(-40, self.view_res[1] ) ] )
+            rr, cc = self.poly_noise([np.random.randint(0, self.view_res[1]),
+                    np.random.randint(-40, self.view_res[0] ) ] )
             road_frame[rr,cc, :] = (road_frame[rr,cc,:] +
                                     rng.randint(0, .5 *max_intensity, self.n_channels)) / 2
             poly_noise -= 1
@@ -563,21 +564,21 @@ def main():
         help='creates a test batch and compares the batch to video data (default is off)')
     parser.add_argument('--frames', type=int, default=3E3,
         help='determines how many frames per batch')
-    parser.add_argument('--batches', type=int, default = 30,
-        help='determines how many training batches to generate')
-    parser.add_argument('--val_batches', type=int, default = 1,
-        help='determines how many validation batches to generate')
+    parser.add_argument('--sets', type=int, default = 30,
+        help='determines how many training sets to generate')
+    parser.add_argument('--val_sets', type=int, default = 1,
+        help='determines how many validation sets to generate')
     parser.add_argument('--debug', type=int, default=0, help='Turns on debugging print statements')
     args = parser.parse_args()
 
     roads = Roadgen(config=cfg, debug=args.debug)
 
     #generate the training data
-    for batch in range(args.batches):
+    for batch in range(args.sets):
         roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['train_data'])
 
     #generate the validation data
-    for batch in range(args.val_batches):
+    for batch in range(args.val_sets):
         roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['val_data'])        
 
 

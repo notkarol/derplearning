@@ -18,7 +18,8 @@ Defines the model class containing the following functions:
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
                 lm_cfg = yaml.load(yamlfile)
-
+with open("config/paras.yaml", 'r') as yamlfile:
+                car_cfg = yaml.load(yamlfile)
 
 class Model:
         
@@ -39,12 +40,16 @@ class Model:
         '''
 
         # Line Model input characteristics:
-        self.source_size = (1920, 1080)
-        self.crop_size = (lm_cfg['line']['cropped_width'] , lm_cfg['line']['cropped_height'] )
+        self.source_size = (car_cfg['camera']['front']['width'], 
+                            car_cfg['camera']['front']['height'])
+        self.crop_size = (  lm_cfg['line']['cropped_width'],
+                            lm_cfg['line']['cropped_height'] )
+        self.target_size = (lm_cfg['line']['input_width'] , 
+                            lm_cfg['line']['input_height'])
+
         self.crop_x = int( (self.source_size[0] - self.crop_size[0] ) /2 )
         self.crop_y = self.source_size[1] - self.crop_size[1] 
-        self.target_size = (lm_cfg['line']['input_width'] , lm_cfg['line']['input_height'])
-
+        
         if model_path is not None and weights_path is not None:
             with open(model_path) as f:
                 json_contents = f.read()
@@ -104,8 +109,8 @@ class Model:
         #viewer = Model(None, None, None)
 
         #initializing the output array
-        frames = np.zeros([max_frames, lm_cfg['line']['input_height'] , 
-                    lm_cfg['line']['input_width'], channels_out])
+        frames = np.zeros([max_frames, self.target_size[1] , self.target_size[0],
+                    channels_out], dtype=np.uint8)
 
         counter = 0
         while video_cap.isOpened() and counter < max_frames:

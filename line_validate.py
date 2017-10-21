@@ -23,17 +23,6 @@ and a model on video data.
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
         cfg = yaml.load(yamlfile)
-'''
-#Loads png images as arrays and assembles them into block
-def load_images(directory, filenames)
-    first = imread('%s/%s' % (directory, filenames[0] ) )
-
-    block = np.zeros( (filenames.shape[0], first.shape), dtype= np.uint8 )
-
-    for frame in range(filenames):
-        block[frame] = imread('%s/%s' % (directory, filenames[0] ) )
-    return block
-'''
 
 #Prints to command line the points used to produce an image
 def print_points( labels, model_out):
@@ -55,11 +44,14 @@ def compare_io(X_val, model_raw, directory = '%s/image_comparison' % cfg['dir'][
     #reshaping the model output vector to make it easier to work with
     model_out = road.model_interpret(model_raw)
     print('predictions denormalized')
+    
     #initialize the model view tensor
-    model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
+    model_view = np.zeros( (curves_to_print, road.input_size[1], road.input_size[0],
+                             road.n_channels), dtype=np.uint8)
 
     for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.road_generator(model_out[prnt_i], road.line_width, rand_gen=0) 
+        patch = road.road_generator(model_out[prnt_i], road.line_width, rand_gen=0) 
+        model_view[prnt_i] = cv2.resize(patch, road.input_size, interpolation=cv2.INTER_AREA)
 
     road.save_images(X_val, model_view, directory )
 
@@ -113,29 +105,6 @@ def val_training(X_val, loaded_model, directory ):
     print("Validation images saved to: %s" % directory )
 
 
-'''
-def mp4_validate(X_raw, X_val, loaded_model, directory):
-    #Creates tensors to compare to source images, plots both side by side, and saves the plots
-    road = Roadgen(cfg)
-
-    #Runing the model on the loaded data:
-    predictions = loaded_model.road_spotter(X_val)
-    curves_to_print = X_val.shape[0]
-
-    #reshaping the model output vector to make it easier to work with
-    model_out = road.model_interpret(predictions)
-
-    #initialize the model view tensor
-    model_view = np.zeros( (curves_to_print, road.view_height, road.view_width, road.n_channels), dtype=np.uint8)
-
-    for prnt_i in range(curves_to_print):
-        model_view[prnt_i] = road.denormalize(
-            road.road_generator(model_out[prnt_i], road.line_width/2) )
-        
-    road.save_video(X_raw, model_view, '%s' % (directory) )
-    print("Validation gif saved to: %s" %(directory) )
- '''
-
 def main():
     
     #Arguments which select which form of validation to conduct
@@ -177,8 +146,8 @@ def main():
         X_train = road.batch_loader(data_dir=test_dir, batch_iter=0)
         #y_train = np.load("%s/y_%03i.npy" % (test_dir, 0) )
 
-        road.save_images(loaded_model.video_to_frames(edge_detect=0, channels_out=road.n_channels),
-             X_train, '%s' % (comp_dir), 
+        road.save_images(loaded_model.video_to_frames(max_frames=args.roadgen,
+             edge_detect=0, channels_out=road.n_channels), X_train, '%s' % (comp_dir), 
              ['Camera', 'Virtual Generator'] )
 
     #Virtual Validation branch
