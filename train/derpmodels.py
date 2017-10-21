@@ -58,9 +58,9 @@ class ModelB(nn.Module):
     def __init__(self, config):
         super(ModelB, self).__init__()
         self.mode = 'clone'
-        self.c1 = Block(config['patch']['depth'],  64, 5, stride=2)
-        self.c2a = Block(64, 64, 3)
-        self.c2b = Block(64, 64, 3, pool='max')
+        self.c1 = Block(config['patch']['depth'],  96, 5, stride=2)
+        self.c2a = Block(96, 64, 3)
+        self.c2b = Block(64, 64, 3, stride=2)
         self.c3a = Block(64, 64, 3)
         self.c3b = Block(64, 64, 3, pool='max')
         self.c4 = Block(64, 64, 3, pool='max')

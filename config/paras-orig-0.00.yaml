@@ -1,5 +1,6 @@
 # Experiment Name:
-name: "paras"
+name: "paras-orig-0.00"
+experiment: 'clone'
 data_folders: [ "." ]
 states: ['speed', 'steer', 'shift', 'rotation']
 n_perts: 0

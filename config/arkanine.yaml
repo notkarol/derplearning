@@ -1,12 +1,13 @@
 name: "arkanine"
+experiment: 'lines'
 data_folders: [ "." ]
-states: ['1', '2', '3', '4', '5', '6', '7', '8',
-         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+states: ['1', '2', '3', '4', '5', '6', '7', '8', '9',
+         'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
 n_perts: 0
 train_chance: 0.9
 delay: 0.0
 debug: false
-
+model: ModelB
 #Directory Assitance:
 dir:
   train_data: 'scratch/arkanine/line_data/train'

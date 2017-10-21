@@ -1,8 +1,9 @@
 # Experiment Name:
-name: "paras"
+name: "paras-pert-0.00"
+experiment: 'clone'
 data_folders: [ "." ]
 states: ['speed', 'steer', 'shift', 'rotation']
-n_perts: 0
+n_perts: 2
 train_chance: 0.9
 delay: 0.0
 debug: false

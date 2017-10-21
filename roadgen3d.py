@@ -20,7 +20,7 @@ v5 draws 3 color lines on the ground the middle one being dashed.
 '''
 
 import yaml
-with open("config/line_model.yaml", 'r') as yamlfile:
+with open("config/arkanine.yaml", 'r') as yamlfile:
     cfg = yaml.load(yamlfile)
 
 ''' The Rooagen class is responsible for all things related to the generation of virtual training data
@@ -565,7 +565,7 @@ def main():
         help='creates a test batch and compares the batch to video data (default is off)')
     parser.add_argument('--frames', type=int, default=3E3,
         help='determines how many frames per batch')
-    parser.add_argument('--sets', type=int, default = 30,
+    parser.add_argument('--sets', type=int, default = 10,
         help='determines how many training sets to generate')
     parser.add_argument('--val_sets', type=int, default = 1,
         help='determines how many validation sets to generate')

@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 
 import derputil
 from derpfetcher import DerpFetcher
+from linefetcher import LineFetcher
 import derpmodels
     
 def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batch=False):
@@ -24,7 +25,10 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batc
         model.eval()
     step_loss = []
     for batch_idx, (example, state) in enumerate(loader):
-        label = torch.stack([state[x] for x in config['states']], dim=1).float()
+        if type(state) == dict:
+            label = torch.stack([state[x] for x in config['states']], dim=1).float()
+        else:
+            label = state.float()
         if plot_batch:
             import matplotlib.pyplot as plt
             fig, axs = plt.subplots(8,4, figsize=(16,12))
@@ -44,6 +48,7 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batc
         if is_train:
             loss.backward()
             optimizer.step()
+        print("%03i %.6f" % (batch_idx, np.mean(step_loss)), end='\r')
     return np.mean(step_loss), batch_idx
 
 
@@ -59,15 +64,25 @@ def main():
     experiment_path = os.path.join(os.environ["DERP_SCRATCH"], config['name'])
 
     # prepare data fetchers
-    transform = transforms.Compose([transforms.ColorJitter(brightness=0.8,
-                                                           contrast=0.8,
-                                                           saturation=0.8,
-                                                           hue=0.0),
-                                    transforms.ToTensor()])
     train_dir = os.path.join(experiment_path, 'train')
     val_dir = os.path.join(experiment_path, 'val')
-    train_set = DerpFetcher(train_dir, transform)
-    val_set = DerpFetcher(val_dir, transform)
+    if config['experiment'] == 'clone':
+        transform = transforms.Compose([transforms.ColorJitter(brightness=0.5,
+                                                               contrast=0.5,
+                                                               saturation=0.5,
+                                                               hue=0.1),
+                                        transforms.ToTensor()])
+        train_set = DerpFetcher(train_dir, transform)
+        val_set = DerpFetcher(val_dir, transform)
+    else:
+        transform = transforms.Compose([transforms.ColorJitter(brightness=0.8,
+                                                               contrast=0.8,
+                                                               saturation=0.8,
+                                                               hue=0.1),
+                                        transforms.ToTensor()])
+        train_set = LineFetcher(train_dir, config, transform)
+        val_set = LineFetcher(val_dir, config, transform)
+        
 
     # Parameters
     batch_size = 64
@@ -78,7 +93,7 @@ def main():
     train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=n_threads, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=n_threads)
 
-    model = derpmodels.ModelA(config).cuda()
+    model = eval('derpmodels.' + config['model'])(config).cuda()
     criterion = nn.MSELoss().cuda()
     optimizer = optim.Adam(model.parameters(), learning_rate)
 
@@ -95,7 +110,7 @@ def main():
                (end_time - val_time) * 1000 / v))
         if vloss < lowest_loss:
             lowest_loss = vloss
-            torch.save(model, os.path.join(experiment_path, "model_%03i.pt" % epoch))
+            torch.save(model, os.path.join(experiment_path, "%s_%03i.pt" % (config['model'], epoch)))
     
 if __name__ == "__main__":
     main()
