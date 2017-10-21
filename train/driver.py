@@ -58,7 +58,7 @@ def main(screen, args):
         speed, steer = servo.speed, servo.steer
         if autonomous:
             nn_speed, nn_steer, nn_thumb = model.evaluate(frame, timestamp, speed, steer)
-            servo.move(0.5 * servo.speed + 0.5 * nn_speed) # dampen
+            #servo.move(0.5 * servo.speed + 0.5 * nn_speed) # dampen
             servo.turn(0.5 * servo.steer + 0.5 * nn_steer) # dampen
             screen.addstr(4, 8, "%6.3f" % nn_speed)
             screen.addstr(5, 8, "%6.3f" % nn_steer)            
@@ -79,8 +79,8 @@ def main(screen, args):
         elif c == curses.KEY_UP:     servo.move_faster()    # moves faster
         elif c == curses.KEY_DOWN:   servo.move_slower()    # slows down
         elif c == ord('0'):          servo.move(0)          # stops the vehicle
-        elif c == ord('1'):          servo.move(0.14)       # slowest speed to move
-        elif c == ord('2'):          servo.move(0.15)       # moderate speed
+        elif c == ord('1'):          servo.move(0.16)       # slowest speed to move
+        elif c == ord('2'):          servo.move(0.17)       # moderate speed
         elif c == ord('3'):          servo.move(0.20)       # fastest safe speed
         elif c == ord('/'):          servo.turn(0)          # sets turn to zero
 
