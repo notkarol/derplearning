@@ -43,7 +43,7 @@ class Labeler(object):
     
     def read(self):
         if not self.legal_position(self.frame_id + 1):
-            print("read failed illegal", frame_id)
+            print("read failed illegal", self.frame_id)
             return False
 
         ret, frame = self.cap.read()
@@ -100,11 +100,11 @@ class Labeler(object):
         print("Saved labels at ", self.labels_path)
 
     def handle_input(self):
-        key = cv2.waitKey(1) & 0xFF
+        key = cv2.waitKey(50) & 0xFF
 
         if key == 27: # escape
             return False
-        elif key == ord('p'):
+        elif key == ord('p') or key == ord(' '):
             self.paused = not self.paused
         elif key == ord('q'):
             self.marker = 'good'
@@ -120,13 +120,13 @@ class Labeler(object):
             self.show = True
         elif key == ord('s'):
             self.save_labels()
-        elif key == 82:
+        elif key == 82: # up
             self.seek(self.frame_id + self.fps)
-        elif key == 84:
+        elif key == 84: # down
             self.seek(self.frame_id - self.fps)
-        elif key == 81:
+        elif key == 81: # left
             self.seek(self.frame_id - 1)
-        elif key == 83:
+        elif key == 83: # right
             self.seek(self.frame_id + 1)
         elif key == ord('1'):
             self.seek(int(self.n_frames * 0.0))
@@ -249,9 +249,9 @@ class Labeler(object):
         
         # Loop through video
         while self.cap.isOpened():
-            if not self.paused:
+            if not self.paused and self.frame_id < self.n_frames:
                 self.read()
-                self.show = True()
+                self.show = True
 
             if self.show:
                 self.display()
