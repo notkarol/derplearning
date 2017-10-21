@@ -113,8 +113,8 @@ class Roadgen:
         #denormalize labels
         nd_labels[:,:,0,:] *= self.cam_far_rad
         z_mean = (self.cam_min_range + self.cam_max_range)/2
-        nd_labels[:,:,1,:] = ( (nd_labels[:, :, 1, :] - z_mean) * 
-                    (self.cam_max_range - self.cam_min_range) )
+        nd_labels[:,:,1,:] = ( (nd_labels[:, :, 1, :] ) * 
+                    (self.cam_max_range - self.cam_min_range) + z_mean)
 
         '''#Clamp model outputs (consider making this switched)
         nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
