@@ -13,7 +13,7 @@ from keras.models import model_from_yaml
 from scipy.misc import imread
 from model import Model
 #from bezier import bezier_curve, verify_plot
-from roadgen3d import Roadgen
+from roadgen import Roadgen
 
 '''
 Contains functions which validate the quality of road_gen, a model on virtual data,
@@ -146,7 +146,8 @@ def main():
         X_train = road.batch_loader(data_dir=test_dir, batch_iter=0)
         #y_train = np.load("%s/y_%03i.npy" % (test_dir, 0) )
 
-        road.save_images(loaded_model.video_to_frames(max_frames=args.roadgen,
+        folder = "data/20170812T214343Z-paras"
+        road.save_images(loaded_model.video_to_frames(folder, max_frames=args.roadgen,
              edge_detect=0, channels_out=road.n_channels), X_train, '%s' % (comp_dir), 
              ['Camera', 'Virtual Generator'] )
 
@@ -162,7 +163,7 @@ def main():
     if args.video:
         #Loading video data for validation:
         folder = "data/20170812T214343Z-paras"
-        X_video = loaded_model.video_to_frames(folder, args.video, edge_detect=0, channels_out=3)
+        X_video = loaded_model.video_to_frames(folder, max_frames=args.video, edge_detect=0, channels_out=3)
         
         #Validates model against recorded data
         subdirectory = 'video_comparison' 

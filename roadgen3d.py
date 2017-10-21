@@ -39,7 +39,8 @@ class Roadgen:
         self.max_intensity = 255
 
         #parameters of the virtual view window
-        self.view_res = [config['line']['gen_height'], config['line']['gen_width'] ]
+        self.view_res = [config['line']['gen_height'], 
+                         config['line']['gen_width'] ]
         #self.view_height = self.view_res[0]
         #self.view_width = self.view_res[1]
         '''self.gen_width = self.view_res[1] * 2 # buffer onto each horizontal side to allow us to draw curves
@@ -205,7 +206,7 @@ class Roadgen:
         '''
         #Ray Trace version:
         #FIXME Karol deleted a 1/2 scale factor as a kluge fix. We need to get to the bottom of this
-        xy_points[0, :] = self.cam_res[0] * np.tan(pov_sphere[:,2])/np.tan(self.cam_arc_y/2)
+        xy_points[0, :] = self.cam_res[0]/2 * np.tan(pov_sphere[:,2])/np.tan(self.cam_arc_y/2)
         xy_points[1, :] = self.cam_res[1]/2 * np.tan(pov_sphere[:,1])/np.tan(self.cam_arc_x/2)
         
 
@@ -271,7 +272,7 @@ class Roadgen:
         #Defining the road's 'start' at the base of the camera's view point (not the base of the generation window)
         #Centerline base definition:
         y_train[:, 1, 0, 0 ] = np.random.randint(
-            -self.cam_near_rad *.5, self.cam_near_rad * .5, (n_datapoints))
+            -self.cam_near_rad, self.cam_near_rad, (n_datapoints))
         #Left line base point
         y_train[:, 0, 0, 0 ] = y_train[:, 1, 0, 0 ] - (self.max_road_width - y_noise[:, 0, 0])
         #Right line base point

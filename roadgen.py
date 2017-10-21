@@ -35,22 +35,23 @@ class Roadgen:
         self.n_points = config['line']['n_points']
         self.n_dimensions = config['line']['n_dimensions']
         self.n_channels = config['line']['n_channels']
-        self.max_intensity = 255
+        self.max_intensity = 256
 
         #parameters of the virtual view window
-        self.view_res = [config['line']['cropped_width'], config['line']['cropped_height'] ]
-        self.view_height = self.view_res[1]
-        self.view_width = self.view_res[0]
-        self.gen_width = self.view_res[0] * 2 # buffer onto each horizontal side to allow us to draw curves
-        self.gen_height = self.view_res[1] * 2
-        self.cropsize = (int((self.gen_width - self.view_res[0]) / 2), 
-                int((self.gen_height - self.view_res[1])/2) )
+        self.view_res = (cfg['line']['gen_width'], 
+                            cfg['line']['gen_height'])
+        self.input_res = (cfg['line']['input_width'] , 
+                            cfg['line']['input_height'])
+
+        self.gen_res = self.view_res * 2
+        self.cropsize = ((self.gen_res[0] - self.view_res[0])/2,
+                         (self.gen_res[1] - self.view_res[1])/2 )
 
         #define camera characteristics
         #linear measurements given in mm
         self.cam_height = 380
         self.cam_min_view = 500 #FIXME remeasure distance
-        self.cam_res = np.array([1920, 1080])
+        self.cam_res = np.array([640, 540])
         #arcs measured in radians
         #arc from bottom of camera view to vertical
         self.cam_to_ground_arc = np.arctan(self.cam_min_view / self.cam_height)
@@ -58,29 +59,19 @@ class Roadgen:
         self.cam_arc_x = 60 * (np.pi / 180)
         #measure of how close the center of the camera's view is to horizontal
         self.cam_tilt_y = self.cam_to_ground_arc + self.cam_arc_x/2 - np.pi/2
-        self.crop_ratio = [c / s for c, s in zip(self.crop_size, self.source_size) ]
+        #self.crop_ratio = [c / s for c, s in zip(self.crop_size, self.source_size) ]
         #1/2 Minimum road view width of the camera in mm
-        self.cam_near_rad =  np.power( (np.power(self.cam_height, 2)
-                + np.power(self.cam_min_view, 2) ), 0.5 ) * np.tan(self.cam_arc_y/2)
-        #1/2 Maximum road view width of the camera accounting for cropping 
-        self.cam_far_rad = self.cam_height / np.cos(self.cam_to_ground_arc +
-                 self.cam_arc_x * self.view_res[1]/self.cam_res[1]) * np.tan(self.cam_arc_y/2)
-
-        #parameters of the final image size to be passed to the CNN
-        self.input_width = config['line']['input_width']
-        self.input_height = config['line']['input_height']
-
+        
         #Attributes of the road line drawing.
-        self.max_road_width = self.view_width * 0.5 #The widest possible road that can be drawn (radius)
-        #self.min_road_height = self.gen_height/2 #The minimum value for the 2nd and 3rd road control points
+        self.max_road_width = self.view_res[0] * 0.5 #The widest possible road that can be drawn (radius)
         self.horz_noise_fraction = 0.5 #size of the noise envelope below max_width where road lines may exist
                     #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
         self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = self.view_width * .007
-        self.line_wiggle = self.view_width * 0.00005
+        self.line_width = self.view_res[0] * .007
+        self.line_wiggle = self.view_res[0] * 0.00005
 
     def __del__(self):
         #Deconstructor
@@ -90,8 +81,9 @@ class Roadgen:
     def label_norm(self, nd_labels):
         
         #normalization
-        nd_labels[:, :, 0, :] /= self.gen_width
-        nd_labels[:, :, 1, :] /= self.gen_height
+        nd_labels[:, :, 0, :] /= self.gen_res[0]
+        nd_labels[:, :, 1, :] /= self.gen_res[1]
+        nd_labels -= 0.5
 
         #reshaping
         twod_labels =  np.reshape(nd_labels, (nd_labels.shape[0], self.n_lines * self.n_points *
@@ -105,13 +97,10 @@ class Roadgen:
         nd_labels = np.reshape(twod_labels, (twod_labels.shape[0], self.n_lines, self.n_dimensions,
                                         self.n_points))
         #denormalize labels
-        nd_labels[:,:,0,:] *= self.gen_width
-        nd_labels[:,:,1,:] *= self.gen_height
+        nd_labels += 0.5
+        nd_labels[:,:,0,:] *= self.gen_res[0]
+        nd_labels[:,:,1,:] *= self.gen_res[1]
 
-        '''#Clamp model outputs (consider making this switched)
-        nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
-        nd_labels[:,:,1,:] = self.clamp(nd_labels[:,:,1,:], self.view_height)
-        '''
         return nd_labels
 
     #normalizes an image tensor to be floats on the range 0. - 1.
@@ -152,55 +141,12 @@ class Roadgen:
                             [unit_rot_vect[1],  unit_rot_vect[0]] ])
         return np.matmul(vector, rot_mat)
 
-    #this code assumes x points forward and z points up.
-    def cart2Spherical(xyz):
-        sphere = np.zeros( (xyz.shape) )
-        xy = xyz[:,0]**2 + xyz[:,1]**2
-        sphere[:,0] = np.sqrt(xy + xyz[:,2]**2)
-        #sphere[:,1] = np.arctan2(np.sqrt(xy), xyz[:,2]) # for elevation angle defined from Z-axis down
-        sphere[:,1] = np.arctan2(xyz[:,2], np.sqrt(xy) ) # for elevation angle defined from XY-plane up
-        sphere[:,2] = np.arctan2(xyz[:,1], xyz[:,0] )
-        return sphere
-
-
-    '''Re-maps point on the xz plane to the xy plane based on camera characteristics
-    Assumes inputs are of the form: [point_ID, axis (x=0, z=1)]
-    [0,0] is assumed to be the road directly below the center of the car'''
-    def xz_to_xy(self, xz_points):
-
-        xy_points = np.zeros(xz_points.shape(), dtype=float)
-
-        #Convert coords from 2d to 3d and rearrange axes to conform to sphere function inputs
-        zxy = np.ones((xz_points.shape[0], 3), dtype=float)
-
-        zxy[:,0] = xz_points[:, 1]
-        zxy[:,1] = xz_points[:, 0]
-        zxy[:,2] *= -self.cam_height
-
-        #map ground x (mm) to camera pov x (pixels)
-        #first convert the points location into a radian arc measurement with the
-        #origin set at the middle of the camera with positive being up and right
-        sphere = cart2Spherical(xyz=zxy)
-
-        #Corrects for angle of camera relative to the ground
-        pov_sphere = sphere
-        pov_sphere[:,1] = sphere[:,1] - self.cam_tilt_y 
-
-        #map angle offsets to pixel locations
-        #Assumes camera is of pinhole variety with linear map between angle and pixel location
-        #FIXME (convert to trig map)
-        xy_points[:,0] = self.cam_res[0]/self.cam_arc_x * pov_sphere[:,0]
-        xy_points[:,1] = self.cam_res[1]/self.cam_arc_x * pov_sphere[:,1]
-
-
-        return xy_points
-
     #function defines the location of the middle control points
     #for a single curve frame:
     def middle_points(self, y_train, y_noise, orientation=1):
         #Assign the central control point:
-        y_train[ 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
-        y_train[ 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
+        y_train[ 1, 0, 1] = np.random.randint(0, self.view_res[0]) + self.cropsize[0]
+        y_train[ 1, 1, 1] = np.random.randint(0, self.view_res[1]) + self.cropsize[1]
 
         '''Calculate the control point axis:
         control point axis is defined by a unit vector parallel to a line
@@ -209,7 +155,7 @@ class Roadgen:
         u_delta = self.unit_vector(y_train[ 1, :, 1 ] - 
                 (y_train[ 1, :, 0 ] + (y_train[ 1, :, 2 ] - y_train[ 1, :, 0 ] )/2 ) )
 
-        print(u_delta)
+        #print(u_delta)
         #scales the sideways road outputs to account for pitch
         vertical_excursion = np.absolute(u_delta[1]) * self.max_road_width
 
@@ -224,94 +170,14 @@ class Roadgen:
         y_train[ 0, :, 1] = (y_train[ 1, :, 1 ] + u_delta
             * np.multiply( (self.max_road_width - y_noise[ 0, 1]),
             (1 - self.lane_convergence + self.lane_convergence *
-                np.maximum(.2, (y_train[ 1, 1, 1 ] + vertical_excursion) )/self.gen_height) ) )
+                np.maximum(.2, (y_train[ 1, 1, 1 ] + vertical_excursion) )/self.gen_res[1]) ) )
         #Set the right side no.1 control point
         y_train[ 2, :, 1] = (y_train[ 1, :, 1 ] - u_delta
             * np.multiply( (self.max_road_width - y_noise[ 1, 1]),
             (1 - self.lane_convergence + self.lane_convergence *
-                np.maximum(.2, (y_train[ 1, 1, 1 ] - vertical_excursion) )/self.gen_height) ) )
+                np.maximum(.2, (y_train[ 1, 1, 1 ] - vertical_excursion) )/self.gen_res[1]) ) )
 
         return y_train
-
-    #generates data points on the ground instead of in front of the camera
-    #locations of points are described in mm with the origin beneath the center of the car
-    def ground_coord_gen(self, n_datapoints):
-        y_train = np.zeros( (n_datapoints, self.n_lines, self.n_dimensions, 
-            self.n_points), dtype=np.float)
-
-        #noise for the side lines
-        y_noise = np.zeros((n_datapoints, self.n_lines-1 ,
-            self.n_points) , dtype=np.int)
-        y_noise = np.random.randint(0, self.max_road_width * self.horz_noise_fraction,
-            (n_datapoints, self.n_lines - 1, self.n_points) )
-
-        #Defining the road's 'start' at the base of the camera's view point (not the base of the generation window)
-        #Centerline base definition:
-        y_train[:, 1, 0, 0 ] = np.random.randint(self.cropsize[0], 
-            (self.gen_width - self.cropsize[0]), (n_datapoints))
-        #Left line base point
-        y_train[:, 0, 0, 0 ] = y_train[:, 1, 0, 0 ] - (self.max_road_width - y_noise[:, 0, 0])
-        #Right line base point
-        y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
-        #Road start distance from car:
-        y_train[:, :, 1, 0] = self.cam_min_view * .75
-
-        #places the vanishing point either on the side of the view window or at the top of the screen
-        vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
-
-        '''This loop applies the vanishing point and then generates control points in a semi-logical way
-        between the road's origin and vanishing point '''
-        for dp_i in range(n_datapoints):
-            if(vanishing_point[dp_i] < self.gen_height):
-                #Assign the vanishing point:
-                y_train[dp_i, :, 1, 2] = vanishing_point[dp_i]
-                
-                #These lines give the vanishing point width when sideways:
-                term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
-                    (1 - self.lane_convergence + self.lane_convergence * 
-                        y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
-                y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
-                y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
-                
-                #Assign the control points for the side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i] )
-                
-            elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
-                #define the vanishing point at the top of the camera's perspective
-                y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_height
-                y_train[dp_i, :, 1, 2] = 0
-
-                # Define the middle control points as members of a horizontal line chosen with the center point lying in the view window
-                #First assign the line containing the control points an elevation:
-                y_train[dp_i, :, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
-                #Centerline middle control point definition:
-                y_train[dp_i, 1, 0, 1 ] = np.random.randint(self.cropsize[0], 
-                    (self.gen_width - self.cropsize[0]) )
-                #Left line base point
-                y_train[dp_i, 0, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] - np.multiply( 
-                    (self.max_road_width - y_noise[dp_i, 0, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) 
-                #Right line base point
-                y_train[dp_i, 2, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] + np.multiply( 
-                    (self.max_road_width - y_noise[dp_i, 1, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) 
-            else:
-                #Assign the vanishing point to the rhs boundary
-                y_train[dp_i, :, 0, 2] = self.gen_width - 1
-                y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_height + self.gen_width)
-
-                #These lines give the vanishing point width when sideways:
-                term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
-                    (1 - self.lane_convergence + self.lane_convergence
-                        * y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
-                y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
-                y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
-                
-                #Assign side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i] )
-
-        return y_train
-
 
     # Generate coordinate of bezier control points for a road
     #FIXME: control point generation for turns is currently garbage
@@ -330,62 +196,62 @@ class Roadgen:
         #Defining the road's 'start' at the base of the camera's view point (not the base of the generation window)
         #Centerline base definition:
         y_train[:, 1, 0, 0 ] = np.random.randint(self.cropsize[0], 
-            (self.gen_width - self.cropsize[0]), (n_datapoints))
+            (self.gen_res[0] - self.cropsize[0]), (n_datapoints))
         #Left line base point
         y_train[:, 0, 0, 0 ] = y_train[:, 1, 0, 0 ] - (self.max_road_width - y_noise[:, 0, 0])
         #Right line base point
         y_train[:, 2, 0, 0 ] = y_train[:, 1, 0, 0 ] + (self.max_road_width - y_noise[:, 1, 0])
         #Road start elevation:
-        y_train[:, :, 1, 0] = int(self.gen_height - self.cropsize[1] * .75)
+        y_train[:, :, 1, 0] = int(self.gen_res[1] - self.cropsize[1] * .75)
 
         #places the vanishing point either on the side of the view window or at the top of the screen
-        vanishing_point = np.random.randint(0, (self.gen_width + self.gen_height*2),  (n_datapoints) )
+        vanishing_point = np.random.randint(0, (self.gen_res[0] + self.gen_res[1]*2),  (n_datapoints) )
 
         '''This loop applies the vanishing point and then generates control points in a semi-logical way
         between the road's origin and vanishing point '''
         for dp_i in range(n_datapoints):
-            if(vanishing_point[dp_i] < self.gen_height):
+            if(vanishing_point[dp_i] < self.gen_res[1]):
                 #Assign the vanishing point:
                 y_train[dp_i, :, 1, 2] = vanishing_point[dp_i]
                 
                 #These lines give the vanishing point width when sideways:
                 term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
                     (1 - self.lane_convergence + self.lane_convergence * 
-                        y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
+                        y_train[dp_i, 1, 1, 2 ]/self.gen_res[1]) )
                 y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
                 
                 #Assign the control points for the side lines
                 y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[1, -1] )
                 
-            elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
+            elif(vanishing_point[dp_i] < self.gen_res[1] + self.gen_res[0]):
                 #define the vanishing point at the top of the camera's perspective
-                y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_height
+                y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_res[1]
                 y_train[dp_i, :, 1, 2] = 0
 
                 # Define the middle control points as members of a horizontal line chosen with the center point lying in the view window
                 #First assign the line containing the control points an elevation:
-                y_train[dp_i, :, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
+                y_train[dp_i, :, 1, 1] = np.random.randint(0, self.view_res[1]) + self.cropsize[1]
                 #Centerline middle control point definition:
                 y_train[dp_i, 1, 0, 1 ] = np.random.randint(self.cropsize[0], 
-                    (self.gen_width - self.cropsize[0]) )
+                    (self.gen_res[0] - self.cropsize[0]) )
                 #Left line base point
                 y_train[dp_i, 0, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] - np.multiply( 
                     (self.max_road_width - y_noise[dp_i, 0, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) 
+                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
                 #Right line base point
                 y_train[dp_i, 2, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] + np.multiply( 
                     (self.max_road_width - y_noise[dp_i, 1, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_height) ) 
+                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
             else:
                 #Assign the vanishing point to the rhs boundary
-                y_train[dp_i, :, 0, 2] = self.gen_width - 1
-                y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_height + self.gen_width)
+                y_train[dp_i, :, 0, 2] = self.gen_res[0] - 1
+                y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_res[1] + self.gen_res[0])
 
                 #These lines give the vanishing point width when sideways:
                 term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
                     (1 - self.lane_convergence + self.lane_convergence
-                        * y_train[dp_i, 1, 1, 2 ]/self.gen_height) )
+                        * y_train[dp_i, 1, 1, 2 ]/self.gen_res[1]) )
                 y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
                 
@@ -426,7 +292,7 @@ class Roadgen:
         polygon_path[:, 2*true_line.shape[1] ] = noise_line[:, 0] - [line_width, 0]
 
         #Actually draw the polygon
-        rr, cc = polygon((polygon_path.astype(int)[1]), polygon_path.astype(int)[0], ( self.view_height, self.view_width) )
+        rr, cc = polygon((polygon_path.astype(int)[1]), polygon_path.astype(int)[0], ( self.view_res[1], self.view_res[0]) )
 
         return rr, cc
 
@@ -452,7 +318,7 @@ class Roadgen:
                         dash_line[:,dash*2+1] - offset, dash_line[:,dash*2 ] - offset,
                         dash_line[:,dash*2] + offset] )
             rr, cc = polygon(d_path.astype(int)[:,1], d_path.astype(int)[:,0], 
-                            (self.view_height, self.view_width) )
+                            (self.view_res[1], self.view_res[0]) )
             rrr = np.append(rrr, rr)
             ccc = np.append(ccc, cc)
 
@@ -465,35 +331,40 @@ class Roadgen:
         verts[1:vert_count, 0] = origin[ 0] + np.random.randint(0, max_size[0], vert_count -1)
         verts[1:vert_count, 1] = origin[ 1] + np.random.randint(0, max_size[1], vert_count -1)
 
-        return polygon(verts[:,1], verts[:,0], (self.view_height, self.view_width) )
+        return polygon(verts[:,1], verts[:,0], (self.view_res[1], self.view_res[0]) )
 
     #converts coordinates into images with curves on them
     def road_generator(self, y_train, line_width, rand_gen=1, seg_noise = 0, poly_noise=0):
-        road_frame = np.ones((self.view_height, self.view_width, self.n_channels),
+        road_frame = np.ones((self.view_res[1], self.view_res[0], self.n_channels),
              dtype=np.uint8)
 
         #set max intensity:
         max_intensity = 256
 
-        #Initialize a snowy background:
-        road_frame[ :, :, 0] *= rng.randint(0, .4 * max_intensity)
-        road_frame[ :, :, 1] *= rng.randint(0, .4 * max_intensity)
-        road_frame[ :, :, 2] *= rng.randint(0, .4 * max_intensity)
-
+        if rand_gen:
+            #Initialize a single tone background:
+            if np.random.rand() < 0.5:
+                road_frame[ :, :, 0] *= rng.randint(0, .7 * max_intensity)
+                road_frame[ :, :, 1] *= rng.randint(0, .7 * max_intensity)
+                road_frame[ :, :, 2] *= rng.randint(0, .7 * max_intensity)
+            else:
+                road_frame[ :, :, :] *= rng.randint(0, .7 * max_intensity)
+    
         if seg_noise:
             #line width randomizer:
             line_width += rand_gen * max(line_width/3 *np.random.randn(), -line_width*3/4)
 
         while poly_noise:
-            rr, cc = self.poly_noise([np.random.randint(0, self.gen_width),
-                    np.random.randint(0, self.gen_height) ] )
-            road_frame[rr,cc, :] = rng.randint(0, .8 *max_intensity, self.n_channels)
+            rr, cc = self.poly_noise([np.random.randint(0, self.gen_res[0]),
+                    np.random.randint(0, self.gen_res[1]) ] )
+            road_frame[rr,cc, :] = (road_frame[rr,cc,:] +
+                                    rng.randint(0, .5 *max_intensity, self.n_channels)) / 2
             poly_noise -= 1
 
         rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
         road_frame[rr, cc, :] = rng.randint(.8* max_intensity, max_intensity, self.n_channels)
 
-        rr, cc = self.dashed_line(y_train[1], self.view_height/4, line_width*2)
+        rr, cc = self.dashed_line(y_train[1], self.view_res[1]/4, line_width*2)
         road_frame[rr, cc, 1:] = rng.randint(.7 * max_intensity, max_intensity) 
         road_frame[rr, cc, 0] = rng.randint(0,  .3 * max_intensity) 
 
@@ -532,10 +403,15 @@ class Roadgen:
     #Function generates roads using a label vector passed to it
     # saves those generated roads in a location designated by the save name.
     def training_saver(self, y_train, save_name):
-        imsave(save_name, self.road_generator(y_train, 
-                                    line_width=self.line_width,
-                                    seg_noise=self.line_wiggle * rng.randint(0, 4),
-                                    poly_noise=rng.randint(0, 20) ) )
+        patch = self.road_generator(y_train=y_train,
+                            line_width=self.line_width,
+                            seg_noise=self.line_wiggle * rng.randint(0, 4),
+                            poly_noise=rng.randint(0, 20) )
+        #Scales the image down to the input size and reproduces an important resizing artifact
+        thumb = cv2.resize(patch, self.input_res, interpolation=cv2.INTER_AREA)
+
+        imsave(save_name, thumb)
+
 
     '''batch gen creats a folder and then fills that folder with:
         n_datapoints of png files
@@ -583,8 +459,8 @@ class Roadgen:
         batch_meta = np.load('%s/batch_meta.npy' % data_dir)
         batch_size = int(batch_meta[batch_iter+1] - batch_meta[batch_iter] )
         batch = np.zeros( ( (batch_size),
-                            self.view_height,
-                            self.view_width,
+                            self.input_res[1],
+                            self.input_res[0],
                             self.n_channels), 
                         dtype= np.uint8 )
 
@@ -618,105 +494,5 @@ def main():
     for batch in range(args.val_batches):
         roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['val_data'])        
 
-
-    '''
-    #file management stuff
-    train_data_dir = cfg['dir']['train_data']
-    validation_data_dir = cfg['dir']['val_data']
-    if not os.path.exists(train_data_dir):
-        os.makedirs(train_data_dir)
-    if not os.path.exists(vallidation_data_dir):
-        os.makedirs(validation_data_dir)
-    '''
-
-    '''
-    #test condition switch
-    if args.tests > 0:
-        n_datapoints = args.tests
-        #training_sets = 1
-
-
-    for 
-    
-    #Generate Lables
-    y_train = roads.coord_gen(n_datapoints)
-
-    #Temporary generation location
-    X_mat = np.zeros(roads.view_height, roads.view_width, roads.n_channels)
-
-    
-    #test condition switch    
-    if args.tests > 0:
-        subdir = 'test'
-        model = Model(None, None, None)
-        roads.save_images(model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
-             X_train, '%s/%s' % (train_data_dir, subdir), 
-             ['Camera', 'Virtual Generator'] )
-    else:
-    '''
-
-    '''
-    # Generate X
-    #loop to create training data:
-    for dp_i in range(train_datapoints ):
-        roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i])
-        print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-    print("Training dataset generated.")
-
-    #Loop to create validation data:
-    for dp_i in range(n_datapoints-train_datapoints ):
-        roads.training_saver('%s/%09i' % (train_data_dir, dp_i), y_train[dp_i + train_datapoints])
-        print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-    print("Validation dataset generated.")
-
-    #fixes the label array for use by the learning model
-    y_train = roads.model_tranform(y_train)
-
-    #Save the data labels with their respective image datasets
-    np.save("%s/line_y_train.npy" % (train_data_dir) , y_train[:n_train_datapoints])
-    np.save("%s/line_y_val.npy" % (validation_data_dir) , y_train[n_train_datapoints:])
-    '''
-    
-'''
-    # Data to store
-    #print((n_datapoints, n_channels, height, train_width))
-    X _train = np.zeros( (n_datapoints, roads.view_height, roads.view_width,
-         roads.n_channels), dtype=np.uint8)
-    
-
-    for train_set in range(training_sets):
-        #Generate Y
-        y_train = roads.coord_gen(n_datapoints)
-
-        # Generate X
-        #Temporary generation location
-        for dp_i in range(int(n_datapoints) ):
-            X_train[dp_i, :, :, :] =  roads.road_generator(y_train[dp_i], 
-                                        line_width=roads.line_width,
-                                        seg_noise=roads.line_wiggle * dp_i%5,
-                                        poly_noise=np.random.randint(0, 20) ) 
-            print("%.2f%%" % ((100.0 * dp_i / n_datapoints)), end='\r')
-        print("Done")
-
-        if args.tests > 0:
-            subdir = 'test'
-            model = Model(None, None, None)
-            roads.save_images(model.video_to_frames(edge_detect=0, channels_out=roads.n_channels),
-                 X_train, '%s/%s' % (train_data_dir, subdir), 
-                 ['Camera', 'Virtual Generator'] )
-        else:
-            #fixes the label array for use by the learning model
-            y_train = roads.model_tranform(y_train)
-
-            #file management stuff
-            if not os.path.exists(train_data_dir):
-                os.makedirs(train_data_dir)
-
-            # Save Files
-            np.save("%s/line_X_train_%03i.npy" % (train_data_dir, train_set) , X_train[:n_train_datapoints])
-            np.save("%s/line_X_val_%03i.npy" % (train_data_dir, train_set) , X_train[n_train_datapoints:])
-            np.save("%s/line_y_train_%03i.npy" % (train_data_dir, train_set) , y_train[:n_train_datapoints])
-            np.save("%s/line_y_val_%03i.npy" % (train_data_dir, train_set) , y_train[n_train_datapoints:])
-'''
 if __name__ == "__main__":
     main()
