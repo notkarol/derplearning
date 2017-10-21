@@ -177,7 +177,7 @@ class Model:
 
         #steering angle is a function of how far the car believes it is from the center of the road
         #note that this is completely un damped and may become unstable at high speeds
-        nn_steer = road_map[1, 0, 0] / (road_map[2, 0, 0] - road_map[0, 0, 0])
+        nn_steer = road_map[1, 0, 0] + (road_map[2, 0, 0] + road_map[0, 0, 0])/2
         
         # center vector is a measure of what direction the road is pointing
         center_vector = road_map[1, :, 1] - road_map[1, :, 0]

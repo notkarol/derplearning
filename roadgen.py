@@ -164,18 +164,18 @@ class Roadgen:
         #Checks to see which side of the line between start and end the midpoint falls on
         if u_rot[1] > 0:
             #If u_delta has a negative y component then it falls south of the line and need to be inverted
-            orientation = -1
+            u_delta *= -1
 
         #Set the left side no.1 control point
         y_train[ 0, :, 1] = (y_train[ 1, :, 1 ] + u_delta
             * np.multiply( (self.max_road_width - y_noise[ 0, 1]),
             (1 - self.lane_convergence + self.lane_convergence *
-                np.maximum(.2, (y_train[ 1, 1, 1 ] + vertical_excursion) )/self.gen_res[1]) ) )
+            np.maximum(.2, (y_train[ 1, 1, 1 ] + vertical_excursion) )/self.gen_res[1]) ) )
         #Set the right side no.1 control point
         y_train[ 2, :, 1] = (y_train[ 1, :, 1 ] - u_delta
             * np.multiply( (self.max_road_width - y_noise[ 1, 1]),
             (1 - self.lane_convergence + self.lane_convergence *
-                np.maximum(.2, (y_train[ 1, 1, 1 ] - vertical_excursion) )/self.gen_res[1]) ) )
+            np.maximum(.2, (y_train[ 1, 1, 1 ] - vertical_excursion) )/self.gen_res[1]) ) )
 
         return y_train
 
@@ -220,14 +220,21 @@ class Roadgen:
                         y_train[dp_i, 1, 1, 2 ]/self.gen_res[1]) )
                 y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
-                
-                #Assign the control points for the side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[1, -1] )
-                
-            elif(vanishing_point[dp_i] < self.gen_res[1] + self.gen_res[0]):
+                    
+            elif(vanishing_point[dp_i] < (self.gen_res[1] + self.gen_res[0]) ):
                 #define the vanishing point at the top of the camera's perspective
-                y_train[dp_i, :, 0, 2] = vanishing_point[dp_i] - self.gen_res[1]
-                y_train[dp_i, :, 1, 2] = 0
+                y_train[dp_i, 1, 0, 2] = vanishing_point[dp_i] - self.gen_res[1]
+                y_train[dp_i, :, 1, 2] = self.cropsize[1] * 0.5
+                #Left line top point
+                y_train[dp_i, 0, 0, 2 ] = y_train[dp_i, 1, 0, 2 ] - np.multiply( 
+                    (self.max_road_width - y_noise[dp_i, 0, 1]),
+                    (1 - self.lane_convergence + self.lane_convergence *
+                    y_train[dp_i, 1, 1, 2 ]/self.gen_res[1]) ) 
+                #Right line top point
+                y_train[dp_i, 2, 0, 2 ] = y_train[dp_i, 1, 0, 2 ] + np.multiply( 
+                    (self.max_road_width - y_noise[dp_i, 1, 2]),
+                    (1 - self.lane_convergence + self.lane_convergence * 
+                    y_train[dp_i, 1, 1, 2 ]/self.gen_res[1]) ) 
 
                 # Define the middle control points as members of a horizontal line chosen with the center point lying in the view window
                 #First assign the line containing the control points an elevation:
@@ -238,15 +245,18 @@ class Roadgen:
                 #Left line base point
                 y_train[dp_i, 0, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] - np.multiply( 
                     (self.max_road_width - y_noise[dp_i, 0, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
+                    (1 - self.lane_convergence + self.lane_convergence * 
+                    y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
                 #Right line base point
                 y_train[dp_i, 2, 0, 1 ] = y_train[dp_i, 1, 0, 1 ] + np.multiply( 
                     (self.max_road_width - y_noise[dp_i, 1, 1]),
-                    (1 - self.lane_convergence * y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
+                    (1 - self.lane_convergence + self.lane_convergence *
+                    y_train[dp_i, 1, 1, 1 ]/self.gen_res[1]) ) 
             else:
                 #Assign the vanishing point to the rhs boundary
                 y_train[dp_i, :, 0, 2] = self.gen_res[0] - 1
-                y_train[dp_i, :, 1, 2] = vanishing_point[dp_i] - (self.gen_res[1] + self.gen_res[0])
+                y_train[dp_i, :, 1, 2] = (vanishing_point[dp_i] -
+                    (self.gen_res[1] + self.gen_res[0]) )
 
                 #These lines give the vanishing point width when sideways:
                 term_width = np.multiply( (self.max_road_width - y_noise[dp_i, 0, 2]),
@@ -255,8 +265,8 @@ class Roadgen:
                 y_train[dp_i, 0, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
                 
-                #Assign side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[ -1, -1] )
+            #Assign side lines
+            y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i] )
 
         return y_train
 
