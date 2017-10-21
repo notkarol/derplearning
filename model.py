@@ -41,7 +41,7 @@ class Model:
         # Line Model input characteristics:
         self.source_size = (1920, 1080)
         self.crop_size = (lm_cfg['line']['cropped_width'] , lm_cfg['line']['cropped_height'] )
-        self.crop_x = self.source_size[0] - self.crop_size[0] 
+        self.crop_x = int( (self.source_size[0] - self.crop_size[0] ) /2 )
         self.crop_y = self.source_size[1] - self.crop_size[1] 
         self.target_size = (lm_cfg['line']['input_width'] , lm_cfg['line']['input_height'])
 
@@ -77,7 +77,7 @@ class Model:
     def preprocess(self, example):
         patch = example[self.crop_y : self.crop_y + self.crop_size[1],
                                         self.crop_x : self.crop_x + self.crop_size[0], :]
-        thumb = cv2.resize(patch, self.target_size)
+        thumb = cv2.resize(patch, self.target_size, interpolation=cv2.INTER_AREA)
         batch = np.reshape(thumb, [1] + list(thumb.shape))
         return batch
                             

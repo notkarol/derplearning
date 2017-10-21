@@ -27,9 +27,9 @@ Function list:
 # defines the structure of the model to be trained
 ''' Note, I cut the number of blocks from 4 to 2 to deal with an out of bounds error
      on the converging layers when using 96x16 dim. current dim is 192x32 '''
-def create_model(input_shape, n_output, n_blocks=3):
+def create_model(input_shape, n_output, n_blocks=2):
     model = Sequential()
-    model.add(Conv2D(48, (3, 3), padding='same', input_shape=input_shape))
+    model.add(Conv2D(96, (5, 5), padding='same', input_shape=input_shape))
     model.add(BatchNormalization())
     model.add(Activation('elu'))
     model.add(MaxPooling2D(pool_size=2))
@@ -123,7 +123,7 @@ def main():
         
         # serialize model to YAML
         model_yaml = model.to_yaml()
-        with open("%s/%s.yaml" % (args.model_dir, args.model_name), "w") as yaml_file:
+        with open("%s/%s.yaml" % (args.model_dir, args.model_napythonme), "w") as yaml_file:
             yaml_file.write(model_yaml)
         # serialize weights to HDF5
         model.save_weights("%s/%s.h5" % (args.model_dir, args.model_name))

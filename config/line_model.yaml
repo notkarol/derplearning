@@ -13,12 +13,12 @@ line:
     n_dimensions: 2
 
     #cropped view characteristics
-    cropped_width: 1920
+    cropped_width: 1280
     cropped_height: 320
 
     #Model input characteristics
     n_channels: 3
-    input_width: 384 # visible space
-    input_height: 64 
+    input_width: 128 # visible space
+    input_height: 32 
 
     n_segments: 32

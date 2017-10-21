@@ -50,11 +50,11 @@ class Roadgen:
 
         #define camera characteristics
         #linear measurements given in mm
-        self.cam_arc_y = 100 * (np.pi / 180)
+        self.cam_arc_y = 75 * (np.pi / 180)
         self.cam_arc_x = 56.25 * (np.pi / 180)
         self.cam_height = 380 #mm elevation
         self.cam_min_range = self.cam_height / np.tan(self.cam_arc_x/2) #600 #FIXME remeasure distance
-        self.cam_res = np.array([1920, 1080])
+        self.cam_res = np.array([1280, 1080])
         #arcs measured in radians
         #arc from bottom of camera view to vertical
         self.cam_to_ground_arc = np.arctan(self.cam_min_range / self.cam_height)
@@ -83,7 +83,7 @@ class Roadgen:
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width =11 #mm
+        self.line_width =14 #mm
         self.line_wiggle = 1 #mm
 
     def __del__(self):
@@ -411,9 +411,9 @@ class Roadgen:
 
         if rand_gen:
             #Initialize a single tone background:
-            road_frame[ :, :, 0] *= rng.randint(0, .5 * max_intensity)
-            road_frame[ :, :, 1] *= rng.randint(0, .5 * max_intensity)
-            road_frame[ :, :, 2] *= rng.randint(0, .5 * max_intensity)
+            road_frame[ :, :, 0] *= rng.randint(0, .7 * max_intensity)
+            road_frame[ :, :, 1] *= rng.randint(0, .7 * max_intensity)
+            road_frame[ :, :, 2] *= rng.randint(0, .7 * max_intensity)
 
         '''
         #checkers
@@ -431,7 +431,7 @@ class Roadgen:
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.view_res[0]),
                     np.random.randint(-40, self.view_res[1] ) ] )
-            road_frame[rr,cc, :] = rng.randint(0, .9 *max_intensity, self.n_channels)
+            road_frame[rr,cc, :] = rng.randint(0, .85 *max_intensity, self.n_channels)
             poly_noise -= 1
 
         rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
@@ -484,7 +484,7 @@ class Roadgen:
                                     line_width=self.line_width,
                                     seg_noise=self.line_wiggle * rng.randint(0, 4),
                                     poly_noise=rng.randint(0, 20) ) 
-        thumb = cv2.resize(patch, self.input_size)
+        thumb = cv2.resize(patch, self.input_size, interpolation=cv2.INTER_AREA)
         
         imsave(save_name, thumb)
 
