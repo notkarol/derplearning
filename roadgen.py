@@ -146,6 +146,12 @@ class Roadgen:
     def vector_len(self, vector):
         return np.sqrt(np.matmul(np.multiply(vector,vector),[1, 1]) )
 
+    def rot_by_vector(self, rot_vect, vector):
+        unit_rot_vect = self.unit_vector( rot_vect)
+        rot_mat = np.array([[unit_rot_vect[0], -unit_rot_vect[1]], 
+                            [unit_rot_vect[1],  unit_rot_vect[0]] ])
+        return np.matmul(vector, rot_mat)
+
     #this code assumes x points forward and z points up.
     def cart2Spherical(xyz):
         sphere = np.zeros( (xyz.shape) )
@@ -191,7 +197,7 @@ class Roadgen:
 
     #function defines the location of the middle control points
     #for a single curve frame:
-    def middle_points(self, y_train, y_noise, orientation=[0,0]):
+    def middle_points(self, y_train, y_noise, orientation=1):
         #Assign the central control point:
         y_train[ 1, 0, 1] = np.random.randint(0, self.view_width) + self.cropsize[0]
         y_train[ 1, 1, 1] = np.random.randint(0, self.view_height) + self.cropsize[1]
@@ -207,9 +213,12 @@ class Roadgen:
         #scales the sideways road outputs to account for pitch
         vertical_excursion = np.absolute(u_delta[1]) * self.max_road_width
 
-        #fixes the generation axis so that it doesn't make figure 8 roads
-        u_delta = orientation*np.absolute(u_delta)
-        print(u_delta)
+        #rotational correction:
+        u_rot = self.rot_by_vector(y_train[ 1, :, 2 ] - y_train[ 1, :, 0 ], u_delta)
+        #Checks to see which side of the line between start and end the midpoint falls on
+        if u_rot[1] > 0:
+            #If u_delta has a negative y component then it falls south of the line and need to be inverted
+            orientation = -1
 
         #Set the left side no.1 control point
         y_train[ 0, :, 1] = (y_train[ 1, :, 1 ] + u_delta
@@ -265,7 +274,7 @@ class Roadgen:
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] - term_width
                 
                 #Assign the control points for the side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[1, -1] )
+                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i] )
                 
             elif(vanishing_point[dp_i] < self.gen_height + self.gen_width):
                 #define the vanishing point at the top of the camera's perspective
@@ -299,7 +308,7 @@ class Roadgen:
                 y_train[dp_i, 2, 1, 2 ] = y_train[dp_i, 1, 1, 2 ] + term_width
                 
                 #Assign side lines
-                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i], orientation=[ -1, -1] )
+                y_train[dp_i] = self.middle_points(y_train[dp_i], y_noise[dp_i] )
 
         return y_train
 

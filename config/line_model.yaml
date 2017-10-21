@@ -18,7 +18,7 @@ line:
 
     #Model input characteristics
     n_channels: 3
-    input_width: 192 # visible space
-    input_height: 32 
+    input_width: 384 # visible space
+    input_height: 64 
 
     n_segments: 32

@@ -76,14 +76,14 @@ class Roadgen:
         self.input_height = self.input_size[1]
 
         #Attributes of the road line drawing.
-        self.max_road_width = 300 #The widest possible road that can be drawn (radius mm)
-        self.horz_noise_fraction = 0.3 #size of the noise envelope below max_width where road lines may exist
+        self.max_road_width = 600 #The widest possible road that can be drawn (radius mm)
+        self.horz_noise_fraction = 0.4 #size of the noise envelope below max_width where road lines may exist
                     #horz_noise_fraction = 1 allows the road edge lines to exist anywhere between the center and max width
         #self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
         self.n_segments = config['line']['n_segments']
-        self.line_width = 9 #mm
+        self.line_width =11 #mm
         self.line_wiggle = 1 #mm
 
     def __del__(self):
@@ -94,8 +94,10 @@ class Roadgen:
     def label_norm(self, nd_labels):
         
         #normalization
-        nd_labels[:, :, 0, :] /= self.gen_width
-        nd_labels[:, :, 1, :] /= self.gen_height
+        nd_labels[:, :, 0, :] /= self.cam_far_rad
+        z_mean = (self.cam_min_range + self.cam_max_range)/2
+        nd_labels[:, :, 1, :] = ( (nd_labels[:, :, 1, :] - z_mean) 
+            / (self.cam_max_range - self.cam_min_range) )
 
         #reshaping
         twod_labels =  np.reshape(nd_labels, (nd_labels.shape[0], self.n_lines * self.n_points *
@@ -218,7 +220,7 @@ class Roadgen:
     #for a single curve frame:
     def mid_points(self, y_train, y_noise, orientation=1):
         #Assign the central control point:
-        y_train[ 1, 1, 1] = np.random.randint(self.cam_min_range, self.cam_max_range)
+        y_train[ 1, 1, 1] = np.random.randint(self.cam_min_range *.75, self.cam_max_range *1.25)
         cam_rad = (np.power(y_train[1, 1, 1]**2 + self.cam_height**2, .05) 
                     / np.tan(self.cam_arc_y/2) )
         y_train[ 1, 0, 1] = np.random.randint(-cam_rad, cam_rad)
@@ -266,7 +268,7 @@ class Roadgen:
         #Defining the road's 'start' at the base of the camera's view point (not the base of the generation window)
         #Centerline base definition:
         y_train[:, 1, 0, 0 ] = np.random.randint(
-            -self.cam_near_rad *.75, self.cam_near_rad * .75, (n_datapoints))
+            -self.cam_near_rad *.5, self.cam_near_rad * .5, (n_datapoints))
         #Left line base point
         y_train[:, 0, 0, 0 ] = y_train[:, 1, 0, 0 ] - (self.max_road_width - y_noise[:, 0, 0])
         #Right line base point
@@ -281,7 +283,7 @@ class Roadgen:
             terminus_select = rng.randint(0, 4)
             if terminus_select %2 ==1:
                 #define the termination point at the top of the camera's perspective
-                y_train[dp_i, 1, 0, 2] = rng.randint(-self.cam_far_rad, self.cam_far_rad)
+                y_train[dp_i, 1, 0, 2] = rng.randint(-self.cam_far_rad *.75, self.cam_far_rad * .75)
                 y_train[dp_i, :, 1, 2] = self.cam_max_range
 
                 #Left line terminal control point
@@ -391,7 +393,7 @@ class Roadgen:
         return rrr, ccc
 
     #Makes randomly shaped polygon noise to screw with the learning algorithm
-    def poly_noise(self, origin, max_size=[600,600],  max_verticies=10):
+    def poly_noise(self, origin, max_size=[400,400],  max_verticies=10):
         vert_count = np.random.randint(3,max_verticies)
         verts = np.matmul(np.ones([vert_count+1, 1]), [origin] )
         verts[1:vert_count, 0] = origin[ 0] + np.random.randint(0, max_size[0], vert_count -1)
@@ -428,14 +430,14 @@ class Roadgen:
 
         while poly_noise:
             rr, cc = self.poly_noise([np.random.randint(0, self.view_res[0]),
-                    np.random.randint(0, self.view_res[1]) ] )
+                    np.random.randint(-40, self.view_res[1] ) ] )
             road_frame[rr,cc, :] = rng.randint(0, .9 *max_intensity, self.n_channels)
             poly_noise -= 1
 
         rr, cc = self.poly_line( y_train[0], line_width, seg_noise)
         road_frame[rr, cc, :] = rng.randint(.8 * max_intensity, max_intensity, self.n_channels)
 
-        rr, cc = self.dashed_line(y_train[1], dash_length=rng.randint(50,80), dash_width=2*line_width)
+        rr, cc = self.dashed_line(y_train[1], dash_length=rng.randint(100,160), dash_width=2*line_width)
         road_frame[rr, cc, 1:] = rng.randint(.7 * max_intensity, max_intensity) 
         road_frame[rr, cc, 0] = rng.randint(0,  .3 * max_intensity) 
 
@@ -535,8 +537,8 @@ class Roadgen:
         batch_meta = np.load('%s/batch_meta.npy' % data_dir)
         batch_size = int(batch_meta[batch_iter+1] - batch_meta[batch_iter] )
         batch = np.zeros( ( (batch_size),
-                            self.input_height,
-                            self.input_width,
+                            self.input_size[1],
+                            self.input_size[0],
                             self.n_channels), 
                             dtype= np.uint8 )
 
@@ -551,9 +553,9 @@ def main():
     parser = argparse.ArgumentParser(description='Roadlike virtual data generator')
     parser.add_argument('--tests', type=int, default=0, metavar='TS', 
         help='creates a test batch and compares the batch to video data (default is off)')
-    parser.add_argument('--frames', type=int, default=1E4,
+    parser.add_argument('--frames', type=int, default=3E3,
         help='determines how many frames per batch')
-    parser.add_argument('--batches', type=int, default = 9,
+    parser.add_argument('--batches', type=int, default = 30,
         help='determines how many training batches to generate')
     parser.add_argument('--val_batches', type=int, default = 1,
         help='determines how many validation batches to generate')
