@@ -23,7 +23,6 @@ class Model:
         self.size = derputil.getPatchSize(self.config)
         self.model = torch.load(self.model_path)
         
-        
 
     def evaluate(self, frame, timestamp, speed, steer):
         """ 
@@ -42,6 +41,17 @@ class Model:
             cv2.imwrite(os.path.join(self.folder, "%i_patch.png" % timestamp), patch)
             cv2.imwrite(os.path.join(self.folder, "%i_thumb.png" % timestamp), thumb)
         
-
-        return (predictions[self.config['states'].index('speed')],
-                predictions[self.config['states'].index('steer')], batch[0])
+        if self.model.mode == 'lines':
+            road_spots = np.reshape(predictions, (1,
+                                                  self.config['n_lines'],
+                                                  self.config['n_dimensions'],
+                                                  self.config['n_points']))
+            nn_speed = speed
+            nn_steer = road_spots[1, 0, 0] / (road_spots[2, 0, 0] - road_spots[0, 0, 0])
+            center_vector = road_spots[1, :, 1] - road_spots[1, :, 0]
+            nn_steer = nn_steer + 2 * nn_speed * center_vector[0] / center_vector[1]
+        elif self.model.mode == 'clone':
+            nn_speed = predictions[self.config['states'].index('speed')]
+            nn_steer = predictions[self.config['states'].index('steer')]
+        return (nn_speed, nn_steer, batch[0])
+                
