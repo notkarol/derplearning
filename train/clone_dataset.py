@@ -49,8 +49,13 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
     steer_i = target_config['states'].index('steer')
     
     # Create directories for this recording
-    derputil.mkdir(os.path.join(train_dir, recording_name))
-    derputil.mkdir(os.path.join(val_dir, recording_name))
+    recording_train_dir = os.path.join(train_dir, recording_name)
+    recording_val_dir = os.path.join(val_dir, recording_name)
+    if os.path.exists(recording_train_dir) or os.path.exists(recording_val_dir):
+        print("This recording has already been processed")
+        return
+    derputil.mkdir(recording_train_dir)
+    derputil.mkdir(recording_val_dir)
     
     if not video_cap.isOpened():
         print("Unable to open [%s]" % video_path)
@@ -137,13 +142,17 @@ def main():
     derputil.mkdir(experiment_dir)
     derputil.mkdir(train_dir)
     derputil.mkdir(val_dir)
-    train_states_fd = open(train_states_path, 'w')
-    val_states_fd = open(val_states_path, 'w')
-    train_states_fd.write(",".join(['key'] + target_config['states']) + "\n")
-    val_states_fd.write(",".join(['key'] + target_config['states']) + "\n")
+    train_states_fd = open(train_states_path, 'a')
+    val_states_fd = open(val_states_path, 'a')
+    if os.path.getsize(train_states_path) == 0:
+        train_states_fd.write(",".join(['key'] + target_config['states']) + "\n")
+        val_states_fd.write(",".join(['key'] + target_config['states']) + "\n")
 
     # Run through each folder and include it in dataset
     for data_folder in target_config['data_folders']:
+        if data_folder[0] != '/':
+            data_folder = os.path.join(os.environ['DERP_DATA'], data_folder)
+            
         for filename in os.listdir(data_folder):
             recording_path = os.path.join(data_folder, filename)
             if os.path.isdir(recording_path):

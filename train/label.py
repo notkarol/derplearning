@@ -16,7 +16,7 @@ class Labeler(object):
     def update_label(self, id1, id2, marker):
         if not marker:
             return
-        
+
         # Update the labels that are to be stored
         beg, end = min(id1, id2), max(id1, id2)
         for i in range(beg, end + 1):
@@ -55,9 +55,8 @@ class Labeler(object):
         # Resize frame as needed
         self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
                                 interpolation=cv2.INTER_AREA)
-        self.frame = (self.frame + np.ones(frame.shape) * 192) / 2
         self.frame_id += 1
-        print(self.frame_id)
+        print(self.frame_id, self.timestamps[self.frame_id])
         return True
 
     
@@ -164,6 +163,9 @@ class Labeler(object):
         self.labels_path = os.path.join(self.recording_path, 'label.csv')
         if os.path.exists(self.labels_path):
             _, _, self.labels = derputil.read_csv(self.labels_path, floats=False)
+            for i in range(len(self.labels)):
+                self.labels[i] = self.labels[i][0]
+                           
         else:
             self.labels = ["" for _ in range(self.n_frames)]
         
