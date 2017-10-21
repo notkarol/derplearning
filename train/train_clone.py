@@ -4,80 +4,37 @@ import cv2
 import numpy as np
 import os
 import sys
+import time
 
 import torch
-import torch.optim
 import torch.nn as nn
-import torch.utils.data
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
+
 import derputil
 from derpfetcher import DerpFetcher
-
-class Block(nn.Module):
-    def __init__(self, in_features, out_features, kernel_size=3, stride=1,
-                 padding=None, pool=None):
-        super(Block, self).__init__()
-        if padding is None:
-            padding = kernel_size // 2
-        self.conv1 = nn.Conv2d(in_features, out_features, kernel_size=kernel_size,
-                               stride=stride, padding=padding)
-        self.bn1 = nn.BatchNorm2d(out_features)
-        self.relu = nn.ReLU(inplace=True)
-
-        if pool == 'max':
-            self.pool = nn.MaxPool2d(2, stride=2, padding=0)
-        elif pool == 'avg':
-            self.pool = nn.AvgPool2d(2, stride=2, padding=0)
-        else:
-            self.pool = None
-
-        
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        if self.pool is not None:
-            out = self.pool(out)
-        return out
-
+import derpmodels
     
-class ModelA(nn.Module):
-    def __init__(self, config):
-        super(ModelA, self).__init__()
-        self.lrn = nn.CrossMapLRN2d(3)
-        self.layer1 = Block(3,  96, 5, stride=2)
-        self.layer2 = Block(96, 64, 3, pool='max')
-        self.layer3 = Block(64, 64, 3, pool='max')
-        self.layer4 = Block(64, 64, 3, pool='max')
-        self.fc1 = nn.Linear(8 * 2 * 64, 64)
-        self.fc2 = nn.Linear(64, len(config['predict']))
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        out = self.lrn(x)
-        out = self.layer1(out)
-        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-        out = out.view(out.size(0), -1)
-        out = self.fc1(out)
-        out = self.relu(out)
-        out = nn.functional.dropout(out, p=0.5, training=self.training)
-        out = self.fc2(out)
-        return out
-
-    
-def step(epoch, config, model, loader, optimizer, criterion, is_train):
+def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batch=False):
     if is_train:
         model.train()
     else:
         model.eval()
     step_loss = []
     for batch_idx, (example, state) in enumerate(loader):
-        label = torch.stack([state[x] for x in config['predict']], dim=1).float()
+        label = torch.stack([state[x] for x in config['states']], dim=1).float()
+        if plot_batch:
+            import matplotlib.pyplot as plt
+            fig, axs = plt.subplots(8,4, figsize=(16,12))
+            for i in range(len(example)):
+                img = np.transpose(example[i].numpy(), (1, 2, 0))
+                axs[i // 4, i % 4].imshow(img)
+                axs[i // 4, i % 4].set_title(" ".join(["%.2f" % x for x in label[i]]))
+            plt.savefig("batch_%i.png" % batch_idx, bbox_inches='tight', dpi=160)
+            print("Saved batch")
+            
         example, label = Variable(example.cuda()), Variable(label.cuda())
         if is_train:
             optimizer.zero_grad()
@@ -87,7 +44,7 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train):
         if is_train:
             loss.backward()
             optimizer.step()
-    return np.mean(step_loss), np.std(step_loss)
+    return np.mean(step_loss), batch_idx
 
 
 def main():
@@ -102,30 +59,42 @@ def main():
     experiment_path = os.path.join(os.environ["DERP_SCRATCH"], config['name'])
 
     # prepare data fetchers
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                                                std=[0.2, 0.2, 0.2])])
+    transform = transforms.Compose([transforms.ColorJitter(brightness=0.8,
+                                                           contrast=0.8,
+                                                           saturation=0.8,
+                                                           hue=0.0),
+                                    transforms.ToTensor()])
     train_dir = os.path.join(experiment_path, 'train')
-    eval_dir = os.path.join(experiment_path, 'eval')
+    val_dir = os.path.join(experiment_path, 'val')
     train_set = DerpFetcher(train_dir, transform)
-    eval_set = DerpFetcher(eval_dir, transform)
+    val_set = DerpFetcher(val_dir, transform)
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=config['batch_size'],
-                                               shuffle='True', num_workers=config['num_threads'])
-    eval_loader = torch.utils.data.DataLoader(eval_set, batch_size=config['batch_size'],
-                                              num_workers=config['num_threads'])
+    # Parameters
+    batch_size = 64
+    n_threads = 3
+    learning_rate = 1E-3
+    n_epochs = 128
+    
+    train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=n_threads, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=n_threads)
 
-    model = ModelA(config).cuda()
+    model = derpmodels.ModelB(config).cuda()
     criterion = nn.MSELoss().cuda()
-    optimizer = torch.optim.Adam(model.parameters(), config['learning_rate'])
+    optimizer = optim.Adam(model.parameters(), learning_rate)
 
     lowest_loss = 1
-    for epoch in range(config['num_epochs']):
-        tmean, tstd = step(epoch, config, model, train_loader, optimizer, criterion, is_train=True)
-        emean, estd = step(epoch, config, model, eval_loader, optimizer, criterion, is_train=False)
-        print("epoch %03i train loss:%.6f std:%.6f eval loss:%.6f std:%.6f]" %
-              (epoch, tmean, tstd, emean, estd))
-        if emean < lowest_loss:
-            lowest_loss = emean
+    for epoch in range(n_epochs + 1):
+        train_time = time.time()
+        tloss, t = step(epoch, config, model, train_loader, optimizer, criterion, is_train=epoch)
+        val_time = time.time()
+        vloss, v = step(epoch, config, model, val_loader, optimizer, criterion, is_train=False)
+        end_time = time.time()
+        print("epoch %03i  tloss:%.6f  vloss:%.6f  ttime:%3i  vtime:%3i" %
+              (epoch, tloss, vloss,
+               (val_time - train_time) * 1000 / t,
+               (end_time - val_time) * 1000 / v))
+        if vloss < lowest_loss:
+            lowest_loss = vloss
             torch.save(model, os.path.join(experiment_path, "model_%03i.pt" % epoch))
     
 if __name__ == "__main__":

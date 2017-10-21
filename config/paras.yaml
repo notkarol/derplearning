@@ -2,41 +2,53 @@
 name: "paras"
 data_folders: [ "../data/" ]
 states: ['speed', 'steer', 'shift', 'rotation']
-n_perturbations: 0
+n_perts: 0
 train_chance: 0.9
+delay: 0.25
 
-# Recording
-camera:
-  front:
-    hfov: 100
-    vfov: 56.25
-    fps: 6
-    height: 1080
-    width: 1920
-    depth: 3
-    x: 0
-    y: 0.38
-    z: -0.33
-    pitch: 0
-    yaw: 0
-    roll: 0
+record:
+  hfov: 100
+  vfov: 56.25
+  fps: 6
+  height: 1080
+  width: 1920
+  depth: 3
+  x: 0
+  y: 0.38
+  z: -0.33
+  pitch: 0
+  yaw: 0
+  roll: 0
 
+drive:
+  hfov: 75
+  vfov: 56.25
+  fps: 20
+  height: 480
+  width: 640
+  depth: 3
+  x: 0
+  y: 0.38
+  z: -0.33
+  pitch: 0
+  yaw: 0
+  roll: 0
+    
 # Dataset
 patch:
-  front:
-    hfov: 75
-    vfov: 18.75
-    height: 32
-    width: 128
-    depth: 3
-    x: 0
-    y: 0.38
-    z: -0.33
-    pitch: 0
-    yaw: 0
-    roll: 0
-    shift_min: -1
-    shift_max: 1
-    rotate_min: -10
-    rotate_max: 10
+  hfov: 75
+  vfov: 18.75
+  height: 32
+  width: 128
+  depth: 3
+  x: 0
+  y: 0.38
+  z: -0.33
+  pitch: 0
+  yaw: 0
+  roll: 0
+  shift_min: -0.1
+  shift_max: 0.1
+  rotate_min: -5
+  rotate_max: 5
 

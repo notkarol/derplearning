@@ -43,13 +43,13 @@ def loadConfig(path, name='config'):
         config = yaml.load(f)
     return config
 
-def getPatchBbox(source_config, target_config, camera):
+def getPatchBbox(source_config, target_config, perspective='record'):
     """
     Currently we assume that orientations and positions are identical
     """
     
-    patch = target_config['patch'][camera]
-    frame = source_config['camera'][camera]
+    patch = target_config['patch']
+    frame = source_config[perspective]
     
     hfov_ratio = patch['hfov'] / frame['hfov']
     vfov_ratio = patch['vfov'] / frame['vfov']
@@ -62,9 +62,8 @@ def getPatchBbox(source_config, target_config, camera):
     return Bbox(x, y, width, height)
 
 
-def getPatchSize(target_config, camera):
-    patch = target_config['patch'][camera]
-    return patch['width'], patch['height']
+def getPatchSize(target_config):
+    return target_config['patch']['width'], target_config['patch']['height']
 
 
 def read_csv(path, floats=True):
@@ -81,13 +80,13 @@ def read_csv(path, floats=True):
             if not len(line):
                 continue
             state = []
-            timestamps.append(int(1E6 * float(line[0])))
+            timestamps.append(int(line[0]))
             for value in line[1:]:
                 value = float(value) if floats else value
                 state.append(value)
             states.append(state)
-
     timestamps = np.array(timestamps, dtype=np.uint64)
-    states = np.array(states, dtype=np.float)
+    if floats:
+        states = np.array(states, dtype=np.float)
     return timestamps, headers, states
 

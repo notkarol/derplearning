@@ -8,12 +8,12 @@ import sys
 import derputil
 import srperm as srp
 
-def write(frame, bbox, state, data_dir, writer, store_name):
+def write(frame, bbox, size, state, data_dir, writer, store_name):
     recording_name = data_dir.split('/')[-1]
 
     # Crop, resize, and write out image
-    patch = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
-    thumb = csv.resize(patch, size)
+    patch = frame[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
+    thumb = cv2.resize(patch, size, interpolation=cv2.INTER_AREA)
     store_path = os.path.join(data_dir, store_name + '.png')
     cv2.imwrite(store_path, thumb)            
 
@@ -25,7 +25,7 @@ def write(frame, bbox, state, data_dir, writer, store_name):
     writer.flush()
 
 def process_recording(target_config, recording_dir, train_states_fd, val_states_fd,
-                     train_dir, val_dir):
+                      train_dir, val_dir):
     print('process_recording [%s]' % recording_dir)
     
     # Prepare our variables
@@ -36,19 +36,18 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
 
     recording_name = os.path.basename(recording_dir)
     source_config = derputil.loadConfig(recording_dir)
-    cam = 'front'
-    bbox = derputil.getPatchBbox(source_config, target_config, cam)
-    size = derputil.getPatchSize(target_config, cam)
-    hfov_ratio = (target_config['patch'][cam]['hfov']
-                  / source_config['camera'][cam]['hfov'])
+    bbox = derputil.getPatchBbox(source_config, target_config)
+    qbbox = derputil.Bbox(bbox.x // 4, bbox.y // 4, bbox.w // 4, bbox.h // 2)
+    size = derputil.getPatchSize(target_config)
+    hfov_ratio = target_config['patch']['hfov'] / source_config['record']['hfov']
+    n_perts = 0 if hfov_ratio > 0.75 else target_config['n_perts']
     frame_id = 0
-    video_path = os.path.join(path, 'camera_%s.mp4' % cam)
+    video_path = os.path.join(recording_dir, 'camera_front.mp4')
     video_cap = cv2.VideoCapture(video_path)
-    n_perts = target_config['n_perts'] if hfov_ratio > 0.9 else 0
     rot_i = target_config['states'].index('rotation')
     shift_i = target_config['states'].index('shift')
     steer_i = target_config['states'].index('steer')
-
+    
     # Create directories for this recording
     derputil.mkdir(os.path.join(train_dir, recording_name))
     derputil.mkdir(os.path.join(val_dir, recording_name))
@@ -58,8 +57,8 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
         return
     
     # Loop through video and add frames into dataset
-    while video_cap.isOpened() and frame_id < len(timestamps):
-        print("%.3f%%" % (100 * frame_id / len(timestamps)), end='\r')
+    while video_cap.isOpened() and frame_id < len(label_timestamps):
+        print("%.3f%%" % (100 * frame_id / len(label_timestamps)), end='\r')
         
         # Get the frame if we can
         ret, frame = video_cap.read()
@@ -68,12 +67,14 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
             break
 
         # Skip if label isn't good
-        if labels[frame_id] != 'good':
+        if labels[frame_id][label_headers.index('status')] != 'good':
             frame_id += 1
             continue
 
         # Prepare state array
         state = np.zeros(len(target_config['states']), dtype=np.float)
+        target_frame_id = frame_id + int(source_config['record']['fps'] * target_config['delay'] + 0.5)
+        target_frame_id = max(target_frame_id, len(states) - 1)
         for target_pos, name in enumerate(target_config['states']):
             if name in state_headers:
                 source_pos = state_headers.index(name)
@@ -88,29 +89,32 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
             writer = val_states_fd
 
         # Write out unperturbed
-        store_name = "%03i" % (frame_id)
-        write(frame, bbox, state, data_dir, writer, store_name)
+        store_name = "%05i" % (frame_id)
+        write(frame, bbox, size, state, data_dir, writer, store_name)
         
         # Generate perturbations and store perturbed
+        if n_perts:
+            qframe = cv2.resize(frame, None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA)
         for pert_id in range(n_perts):
             pstate = state.copy()
             
             # Generate perturbation variable
-            pstate[rot_i] = np.random.uniform(target_config['patch'][cam]['rotate_min'],
-                                              target_config['patch'][cam]['rotate_max'])
-            pstate[shift_i] = np.random.uniform(target_config['patch'][cam]['shift_min'],
-                                                target_config['patch'][cam]['shift_max'])
+            pstate[rot_i] = np.random.uniform(target_config['patch']['rotate_min'],
+                                              target_config['patch']['rotate_max'])
+            pstate[shift_i] = np.random.uniform(target_config['patch']['shift_min'],
+                                                target_config['patch']['shift_max'])
 
             # Generate perturbation
-            pframe = srp.shiftimg(frame, pstate[rot_i], pstate[shift_i],
-                                  source_config['camera'][cam]['hfov'],
-                                  source_config['camera'][cam]['vfov'])
+            pframe = srp.shiftimg(qframe, pstate[rot_i], pstate[shift_i],
+                                  source_config['record']['hfov'],
+                                  source_config['record']['vfov'])
             pstate[steer_i]= srp.shiftsteer(pstate[steer_i], pstate[rot_i],
                                            pstate[shift_i])
 
             # Write out
-            store_name = "%03i_%i" % (frame_id, pert_id)
-            write(pframe, bbox, pstate, data_dir, writer, store_name)
+            store_name = "%05i_%i" % (frame_id, pert_id)
+            write(pframe, qbbox, size, pstate, data_dir, writer, store_name)
+            cv2.waitKey(1000)
         
         frame_id += 1
         
@@ -145,7 +149,7 @@ def main():
             if os.path.isdir(recording_path):
                 process_recording(target_config, recording_path,
                                   train_states_fd, val_states_fd,
-                                  train_states_path, val_states_path)
+                                  train_dir, val_dir)
     train_states_fd.close()
     val_states_fd.close()
                 
