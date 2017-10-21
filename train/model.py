@@ -22,7 +22,7 @@ class Model:
         self.bbox = derputil.getPatchBbox(self.config, self.config, perspective='drive')
         self.size = derputil.getPatchSize(self.config)
         self.model = torch.load(self.model_path)
-        
+        self.model.eval()
 
     def evaluate(self, frame, timestamp, speed, steer):
         """ 
@@ -35,7 +35,8 @@ class Model:
         batch_cuda = torch.from_numpy(batch).float().cuda() / 255
         batch_var = Variable(batch_cuda)
         predictions = self.model(batch_var).data.cpu().numpy()[0]
-        
+
+        # Store the data we're getting
         if self.config['debug']:
             cv2.imwrite(os.path.join(self.folder, "%i_frame.png" % timestamp), frame)
             cv2.imwrite(os.path.join(self.folder, "%i_patch.png" % timestamp), patch)

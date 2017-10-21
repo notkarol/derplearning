@@ -55,6 +55,7 @@ class Labeler(object):
         # Resize frame as needed
         self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
                                 interpolation=cv2.INTER_AREA)
+        self.frame = (self.frame + np.ones(frame.shape) * 192) / 2
         self.frame_id += 1
         print(self.frame_id)
         return True
@@ -209,11 +210,11 @@ class Labeler(object):
             self.update_label(i, i, self.labels[i])
             
         
-    def __init__(self, recording_path):
+    def __init__(self, recording_path, scale):
         self.recording_path = recording_path
+        self.scale = scale
 
         # Variables useful for later
-        self.scale = 0.5
         self.cap = None
         self.red = np.array([0, 0, 255], dtype=np.uint8)
         self.green = np.array([32, 192, 32], dtype=np.uint8)
@@ -269,4 +270,5 @@ class Labeler(object):
     
 if __name__ == "__main__":
     recording_path = sys.argv[1]
-    Labeler(recording_path)
+    scale = float(sys.argv[2])
+    Labeler(recording_path, scale)

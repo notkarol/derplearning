@@ -17,10 +17,11 @@ class Camera:
         self.index = self.discoverCamera() if index is None else index
         self.config = config
         self.folder = folder
-        self.mode = 'drive' if  has_model else 'record'
+        self.mode = 'drive' if has_model else 'record'
 
         self.width = self.config[self.mode]['width']
         self.height = self.config[self.mode]['height']
+        self.depth = self.config[self.mode]['depth']
         self.fps = self.config[self.mode]['fps']
 
         # Input  video
@@ -30,7 +31,7 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
 
         # Output video in log
-        self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.fourcc = cv2.VideoWriter_fourcc(*'H264')
         self.extension = 'mp4'
 
         # Initialize known cameras
@@ -54,8 +55,7 @@ class Camera:
 
         # If we can't get a frame don't return any and set a warning
         if not ret:
-            sys.stderr.write("Failed to get frame!")
-            return None
+            self.frame = np.random.randint(0, 256, (self.height, self.width, self.depth), np.uint8)
         return self.frame
 
     
