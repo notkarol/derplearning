@@ -5,6 +5,7 @@ states: ['speed', 'steer', 'shift', 'rotation']
 n_perts: 0
 train_chance: 0.9
 delay: 0.25
+debug: false
 
 record:
   hfov: 100

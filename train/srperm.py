@@ -1,9 +1,5 @@
-#import cv2
 import numpy as np
 from math import pi
-#import os
-#import sys
-#import tensorflow as tf
 
 '''
 Produces side shifts and z axis rotations of training data
@@ -19,11 +15,11 @@ Produces side shifts and z axis rotations of training data
         (shift car left is positive in meters)
 '''
 def shiftsteer(steer, drot, mshift):
-    maxsteer = 1 #maximum value which can be returned for steering
+    maxsteer = 1 # maximum value which can be returned for steering
     shifttosteer = 1 # ratio of steering correction to lateral shift in steers/m
-    spd = 1/30 #linear coefficient for angle correction in steers/degree
+    spd = 1 / 30 # linear coefficient for angle correction in steers/degree
 
-    permsteer = steer - drot*spd - mshift*shifttosteer
+    permsteer = steer - drot * spd - mshift*shifttosteer
     if permsteer>0:
         return min(maxsteer, permsteer)
     else:
@@ -40,9 +36,7 @@ def shiftsteer(steer, drot, mshift):
 '''
 def shiftimg(img, drot, mshift, cfovz, cfovy):
     perm = np.zeros(np.shape(img), dtype=np.uint8)
-
     phorz = horizonset(len(img), cfovy)
-
     prot = zdegtopixel(drot, len(img[0]), cfovz )
     pshift = ymetertopixel(mshift, len(img[0]), cfovz )
 
@@ -70,7 +64,7 @@ def shiftimg(img, drot, mshift, cfovz, cfovy):
 #calculates the number of pixels the image has rotated
 # for a given degree rotation of the camera
 def zdegtopixel(deg, iydim, cfovz = 100):
-    return deg*iydim/cfovz
+    return deg * iydim/cfovz
 
 
 #converts a displacement of the car in y meters to pixels along the bottom row of the image
@@ -78,9 +72,9 @@ def ymetertopixel(disp, iydim, cfovz = 100):
     cheight = .38 #camera height in meters
     minvis = .7 #FIXME minimum distance camera can see (must be measured)
 
-    botwidth = 2*np.tan(cfovz*pi/(2*180) )*(cheight**2+minvis**2)**.5
+    botwidth = 2 * np.tan(cfovz * pi / (2 * 180) ) * (cheight**2 + minvis**2)**.5
 
-    return disp*iydim/botwidth
+    return disp * iydim / botwidth
 
 
 def horizonset(izdim, cfovy = 60):
@@ -90,39 +84,19 @@ def horizonset(izdim, cfovy = 60):
     return izdim*( (cfovy-np.arctan(cheight/minvis)*180/pi )/cfovy )
 
 
-
 def main():
-    img = [[1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0],
-           [1,2,3,4,5,6,7,8,9,0]]
+    img = np.zeros((4, 16), dtype=np.uint8)
+    img[:, :] = np.linspace(1, 16, 16)
 
-    steer = .3
-
-    mshift = .2
-    drot = 10
-
-    '''
-    for x in img:
-        print(x)
-    '''
+    steer = 0.0
+    mshift = 0.5
+    drot = 0
     perm = shiftimg(img, drot, mshift, 100, 60)
 
-    for y in perm:
-        print(y)
-
-
-    print(steer)
-
+    for row in perm:
+        print(row)
     newsteer = shiftsteer(steer, drot, mshift)
-
-    print(newsteer)
+    print("%.3f %.3f" % (steer, newsteer))
 
 
 if __name__ == "__main__":

@@ -10,14 +10,14 @@ from time import strftime, gmtime, time
 
 class Camera:
     
-    def __init__(self, config, folder, has_model=False, index=None):
+    def __init__(self, config, folder, mode, index=None):
         """
         Open a camera capture
         """
         self.index = self.discoverCamera() if index is None else index
         self.config = config
         self.folder = folder
-        self.mode = 'drive' if has_model else 'record'
+        self.mode = mode
 
         self.width = self.config[self.mode]['width']
         self.height = self.config[self.mode]['height']

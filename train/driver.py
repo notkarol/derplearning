@@ -13,15 +13,8 @@ from camera import Camera
 from servo import Servo
 from model import Model
 
-def main(screen):
-
-    # Parse arguments
-    parser = argparse.ArgumentParser()
-    default_config_path = os.path.join(os.environ['DERP_CONFIG'], 'paras.yaml')
-    parser.add_argument('--config', default=default_config_path, help="Configuration to use")
-    parser.add_argument('--model', default="", help="Model to run")
-    args = parser.parse_args()
-
+def main(screen, args):
+    
     # Pepare variables for recording
     date = strftime('%Y%m%dT%H%M%SZ', gmtime())
     name = '%s-%s' % (date, gethostname())
@@ -30,13 +23,14 @@ def main(screen):
     state_fp = open(os.path.join(folder, "state.csv"), 'w')
     state_fp.write("timestamp,speed,steer\n")
     copyfile(args.config, os.path.join(folder, 'config.yaml'))
+    mode = 'record' if args.record else 'drive'
     
     # Initialize relevant classes
     timestamp = int(time() * 1E6)
     config = derputil.loadConfig(args.config)
-    camera = Camera(config, folder, args.model)
+    camera = Camera(config, folder, mode)
     servo = Servo()
-    model = Model(config, folder, args.model) if args.model else None
+    model = Model(config, folder, mode, args.model) if args.model else None
     autonomous = False
 
     # Prepare screen input
@@ -114,4 +108,12 @@ def main(screen):
     state_fp.close()
     
 if __name__ == "__main__":
-    curses.wrapper(main)
+    # Parse arguments
+    parser = argparse.ArgumentParser()
+    default_config_path = os.path.join(os.environ['DERP_CONFIG'], 'paras.yaml')
+    parser.add_argument('--config', default=default_config_path, help="Configuration to use")
+    parser.add_argument('--model', default="", help="Model to run")
+    parser.add_argument('--record', action='store_true', help="Whether to run at hi fidelity")
+    args = parser.parse_args()
+
+    curses.wrapper(main, args)

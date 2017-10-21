@@ -11,15 +11,16 @@ import derputil
 
 class Model:
     
-    def __init__(self, config, folder, model_path):
+    def __init__(self, config, folder, mode, model_path):
         """
         Open the model
         """
         self.config = config
         self.folder = folder
         self.model_path = model_path
+        self.mode = mode
 
-        self.bbox = derputil.getPatchBbox(self.config, self.config, perspective='drive')
+        self.bbox = derputil.getPatchBbox(self.config, self.config, perspective=mode)
         self.size = derputil.getPatchSize(self.config)
         self.model = torch.load(self.model_path)
         self.model.eval()
