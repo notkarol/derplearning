@@ -49,9 +49,9 @@ class Model:
                                                   self.config['n_dimensions'],
                                                   self.config['n_points']))
             nn_speed = speed
-            nn_steer = road_spots[1, 0, 0] / (road_spots[2, 0, 0] - road_spots[0, 0, 0])
-            center_vector = road_spots[1, :, 1] - road_spots[1, :, 0]
-            nn_steer = nn_steer + 2 * nn_speed * center_vector[0] / center_vector[1]
+            nn_steer = 3 * road_spots[0, 1, 0, 0] 
+            #center_vector = road_spots[1, :, 1] - road_spots[1, :, 0]
+            #nn_steer = nn_steer + 2 * nn_speed * center_vector[0] / center_vector[1]
         elif self.model.mode == 'clone':
             nn_speed = predictions[self.config['states'].index('speed')]
             nn_steer = predictions[self.config['states'].index('steer')]
