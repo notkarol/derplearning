@@ -33,7 +33,7 @@ class ModelA(nn.Module):
     def __init__(self, config):
         super(ModelA, self).__init__()
         self.mode = 'clone'
-        self.c1 = Block(config['patch']['depth'],  64, 5, stride=2)
+        self.c1 = Block(config['patch']['depth'], 64, 5, stride=2)
         self.c2 = Block(64, 64, 3, pool='max')
         self.c3 = Block(64, 64, 3, pool='max')
         self.c4 = Block(64, 64, 3, pool='max')
@@ -44,8 +44,10 @@ class ModelA(nn.Module):
     def forward(self, x):
         out = self.c1(x)
         out = self.c2(out)
+        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
         out = self.c3(out)
         out = self.c4(out)
+        out = nn.functional.dropout2d(out, p=0.2, training=self.training)
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
         out = self.elu(out)

@@ -78,7 +78,7 @@ def main():
     train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=n_threads, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=n_threads)
 
-    model = derpmodels.ModelB(config).cuda()
+    model = derpmodels.ModelA(config).cuda()
     criterion = nn.MSELoss().cuda()
     optimizer = optim.Adam(model.parameters(), learning_rate)
 
