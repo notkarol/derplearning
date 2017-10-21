@@ -111,8 +111,10 @@ class Roadgen:
         nd_labels = np.reshape(twod_labels, (twod_labels.shape[0], self.n_lines, self.n_dimensions,
                                         self.n_points))
         #denormalize labels
-        nd_labels[:,:,0,:] *= self.gen_width
-        nd_labels[:,:,1,:] *= self.gen_height
+        nd_labels[:,:,0,:] *= self.cam_far_rad
+        z_mean = (self.cam_min_range + self.cam_max_range)/2
+        nd_labels[:,:,1,:] = ( (nd_labels[:, :, 1, :] - z_mean) * 
+                    (self.cam_max_range - self.cam_min_range) )
 
         '''#Clamp model outputs (consider making this switched)
         nd_labels[:,:,0,:] = self.clamp(nd_labels[:,:,0,:], self.gen_width)
@@ -120,11 +122,12 @@ class Roadgen:
         '''
         return nd_labels
 
-    #normalizes an image tensor to be floats on the range 0. - 1.
+    #normalizes an image tensor to be floats with mean 0 and std 1
     def normalize(self, frames):
         return  ((frames.astype(float) - np.mean(frames, axis=0, dtype=float))/ 
                 np.std(frames, axis=0, dtype=float) )
 
+    '''
     #Scales an image tensor by a maximum intensity and recasts as uint8 for display purposes
     #FIXME I don't remember if this is still used and it's currently out of date
     def denormalize(self, frame):
@@ -132,7 +135,7 @@ class Roadgen:
         frame =  np.uint8(frame *self.max_intensity)
         
         return frame
-
+    '''
 
     #returns a unit vector perpendicular to the input vector
     #Aka a unit vector normal to the curve as defined by delta
