@@ -8,6 +8,9 @@ train_chance: 0.9
 delay: 0.0
 debug: false
 model: ModelB
+n_lines: 3
+n_dimensions: 2
+n_points: 3
 #Directory Assitance:
 dir:
   train_data: 'scratch/arkanine/line_data/train'
