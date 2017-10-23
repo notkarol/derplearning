@@ -1,6 +1,7 @@
 debug: false
 
-states: ['speed', 'steer', 'shift', 'rotation']
+data_folders: ['train']
+fields: ['speed', 'steer', 'shift', 'rotation']
 n_perts: 0
 train_chance: 0.9
 delay: 0.33

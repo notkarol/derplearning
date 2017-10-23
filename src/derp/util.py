@@ -20,6 +20,8 @@ class Bbox:
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
+def get_name(path):
+    return os.path.splitext(os.path.basename(path.rstrip('/')))[0]
     
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
@@ -34,22 +36,21 @@ def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def loadConfig(path, name='config'):
-    if os.path.isdir(path):
-        config_path = os.path.join(path, name + '.yaml')
-    else:
-        config_path = path        
+def load_config(path):
+    config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
     with open(config_path) as f:
         config = yaml.load(f)
+    if 'name' not in config:
+        config['name'] = get_name(config_path)
     return config
 
-def getPatchBbox(source_config, target_config, perspective='record'):
+def getPatchBbox(source_config, target_config):
     """
     Currently we assume that orientations and positions are identical
     """
     
     patch = target_config['patch']
-    frame = source_config[perspective]
+    frame = source_config['frame']
     
     hfov_ratio = patch['hfov'] / frame['hfov']
     vfov_ratio = patch['vfov'] / frame['vfov']
@@ -174,3 +175,19 @@ def horizonset(izdim, cfovy = 60):
 
     return izdim*( (cfovy-np.arctan(cheight/minvis)*180/pi )/cfovy )
 
+
+def plot_batch(example, label, name):
+    import matplotlib.pyplot as plt
+    dim = int(np.sqrt(len(example)))
+    fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
+    for i in range(len(example)):
+        x = i % dim
+        y = int(i // dim)
+
+        # change from CHW to HWC and only show first three channels
+        img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
+        axs[y, x].imshow(img)
+        axs[y, x].set_title(" ".join(["%.2f" % x for x in label[i]]))
+        
+    plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
+    print("Saved batch [%s]" % name)

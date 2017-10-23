@@ -1,14 +1,6 @@
-# Experiment Name:
-name: "paras"
-experiment: 'clone'
-data_folders: [ "." ]
-states: ['speed', 'steer', 'shift', 'rotation']
-n_perts: 0
-train_chance: 0.9
-delay: 0.33
 debug: false
 
-record:
+frame:
   hfov: 100
   vfov: 56.25
   fps: 6
@@ -21,36 +13,3 @@ record:
   pitch: 0
   yaw: 0
   roll: 0
-
-drive:
-  hfov: 75
-  vfov: 56.25
-  fps: 20
-  height: 480
-  width: 640
-  depth: 3
-  x: 0
-  y: 0.38
-  z: -0.33
-  pitch: 0
-  yaw: 0
-  roll: 0
-    
-# Dataset
-patch:
-  hfov: 75
-  vfov: 18.75
-  height: 32
-  width: 128
-  depth: 3
-  x: 0
-  y: 0.38
-  z: -0.33
-  pitch: 0
-  yaw: 0
-  roll: 0
-  shift_min: -0.1
-  shift_max: 0.1
-  rotate_min: -5
-  rotate_max: 5
-

@@ -109,7 +109,6 @@ def main(screen, args):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-
     parser.add_argument('--config', type=str, required=True, help="Configuration to use")
     parser.add_argument('--model', type=str, default="", help="Model to run")
     args = parser.parse_args()
