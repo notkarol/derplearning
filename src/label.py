@@ -3,7 +3,7 @@ import cv2
 import os
 import sys
 import time
-import derputil
+import util
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
@@ -162,7 +162,7 @@ class Labeler(object):
     def init_labels(self):
         self.labels_path = os.path.join(self.recording_path, 'label.csv')
         if os.path.exists(self.labels_path):
-            _, _, self.labels = derputil.read_csv(self.labels_path, floats=False)
+            _, _, self.labels = util.read_csv(self.labels_path, floats=False)
             for i in range(len(self.labels)):
                 self.labels[i] = self.labels[i][0]
                            
@@ -172,7 +172,7 @@ class Labeler(object):
                 
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
-        self.timestamps, self.state_headers, self.states = derputil.read_csv(self.state_path)
+        self.timestamps, self.state_headers, self.states = util.read_csv(self.state_path)
         self.speeds = self.states[:, self.state_headers.index('speed')]
         self.steers = self.states[:, self.state_headers.index('steer')]
 

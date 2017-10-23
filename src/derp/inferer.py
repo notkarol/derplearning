@@ -6,10 +6,10 @@ import os
 import sys
 import torch
 from torch.autograd import Variable
-import derpmodels
-import derputil
+import models
+import util
 
-class Model:
+class Inferer:
     
     def __init__(self, config, folder, mode, model_path):
         """
@@ -20,8 +20,8 @@ class Model:
         self.model_path = model_path
         self.mode = mode
 
-        self.bbox = derputil.getPatchBbox(self.config, self.config, perspective=mode)
-        self.size = derputil.getPatchSize(self.config)
+        self.bbox = util.getPatchBbox(self.config, self.config, perspective=mode)
+        self.size = util.getPatchSize(self.config)
         self.model = torch.load(self.model_path)
         self.model.eval()
 

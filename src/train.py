@@ -13,10 +13,9 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import torchvision.transforms as transforms
 
-import derputil
-from derpfetcher import DerpFetcher
-from linefetcher import LineFetcher
-import derpmodels
+import util
+from fetcher import Fetcher
+import models
     
 def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batch=False):
     if is_train:
@@ -55,7 +54,7 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batc
 def main():
 
     # Load arguemnts
-    config = derputil.loadConfig(sys.argv[1])
+    config = util.loadConfig(sys.argv[1])
     if len(sys.argv) >= 3:
         gpu = sys.argv[2]
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu
@@ -66,23 +65,14 @@ def main():
     # prepare data fetchers
     train_dir = os.path.join(experiment_path, 'train')
     val_dir = os.path.join(experiment_path, 'val')
-    if config['experiment'] == 'clone':
-        transform = transforms.Compose([transforms.ColorJitter(brightness=0.5,
-                                                               contrast=0.5,
-                                                               saturation=0.5,
-                                                               hue=0.1),
-                                        transforms.ToTensor()])
-        train_set = DerpFetcher(train_dir, transform)
-        val_set = DerpFetcher(val_dir, transform)
-    else:
-        transform = transforms.Compose([transforms.ColorJitter(brightness=0.8,
-                                                               contrast=0.8,
-                                                               saturation=0.8,
-                                                               hue=0.1),
-                                        transforms.ToTensor()])
-        train_set = LineFetcher(train_dir, config, transform)
-        val_set = LineFetcher(val_dir, config, transform)
-        
+
+    transform = transforms.Compose([transforms.ColorJitter(brightness=0.5,
+                                                           contrast=0.5,
+                                                           saturation=0.5,
+                                                           hue=0.1),
+                                    transforms.ToTensor()])
+    train_set = Fetcher(train_dir, transform)
+    val_set = Fetcher(val_dir, transform)
 
     # Parameters
     batch_size = 64
@@ -93,7 +83,7 @@ def main():
     train_loader = DataLoader(train_set, batch_size=batch_size, num_workers=n_threads, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=n_threads)
 
-    model = eval('derpmodels.' + config['model'])(config).cuda()
+    model = eval('models.' + config['model'])(config).cuda()
     criterion = nn.MSELoss().cuda()
     optimizer = optim.Adam(model.parameters(), learning_rate)
 

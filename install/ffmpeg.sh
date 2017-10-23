@@ -24,17 +24,17 @@ sudo apt-get -y install \
      yasm \
      zlib1g-dev
 
-mkdir ~/ffmpeg_sources
-cd ~/ffmpeg_sources
+mkdir ffmpeg_sources
+cd ffmpeg_sources
 wget http://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2
 tar xjvf ffmpeg-snapshot.tar.bz2
 cd ffmpeg
-PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./configure \
-    --prefix="$HOME/ffmpeg_build" \
+PATH="/usr/local/bin:$PATH" PKG_CONFIG_PATH="${PWD}/ffmpeg_build/lib/pkgconfig" ./configure \
+    --prefix="${PWD}/ffmpeg_build" \
     --pkg-config-flags="--static" \
-    --extra-cflags="-I$HOME/ffmpeg_build/include" \
-    --extra-ldflags="-L$HOME/ffmpeg_build/lib" \
-    --bindir="$HOME/bin" \
+    --extra-cflags="-I${PWD}/ffmpeg_build/include" \
+    --extra-ldflags="-L${PWD}/ffmpeg_build/lib" \
+    --bindir="/usr/local/bin" \
     --enable-gpl \
     --enable-libass \
     --enable-libfreetype \
@@ -42,10 +42,10 @@ PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./conf
     --enable-libvorbis \
     --enable-libx264 \
     --enable-libx265
-PATH="$HOME/bin:$PATH" make
-make install
+PATH="/usr/local/bin:$PATH" make
+sudo make install
 hash -r
 
-echo 'export PATH=${PATH}:${HOME}/bin' >> ~/.bashrc
-echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${HOME}/lib' >> ~/.bashrc
+# Cleanup
+cd ../..
 rm -rf ~/ffmpeg-sources

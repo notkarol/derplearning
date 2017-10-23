@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-import derputil
+import util
 import srperm as srp
 
 def write(frame, bbox, size, state, data_dir, writer, store_name):
@@ -31,14 +31,14 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
     # Prepare our variables
     states_path = os.path.join(recording_dir, 'state.csv')
     labels_path = os.path.join(recording_dir, 'label.csv')
-    state_timestamps, state_headers, states = derputil.read_csv(states_path)
-    label_timestamps, label_headers, labels = derputil.read_csv(labels_path, floats=False)
+    state_timestamps, state_headers, states = util.read_csv(states_path)
+    label_timestamps, label_headers, labels = util.read_csv(labels_path, floats=False)
 
     recording_name = os.path.basename(recording_dir)
-    source_config = derputil.loadConfig(recording_dir)
-    bbox = derputil.getPatchBbox(source_config, target_config)
-    qbbox = derputil.Bbox(bbox.x // 4, bbox.y // 4, bbox.w // 4, bbox.h // 2)
-    size = derputil.getPatchSize(target_config)
+    source_config = util.loadConfig(recording_dir)
+    bbox = util.getPatchBbox(source_config, target_config)
+    qbbox = util.Bbox(bbox.x // 4, bbox.y // 4, bbox.w // 4, bbox.h // 2)
+    size = util.getPatchSize(target_config)
     hfov_ratio = target_config['patch']['hfov'] / source_config['record']['hfov']
     n_perts = 0 if hfov_ratio > 0.75 else target_config['n_perts']
     frame_id = 0
@@ -54,8 +54,8 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
     if os.path.exists(recording_train_dir) or os.path.exists(recording_val_dir):
         print("This recording has already been processed")
         return
-    derputil.mkdir(recording_train_dir)
-    derputil.mkdir(recording_val_dir)
+    util.mkdir(recording_train_dir)
+    util.mkdir(recording_val_dir)
     
     if not video_cap.isOpened():
         print("Unable to open [%s]" % video_path)
@@ -131,7 +131,7 @@ def main():
     config_path = sys.argv[1]
 
     # Import config for ho we want to store
-    target_config = derputil.loadConfig(config_path)
+    target_config = util.loadConfig(config_path)
 
     # Create folder and sates files
     experiment_dir = os.path.join(os.environ['DERP_SCRATCH'], target_config['name'])
@@ -139,9 +139,9 @@ def main():
     val_dir = os.path.join(experiment_dir, 'val')
     train_states_path = os.path.join(train_dir, 'states.csv')
     val_states_path = os.path.join(val_dir, 'states.csv')
-    derputil.mkdir(experiment_dir)
-    derputil.mkdir(train_dir)
-    derputil.mkdir(val_dir)
+    util.mkdir(experiment_dir)
+    util.mkdir(train_dir)
+    util.mkdir(val_dir)
     train_states_fd = open(train_states_path, 'a')
     val_states_fd = open(val_states_path, 'a')
     if os.path.getsize(train_states_path) == 0:

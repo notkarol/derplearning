@@ -1,23 +1,24 @@
 #!/bin/bash
+PYTORCH_VERSION=v0.2.0
 
-# Install latest python pip
+# Install latest python pip and setuptools
 sudo apt-get install python3-pip
-pip3 install -U pip
+pip3 install --user --upgrade pip setuptools
 
 # Get pytorch
 if ! [[ -e pytorch ]] ; then
-    git clone https://github.com/pytorch/pytorch.git
+    git clone --recursive https://github.com/pytorch/pytorch
     cd pytorch
-    git submodule --update --init
 else
     cd pytorch
     git pull
     git submodule --update    
 fi
 
-sudo pip3 install setuptools
+git checkout ${PYTORCH_VERSION}
+
+# Install specified requirements
 sudo pip3 install -r requirements.txt
 
 # Build dependencies and install. This might need to be restarted
-python3 setup.py build_deps
 sudo python3 setup.py install

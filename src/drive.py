@@ -6,12 +6,12 @@ from time import sleep, time, strftime, gmtime
 from socket import gethostname
 import os
 from shutil import copyfile
-import derputil
+import util
 
 # Local Python Files
 from camera import Camera
 from servo import Servo
-from model import Model
+from inferer import Inferer
 
 def main(screen, args):
     
@@ -23,14 +23,13 @@ def main(screen, args):
     state_fp = open(os.path.join(folder, "state.csv"), 'w')
     state_fp.write("timestamp,speed,steer\n")
     copyfile(args.config, os.path.join(folder, 'config.yaml'))
-    mode = 'record' if args.record else 'drive'
     
     # Initialize relevant classes
     timestamp = int(time() * 1E6)
-    config = derputil.loadConfig(args.config)
+    config = util.loadConfig(args.config)
     camera = Camera(config, folder, mode)
     servo = Servo()
-    model = Model(config, folder, mode, args.model) if args.model else None
+    inferer = Inferer(config, folder, mode, args.model) if args.model else None
     autonomous = False
 
     # Prepare screen input
@@ -57,7 +56,7 @@ def main(screen, args):
         frame = camera.getFrame()
         speed, steer = servo.speed, servo.steer
         if autonomous:
-            nn_speed, nn_steer, nn_thumb = model.evaluate(frame, timestamp, speed, steer)
+            nn_speed, nn_steer, nn_thumb = inferer.evaluate(frame, timestamp, speed, steer)
             #servo.move(0.5 * servo.speed + 0.5 * nn_speed) # dampen
             servo.turn(0.5 * servo.steer + 0.5 * nn_steer) # dampen
             screen.addstr(4, 8, "%6.3f" % nn_speed)
@@ -110,10 +109,9 @@ def main(screen, args):
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    default_config_path = os.path.join(os.environ['DERP_CONFIG'], 'paras.yaml')
-    parser.add_argument('--config', default=default_config_path, help="Configuration to use")
-    parser.add_argument('--model', default="", help="Model to run")
-    parser.add_argument('--record', action='store_true', help="Whether to run at hi fidelity")
+
+    parser.add_argument('--config', type=str, required=True, help="Configuration to use")
+    parser.add_argument('--model', type=str, default="", help="Model to run")
     args = parser.parse_args()
 
     curses.wrapper(main, args)

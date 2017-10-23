@@ -1,8 +1,8 @@
 import os
 import torch.utils.data as data
-import derputil
+import util
 
-class DerpFetcher(data.Dataset):
+class Fetcher(data.Dataset):
 
     def __init__(self, root, transform=None, target_transform=None):
 
@@ -23,7 +23,7 @@ class DerpFetcher(data.Dataset):
 
 
     def __getitem__(self, index):
-        img = derputil.load_image(self.paths[index])
+        img = util.load_image(self.paths[index])
         if self.transform is not None:
             img = self.transform(img)
         return img, self.data[index]
