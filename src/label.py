@@ -3,9 +3,10 @@ import cv2
 import os
 import sys
 import time
-import util
+import derp.util
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
+from skimage.draw import line_aa
 
 class Labeler(object):
 
@@ -36,6 +37,8 @@ class Labeler(object):
 
         self.frame_id = frame_id - 1
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
+        print("%i %5i %6.3f %6.3f" % (self.frame_id, self.timestamps[self.frame_id],
+                                    self.speeds[frame_id], self.steers[frame_id]))
         self.read()
         self.show = True
         return True
@@ -56,7 +59,6 @@ class Labeler(object):
         self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
                                 interpolation=cv2.INTER_AREA)
         self.frame_id += 1
-        print(self.frame_id, self.timestamps[self.frame_id])
         return True
 
     
@@ -65,19 +67,29 @@ class Labeler(object):
 
         
     def draw_bar_blank(self):
-        self.window[self.frame.shape[0]:, :, :] = self.black
+        self.window[self.fh:, :, :] = self.black
 
+        
+    def draw_bar_status(self):
+        self.window[self.fh : self.fh + int(self.bhh // 10), self.fwi, :] = self.label_bar
+        
 
     def draw_bar_zeroline(self):
-        midpoint = self.frame.shape[0] + self.bhh + 1
-        self.window[midpoint - 1 : midpoint + 2, self.fwi, :] = self.label_bar
+        self.window[self.fh + self.bhh + 1, self.fwi, :] = self.gray75
 
         
     def draw_bar_speed_steer(self):
+        """
+        Draw the speed and steering lines on the bar below the video. 
+        Takes about 1ms to run through the for loops
+        """
         self.window[self.speed_bar + self.fh + self.bhh + 1, self.fwi, :] = self.cyan
         self.window[self.steer_bar + self.fh + self.bhh + 1, self.fwi, :] = self.magenta
-        
-        
+        for rr, cc in self.speed_jump_locs:
+            self.window[rr, cc, :] = self.cyan
+        for rr, cc in self.steer_jump_locs:
+            self.window[rr, cc, :] = self.magenta            
+
     def display(self):
         
         # Update the pixels of the frame
@@ -86,6 +98,7 @@ class Labeler(object):
         self.draw_bar_blank()
         self.draw_bar_timemarker()
         self.draw_bar_zeroline()
+        self.draw_bar_status()
         self.draw_bar_speed_steer()
         
         # Display window
@@ -99,23 +112,24 @@ class Labeler(object):
                 f.write("%i,%s\n" % (timestamp, label))
         print("Saved labels at ", self.labels_path)
 
+    
     def handle_input(self):
-        key = cv2.waitKey(50) & 0xFF
+        key = cv2.waitKey(10) & 0xFF
 
-        if key == 27: # escape
+        if key == ord('q') or key == 27: # escape
             return False
         elif key == ord('p') or key == ord(' '):
             self.paused = not self.paused
-        elif key == ord('q'):
+        elif key == ord('g'):
             self.marker = 'good'
             self.show = True
-        elif key == ord('w'):
+        elif key == ord('r'):
             self.marker = 'risk'
             self.show = True
-        elif key == ord('e'):
+        elif key == ord('t'):
             self.marker = 'junk'
             self.show = True
-        elif key == ord('r'):
+        elif key == ord('c'):
             self.marker = ''
             self.show = True
         elif key == ord('s'):
@@ -128,26 +142,12 @@ class Labeler(object):
             self.seek(self.frame_id - 1)
         elif key == 83: # right
             self.seek(self.frame_id + 1)
-        elif key == ord('1'):
-            self.seek(int(self.n_frames * 0.0))
-        elif key == ord('2'):
-            self.seek(int(self.n_frames * 0.1))
-        elif key == ord('3'):
-            self.seek(int(self.n_frames * 0.2))
-        elif key == ord('4'):
-            self.seek(int(self.n_frames * 0.3))
-        elif key == ord('5'):
-            self.seek(int(self.n_frames * 0.4))
-        elif key == ord('6'):
-            self.seek(int(self.n_frames * 0.5))
-        elif key == ord('7'):
-            self.seek(int(self.n_frames * 0.6))
-        elif key == ord('8'):
-            self.seek(int(self.n_frames * 0.7))
-        elif key == ord('9'):
-            self.seek(int(self.n_frames * 0.8))
+        elif key == ord('`'):
+            self.seek(0)
+        elif ord('1') <= key <= ord('9'):
+            self.seek(int(self.n_frames * (key - ord('0')) / 10))
         elif key == ord('0'):
-            self.seek(int(self.n_frames * 0.9))
+            self.seek(self.n_frames - 1)
 
         elif key != 255:
             print("Unknown key press: [%s]" % key)
@@ -162,17 +162,16 @@ class Labeler(object):
     def init_labels(self):
         self.labels_path = os.path.join(self.recording_path, 'label.csv')
         if os.path.exists(self.labels_path):
-            _, _, self.labels = util.read_csv(self.labels_path, floats=False)
+            _, _, self.labels = derp.util.read_csv(self.labels_path, floats=False)
             for i in range(len(self.labels)):
-                self.labels[i] = self.labels[i][0]
-                           
+                self.labels[i] = self.labels[i][0]                           
         else:
             self.labels = ["" for _ in range(self.n_frames)]
         
                 
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
-        self.timestamps, self.state_headers, self.states = util.read_csv(self.state_path)
+        self.timestamps, self.state_headers, self.states = derp.util.read_csv(self.state_path)
         self.speeds = self.states[:, self.state_headers.index('speed')]
         self.steers = self.states[:, self.state_headers.index('steer')]
 
@@ -199,11 +198,24 @@ class Labeler(object):
         self.window_x = np.linspace(0, 1, self.fw)
         speed_f = interp1d(self.state_x, self.speeds)
         steer_f = interp1d(self.state_x, self.steers) 
-        self.speed_bar = np.array([speed_f(x) * self.bhh + 0.5 for x in self.window_x],
+        self.speed_bar = np.array([-speed_f(x) * self.bhh + 0.5 for x in self.window_x],
                                   dtype=np.int)
-        self.steer_bar = np.array([steer_f(x) * self.bhh + 0.5 for x in self.window_x],
+        self.steer_bar = np.array([-steer_f(x) * self.bhh + 0.5 for x in self.window_x],
                                   dtype=np.int)
-        
+
+        # All locations where we need to draw lines
+        self.steer_jump_locs = []
+        self.speed_jump_locs = []
+
+        for loc in np.where(abs(self.speed_bar[:-1] - self.speed_bar[1:]) >= 2)[0]:
+            rr, cc, val= line_aa(self.speed_bar[loc] + self.fh + self.bhh + 1,loc, 
+                                 self.speed_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
+            self.speed_jump_locs.append((rr, cc))
+        for loc in np.where(abs(self.steer_bar[:-1] - self.steer_bar[1:]) >= 2)[0]:
+            rr, cc, val = line_aa(self.steer_bar[loc] + self.fh + self.bhh + 1,loc, 
+                                  self.steer_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
+            self.steer_jump_locs.append((rr, cc))
+
         self.paused = True
         self.show = False
         self.marker = ''
@@ -253,6 +265,7 @@ class Labeler(object):
         # Loop through video
         while self.cap.isOpened():
             if not self.paused and self.frame_id < self.n_frames:
+                self.update_label(self.frame_id, self.frame_id, self.marker)
                 self.read()
                 self.show = True
 
@@ -272,5 +285,5 @@ class Labeler(object):
     
 if __name__ == "__main__":
     recording_path = sys.argv[1]
-    scale = float(sys.argv[2])
+    scale = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
     Labeler(recording_path, scale)
