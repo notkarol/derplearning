@@ -6,8 +6,8 @@ import os
 import sys
 import torch
 from torch.autograd import Variable
-import models
-import util
+import derp.models
+import derp.util
 
 class Inferer:
     

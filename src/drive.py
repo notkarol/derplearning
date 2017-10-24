@@ -6,12 +6,12 @@ from time import sleep, time, strftime, gmtime
 from socket import gethostname
 import os
 from shutil import copyfile
-import util
+import derp.util
 
 # Local Python Files
-from camera import Camera
-from servo import Servo
-from inferer import Inferer
+from derp.camera import Camera
+from derp.servo import Servo
+from derp.inferer import Inferer
 
 def main(screen, args):
     

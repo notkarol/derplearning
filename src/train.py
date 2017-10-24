@@ -66,6 +66,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=128, help="Number of epochs to run for")
     parser.add_argument('--conditioner', type=str, default='clone_train',
                         help="input conditioner for additional data diversity")
+    
     args = parser.parse_args()    
     
     # Make sure we have somewhere to run the experiment
@@ -94,13 +95,14 @@ def main():
     for epoch in range(args.epochs + 1):
         tloss = step(epoch, config, model, train_loader, optimizer, criterion, is_train=epoch)
         vloss = step(epoch, config, model, val_loader, optimizer, criterion, is_train=False)
-        print("epoch %03i  tloss:%.6f  vloss:%.6f" % (epoch, tloss, vloss))
 
         # Only save models that have a lower loss
         if vloss < min_loss:
             min_loss = vloss
             torch.save(model, os.path.join(experiment_path, "%s_%03i_%.6f.pt" %
                                            (args.model, epoch, vloss)))
+        print("epoch %03i  tloss:%.6f  vloss:%.6f %s" %
+              (epoch, tloss, vloss, '*' if vloss == min_loss else ''))
     
 if __name__ == "__main__":
     main()
