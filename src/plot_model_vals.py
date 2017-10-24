@@ -6,6 +6,8 @@ import os
 import seaborn
 import sys
 import derp.util
+seaborn.set_style('ticks')
+seaborn.set_context('poster')
 
 def populate(mcl, path, depth):
     if depth == 0:
@@ -32,25 +34,28 @@ def main():
     populate(mcl, root_path, depth=1)
 
 
-    for model in sorted(mcl):
-        configs = []
-        losses = []
-        for config in sorted(mcl[model]):
-            configs.append(config)
-            losses.append(mcl[model][config])
-        plt.semilogy(losses, label=model)
+    config_names = ('clone_A', 'clone_B', 'clone_C', 'clone_D', 'clone_E')
+    config_labels = ('128 x 32 pixels\n75° x 18.75°',
+                     '128 x 48 pixels\n75° x 28.125°',
+                     '128 x 64 pixels\n75° x 37.5°',
+                     '128 x 80 pixels\n75° x 46.875°',
+                     '128 x 96 pixels\n75° x 56.25°')
+    X = np.arange(len(config_labels))
 
-    configs = ('128 x 32 pixels\n75° x 18.75°',
-               '128 x 48 pixels\n75° x 28.125°',
-               '128 x 64 pixels\n75° x 37.5°',
-               '128 x 80 pixels\n75° x 46.875°',
-               '128 x 96 pixels\n75° x 56.25°')
+    for model in sorted(mcl):
+        losses = [None for _ in config_names]
+        for config in sorted(mcl[model]):
+            losses[config_names.index(config)] = mcl[model][config]
+        plt.semilogy(X, losses, 'o-', label=model)
+
     plt.title("Comparing clone models and patch field of views\nLowest validation set loss after 128 epochs on 22 minutes of driving data")
     plt.legend()
-    plt.xticks(np.arange(len(configs)), configs)
+    plt.xticks(X, config_labels)
     plt.xlabel('Dataset')
     plt.ylabel('Validation Loss')
+    plt.ylim([0.0009, 0.003])
     plt.margins(0.18)
+    seaborn.despine()
     plt.savefig("2017-10_clone_models.png", bbox_inches='tight', dpi=100)
 
 if __name__ == '__main__':
