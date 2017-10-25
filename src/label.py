@@ -20,6 +20,7 @@ class Labeler(object):
 
         # Update the labels that are to be stored
         beg, end = min(id1, id2), max(id1, id2)
+        #The update is applied inclusive to both ends of the id range
         for i in range(beg, end + 1):
             self.labels[i] = marker
 
@@ -30,7 +31,7 @@ class Labeler(object):
     
     def seek(self, frame_id):
         if not self.legal_position(frame_id):
-            print("seek failed illegal", frame_id)
+            print("seek failed illegal target:", frame_id)
             return False
 
         self.update_label(frame_id, self.frame_id, self.marker)
@@ -112,7 +113,7 @@ class Labeler(object):
                 f.write("%i,%s\n" % (timestamp, label))
         print("Saved labels at ", self.labels_path)
 
-    
+    #Handles keyboard inputs during data labeling process.
     def handle_input(self):
         key = cv2.waitKey(10) & 0xFF
 
@@ -189,6 +190,7 @@ class Labeler(object):
         self.fh = self.frame.shape[0]
         self.fw = self.frame.shape[1]
         self.bhh = 50 # bar half height
+
         self.fwi = np.arange(self.fw)
         self.window_shape = list(self.frame.shape)
         self.window_shape[0] += self.bhh* 2 + 1
@@ -196,6 +198,7 @@ class Labeler(object):
 
         self.state_x = np.linspace(0, 1, len(self.timestamps))
         self.window_x = np.linspace(0, 1, self.fw)
+        #interpolation connects the dots between the recorded control state data for better graphs
         speed_f = interp1d(self.state_x, self.speeds)
         steer_f = interp1d(self.state_x, self.steers) 
         self.speed_bar = np.array([-speed_f(x) * self.bhh + 0.5 for x in self.window_x],
@@ -255,7 +258,7 @@ class Labeler(object):
         self.init_window()
         self.display()
         
-        # Draw speet and steer
+        # Draw speed and steer
         for i in range(self.frame.shape[1]):
             speed = self.speed_bar[i] + self.frame.shape[0] + self.bhh + 1
             steer = self.steer_bar[i] + self.frame.shape[0] + self.bhh + 1
