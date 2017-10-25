@@ -46,15 +46,15 @@ def main():
         losses = [None for _ in config_names]
         for config in sorted(mcl[model]):
             losses[config_names.index(config)] = mcl[model][config]
-        plt.semilogy(X, losses, 'o-', label=model)
+        plt.semilogy(X, losses, 'o-', label=model, alpha=.8)
 
     plt.title("Comparing clone models and patch field of views\nLowest validation set loss after 128 epochs on 22 minutes of driving data")
     plt.legend()
     plt.xticks(X, config_labels)
     plt.xlabel('Dataset')
     plt.ylabel('Validation Loss')
-    plt.ylim([0.0009, 0.003])
-    plt.margins(0.18)
+    plt.ylim([0.0009, 0.0025])
+    plt.margins(0.1)
     seaborn.despine()
     plt.savefig("2017-10_clone_models.png", bbox_inches='tight', dpi=100)
 

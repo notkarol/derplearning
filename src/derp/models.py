@@ -217,6 +217,40 @@ class DeeperPSLCSModel(nn.Module):
         out = out.view(out.size(0), -1)
         out = self.fc1(out)
         return out
+
+class DeeperSLCSModel(nn.Module):
+
+    def __init__(self, config):
+        super(DeeperSLCSModel, self).__init__()
+        self.d = config['patch']['depth']
+        self.h = config['patch']['height']
+        self.w = config['patch']['width']
+        self.c1 = Block(self.d, 64, 5, stride=2) ; self.h /= 2 ; self.w /= 2
+        self.c2a = Block(64, 32, 3)
+        self.c2b = Block(32, 128, 3, pool='max') ; self.h /= 2 ; self.w /= 2
+        self.c3a = Block(128, 32, 3)
+        self.c3b = Block(32, 128, 3, pool='max') ; self.h /= 2 ; self.w /= 2
+        self.c4a = Block(128, 32, 3)
+        self.c4b = Block(32, 128, 3, pool='max') ; self.h /= 2 ; self.w /= 2
+        self.c5a = Block(128, 32, 3)
+        self.c5b = Block(32, 128, 3, pool='max') ; self.h /= 2 ; self.w /= 2
+        self.c6 = Block(128, 128, int(self.h), padding=0) ; self.w -= (self.h - 1) ; self.h = 1 ; 
+        self.fc1 = nn.Linear(int(self.h * self.w * 128), len(config['fields']))
+
+    def forward(self, x):
+        out = self.c1(x)
+        out = self.c2a(out)
+        out = self.c2b(out)
+        out = self.c3a(out)
+        out = self.c3b(out)
+        out = self.c4a(out)
+        out = self.c4b(out)
+        out = self.c5a(out)
+        out = self.c5b(out)
+        out = self.c6(out)
+        out = out.view(out.size(0), -1)
+        out = self.fc1(out)
+        return out
     
     
 class ResidualModel(nn.Module):
