@@ -56,6 +56,8 @@ def main(screen, args):
         frame = camera.getFrame()
         speed, steer = servo.speed, servo.steer
         if autonomous:
+            #Important! All control calculations must be made in the inferer class.
+            #Otherwise the driving emulator will not properly predict road performance.
             nn_speed, nn_steer, nn_thumb = inferer.evaluate(frame, timestamp, speed, steer)
             #servo.move(nn_speed)
             servo.turn(nn_steer)
