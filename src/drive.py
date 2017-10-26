@@ -57,8 +57,8 @@ def main(screen, args):
         speed, steer = servo.speed, servo.steer
         if autonomous:
             nn_speed, nn_steer, nn_thumb = inferer.evaluate(frame, timestamp, speed, steer)
-            #servo.move(0.5 * servo.speed + 0.5 * nn_speed) # dampen
-            servo.turn(0.5 * servo.steer + 0.5 * nn_steer) # dampen
+            #servo.move(nn_speed)
+            servo.turn(nn_steer)
             screen.addstr(4, 8, "%6.3f" % nn_speed)
             screen.addstr(5, 8, "%6.3f" % nn_steer)            
         state_fp.write(",".join([str(x) for x in (timestamp, speed, steer)]))

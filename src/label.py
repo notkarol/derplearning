@@ -91,6 +91,7 @@ class Labeler(object):
         for rr, cc in self.steer_jump_locs:
             self.window[rr, cc, :] = self.magenta            
 
+    #This function updates the viewer calling all appropriate functions
     def display(self):
         
         # Update the pixels of the frame
@@ -102,7 +103,7 @@ class Labeler(object):
         self.draw_bar_status()
         self.draw_bar_speed_steer()
         
-        # Display window
+        # Display the newly generated window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
 
 
@@ -191,12 +192,12 @@ class Labeler(object):
         self.fw = self.frame.shape[1]
         self.bhh = 50 # bar half height
 
-        self.fwi = np.arange(self.fw)
+        self.fwi = np.arange(self.fw) 	#frame width index
         self.window_shape = list(self.frame.shape)
         self.window_shape[0] += self.bhh* 2 + 1
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
 
-        self.state_x = np.linspace(0, 1, len(self.timestamps))
+        self.state_x = np.linspace(0, 1, len(self.timestamps) )
         self.window_x = np.linspace(0, 1, self.fw)
         #interpolation connects the dots between the recorded control state data for better graphs
         speed_f = interp1d(self.state_x, self.speeds)
@@ -213,7 +214,7 @@ class Labeler(object):
         for loc in np.where(abs(self.speed_bar[:-1] - self.speed_bar[1:]) >= 2)[0]:
             rr, cc, val= line_aa(self.speed_bar[loc] + self.fh + self.bhh + 1,loc, 
                                  self.speed_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
-            self.speed_jump_locs.append((rr, cc))
+            self.speed_jump_locs.append( (rr, cc) )
         for loc in np.where(abs(self.steer_bar[:-1] - self.steer_bar[1:]) >= 2)[0]:
             rr, cc, val = line_aa(self.steer_bar[loc] + self.fh + self.bhh + 1,loc, 
                                   self.steer_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
