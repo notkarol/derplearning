@@ -32,95 +32,24 @@ class Servo:
         self.max_speed = max_speed
         self.turn_offset = turn_offset
 
-        # Initialize state
-        self.steer = 0
-        self.speed = 0
-        
         # Initialize usb device
+        self.configuration = None
         self.device = usb.core.find(idVendor=self.usb_vendor_id,
                                     idProduct=self.usb_product_id)
-
-        self.configuration = None
         if self.device is not None:
             self.configuration = self.device.get_active_configuration() 
         
         # Send command
-        self.turn()
-        self.move()
+        self.move(0)
+        self.turn(0)
 
+        
     def __del__(self):
         """
         Reset the car to its null state
         """
         self.move(0)
         self.turn(0)
-
-
-    def move_faster(self,
-                    amount=0.02): # amount to increase speed by
-        """
-        A wrapper around move that makes us go a bit faster
-        """
-        # If we're not connected to a device then just act dead
-        if self.device is None:
-            return False
-        
-        if self.speed == self.max_speed:
-            return False
-        self.speed += abs(amount)
-        self.speed = min(self.speed, self.max_speed)
-        self.move()
-        return True
-
-    
-    def move_slower(self,
-                    amount=0.02): # amount to decrease speed by
-        """
-        A wrapper around move that makes us go a bit slower
-        """
-        # If we're not connected to a device then just act dead
-        if self.device is None:
-            return False
-
-        if self.speed <= self.min_speed:
-            return False
-        self.speed -= abs(amount)
-        self.speed = max(self.speed, self.min_speed)
-        self.move()
-        return True
-
-    def turn_right(self,
-                   amount=0.02): # amount to turn right by
-        """
-        A wrapper around turn that makes us turn right a bit more
-        """
-        # If we're not connected to a device then just act dead
-        if self.device is None:
-            return False
-
-        if self.steer >= self.max_steer:
-            return False
-        self.steer += abs(amount)
-        self.steer = min(self.steer, self.max_steer)
-        self.turn()
-        return True
-
-
-    def turn_left(self,
-                  amount=0.02): # amount to turn left by
-        """
-        A wrapper around turn that makes us turn left a bit more
-        """
-        # If we're not connected to a device then just act dead
-        if self.device is None:
-            return False
-
-        if self.steer == self.min_steer:
-            return False
-        self.steer -= abs(amount)
-        self.steer = max(self.steer, self.min_steer)
-        self.turn()
-        return True
     
 
     def convert(self,
@@ -133,8 +62,7 @@ class Servo:
         return int((1500 + 500 * intensity) * 4)
         
 
-    def move(self,
-             speed=None): # speed values in [-1, 1]
+    def move(self, speed):
         """
         Zero represents no movement. There is a dead zone around [-0.05, 0.05]
         Due to the stock ESC limitations, to go in reverse you have to send a
@@ -146,22 +74,18 @@ class Servo:
             return None
 
         # Make sure we have a speed
-        if speed is not None:
-            self.speed = speed
+        self.speed = speed
+        self.speed = min(self.max_speed, self.speed)
+        self.speed = max(self.min_speed, self.speed)
             
-        # Prepare arguments to usb and send them
-        request_type = 0x40
-        request = 0x85
-        value = self.convert(self.speed)
-        return self.device.ctrl_transfer(request_type, request,
-                                         value, self.servo_speed_id)
+        # Send request to servo
+        return self.device.ctrl_transfer(0x40, 0x85, self.convert(self.speed), self.servo_speed_id)
 
 
-    def turn(self,
-             steer=None): # steering steer in [-1, 1]
+    def turn(self, steer):
         """
         Zero represents the wheels pointed forward. 
-        +- 1 represent a turning radius or approximately 1 meter
+        +- 1 represent a turning radius of approximately 1 meter
         """
 
         # If we're not connected to a device then just act dead
@@ -169,12 +93,9 @@ class Servo:
             return None
 
         # Make sure we have an steer
-        if steer is not None:
-            self.steer = steer + self.turn_offset
+        self.steer = steer + self.turn_offset
+        self.steer = min(self.max_steer, self.steer)
+        self.steer = max(self.min_steer, self.steer)
         
-        # Prepare arguments to usb and send them
-        request_type = 0x40
-        request = 0x85
-        value = self.convert(self.steer)
-        return self.device.ctrl_transfer(request_type, request,
-                                         value, self.servo_steer_id)
+        # Send request to servo
+        return self.device.ctrl_transfer(0x40, 0x85, self.convert(self.steer), self.servo_steer_id)

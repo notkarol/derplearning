@@ -1,6 +1,6 @@
-import evdev
-from datetime import datetime
 import asyncio
+from datetime import datetime
+import evdev
 import numpy as np
 
 class Controller:
@@ -30,7 +30,8 @@ class Controller:
 
             # If this device is supported, initialize it
             if device.name in self.initializers:
-                self.devices[device] = self.initializers[device.name]()
+                self.devices[device] = self.initializers[device.name](device)
+                asyncio.ensure_future(self.devices[device](device))
 
                 
     def init_ds4(self, device):
@@ -60,7 +61,6 @@ class Controller:
         self.ds4_menu = 316
         self.ds4_touchpad = 317
 
-        self.ds4_stick_codes = [0, 1, 2, 5]
         self.ds4_stick_deadzone = 8
         self.ds4_trigger_deadzone = 4
 
@@ -68,9 +68,7 @@ class Controller:
         self.settings[device][self.ds4_left_trigger] = False
         self.settings[device][self.ds4_right_trigger] = False
         self.settings[device][self.ds4_left_stick_horizontal] = False
-        self.settings[device][self.ds4_left_stick_vertical] = False
         self.settings[device][self.ds4_right_stick_horizontal] = False
-        self.settings[device][self.ds4_right_stick_vertical] = False
         
         return self.process_ds4
 
@@ -150,7 +148,8 @@ class Controller:
                 # Otherwise use proportional control
                 self.command.steer = self.normalize_stick(event.value, self.ds4_stick_deadzone)
                 if event.code == self.ds4_right_stick_horizontal:
-                    self.command.steer = np.sign(self.command.steer) * np.power(self.command.steer, 2)
+                    sign = (1 if self.command.steer >= 0 else -1)
+                    self.command.steer = sign * (self.command.steer ** 2)
                 
             # Handle speed
             if event.code in [self.ds4_left_trigger, self.ds4_right_trigger]:
@@ -170,6 +169,7 @@ class Controller:
                 # Otherwise use proportional control
                 self.command.speed = self.normalize_trigger(event.value, self.ds4_trigger_deadzone)
                 if event.code == self.ds4_right_trigger:
-                    self.command.speed = np.sign(self.command.speed) * np.power(self.command.speed, 2)
+                    sign = (1 if self.command.speed >= 0 else -1)
+                    self.command.speed = sign * (self.command.speed ** 2)
 
 
