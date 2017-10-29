@@ -11,6 +11,7 @@ class Controller:
         # Initialize known device names and their handles
         self.devices = {}
         self.settings = {}
+        self.runners = {}
         self.initializers = {'Wireless Controller' : self.init_ds4}
 
         # Connect to new devices
@@ -21,20 +22,27 @@ class Controller:
         """
         Find and initialize the available devices
         """
-        potential_devices = [evdev.InputDevice(fn) for fn in evdev.list_devices()]
-        for device in potential_devices:
+        for filename in evdev.list_devices():
 
             # Skip devices we're already connected to
-            if device in self.devices:
+            if filename in self.devices:
+                continue
+            
+            # Connect to device
+            device = evdev.InputDevice(filename)
+
+            # Skip devices we can't handle
+            if device.name not in self.initializers:            
                 continue
 
-            # If this device is supported, initialize it
-            if device.name in self.initializers:
-                self.devices[device] = self.initializers[device.name](device)
-                asyncio.ensure_future(self.devices[device](device))
+            self.devices[filename] = device
+            self.settings[filename] = {}
+            self.runners[filename] = self.initializers[device.name](filename)
+
+            asyncio.ensure_future(self.runners[filename](filename))
 
                 
-    def init_ds4(self, device):
+    def init_ds4(self, filename):
         """
         Prepare necessary variables to process the Dualshock 4 Controller
         """
@@ -64,11 +72,10 @@ class Controller:
         self.ds4_stick_deadzone = 8
         self.ds4_trigger_deadzone = 4
 
-        self.settings[device] = {}
-        self.settings[device][self.ds4_left_trigger] = False
-        self.settings[device][self.ds4_right_trigger] = False
-        self.settings[device][self.ds4_left_stick_horizontal] = False
-        self.settings[device][self.ds4_right_stick_horizontal] = False
+        self.settings[filename][self.ds4_left_trigger] = False
+        self.settings[filename][self.ds4_right_trigger] = False
+        self.settings[filename][self.ds4_left_stick_horizontal] = False
+        self.settings[filename][self.ds4_right_stick_horizontal] = False
         
         return self.process_ds4
 
@@ -89,8 +96,8 @@ class Controller:
         return value
 
     
-    async def process_ds4(self, device):
-        async for event in device.async_read_loop():
+    async def process_ds4(self, filename):
+        async for event in self.devices[filename].async_read_loop():
 
             # Stop car in every way
             if event.code == self.ds4_triangle:
