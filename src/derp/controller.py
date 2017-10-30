@@ -1,8 +1,7 @@
-import asyncio
 from datetime import datetime
 import evdev
 import numpy as np
-
+import time
 class Controller:
 
     def __init__(self, command):
@@ -38,9 +37,6 @@ class Controller:
             self.devices[filename] = device
             self.settings[filename] = {}
             self.runners[filename] = self.initializers[device.name](filename)
-
-            asyncio.ensure_future(self.runners[filename](filename))
-
                 
     def init_ds4(self, filename):
         """
@@ -70,18 +66,22 @@ class Controller:
         self.ds4_touchpad = 317
 
         self.ds4_stick_deadzone = 8
-        self.ds4_trigger_deadzone = 4
-
-        self.settings[filename][self.ds4_left_trigger] = False
-        self.settings[filename][self.ds4_right_trigger] = False
+        self.ds4_trigger_deadzone = 1
         self.settings[filename][self.ds4_left_stick_horizontal] = False
+        self.settings[filename][self.ds4_left_stick_vertical] = False
+        self.settings[filename][self.ds4_left_trigger] = 0
         self.settings[filename][self.ds4_right_stick_horizontal] = False
+        self.settings[filename][self.ds4_right_stick_vertical] = False
+        self.settings[filename][self.ds4_right_trigger] = 0
         
         return self.process_ds4
 
-    def in_deadzone(self, value, deadzone):
-        return 128 - deadzone < event.value <= 128 + deadzone
+    def in_stick_deadzone(self, value, deadzone):
+        return 128 - deadzone < value <= 128 + deadzone
 
+    def in_trigger_deadzone(self, value, deadzone):
+        return value < deadzone
+    
 
     def normalize_stick(self, value, deadzone):
         value -= 128
@@ -96,9 +96,9 @@ class Controller:
         return value
 
     
-    async def process_ds4(self, filename):
-        async for event in self.devices[filename].async_read_loop():
-
+    def process_ds4(self, filename):
+        for event in self.devices[filename].read():
+            
             # Stop car in every way
             if event.code == self.ds4_triangle:
                 self.command.reset()
@@ -135,7 +135,7 @@ class Controller:
             if event.code == self.ds4_arrow_horizontal:
                 self.command.speed += 0.01 * event.value
             if event.code == self.ds4_arrow_vertical:
-                self.command.speed += 0.1 * event.value
+                self.command.speed -= 0.1 * event.value
                 
             # Handle steer
             if event.code in [self.ds4_left_stick_horizontal, self.ds4_right_stick_horizontal]:
@@ -145,38 +145,44 @@ class Controller:
                     continue
                 
                 # If it's in the deadzone and it wasn't last time then clear steer
-                if self.in_deadzone(event.value, self.ds4_stick_deadzone):
-                    if self.settings[event.code]:
+                if self.in_stick_deadzone(event.value, self.ds4_stick_deadzone):
+                    if self.settings[filename][event.code]:
                         self.command.steer = 0
-                        self.settings[event.code] = False
+                        self.settings[filename][event.code] = False
                     continue
-                self.settings[event.code] = True
+                self.settings[filename][event.code] = True
 
                 # Otherwise use proportional control
                 self.command.steer = self.normalize_stick(event.value, self.ds4_stick_deadzone)
                 if event.code == self.ds4_right_stick_horizontal:
-                    sign = (1 if self.command.steer >= 0 else -1)
-                    self.command.steer = sign * (self.command.steer ** 2)
+                    self.command.steer = self.command.steer ** 3
                 
             # Handle speed
+            if ((event.code == self.ds4_l2 and event.value == 0) or
+                (self.settings[filename][self.ds4_left_trigger] and
+                 self.settings[filename][self.ds4_left_trigger] - time.time() > 0.1)):
+                self.settings[filename][self.ds4_left_trigger] = 0
+                self.command.speed = 0
+            if ((event.code == self.ds4_l2 and event.value == 0) or
+                (self.settings[filename][self.ds4_right_trigger] and
+                 self.settings[filename][self.ds4_right_trigger] - time.time() > 0.1)):
+                self.settings[filename][self.ds4_right_trigger] = 0
+                self.command.speed = 0                
             if event.code in [self.ds4_left_trigger, self.ds4_right_trigger]:
-
-                # Skip if junk
-                if event.value == 0:
+                if self.in_trigger_deadzone(event.value, self.ds4_trigger_deadzone):
                     continue
-
-                # If it's in the deadzone and it wasn't last time then clear speed 
-                if self.in_deadzone(event.value, self.ds4_trigger_deadzone):
-                    if self.settings[event.code]:
-                        self.command.speed = 0
-                        self.settings[event.code] = False
+                if event.type == 4:
                     continue
-                self.settings[event.code] = True
-                      
-                # Otherwise use proportional control
+                self.settings[filename][event.code] = time.time()
                 self.command.speed = self.normalize_trigger(event.value, self.ds4_trigger_deadzone)
+                self.command.speed /= 3
                 if event.code == self.ds4_right_trigger:
-                    sign = (1 if self.command.speed >= 0 else -1)
-                    self.command.speed = sign * (self.command.speed ** 2)
+                    self.command.speed *= -1
 
 
+    def process(self):
+        for filename in self.runners:
+            try:
+                self.runners[filename](filename)
+            except BlockingIOError:
+                pass

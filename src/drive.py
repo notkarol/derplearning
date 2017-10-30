@@ -1,118 +1,70 @@
 #!/usr/bin/env/python3
 
+
 import argparse
-import curses
 from time import sleep, time, strftime, gmtime
-from socket import gethostname
 import os
 from shutil import copyfile
 import derp.util
 
 # Local Python Files
 from derp.camera import Camera
+from derp.command import Command
+from derp.controller import Controller
 from derp.servo import Servo
-from derp.inferer import Inferer
+#from derp.inferer import Inferer
 
-def main(screen, args):
+def main(args):
     
-    # Pepare variables for recording
-    date = strftime('%Y%m%dT%H%M%SZ', gmtime())
-    name = '%s-%s' % (date, gethostname())
-    folder = os.path.join(os.environ['DERP_DATA'], name)
-    os.mkdir(folder)
-    state_fp = open(os.path.join(folder, "state.csv"), 'w')
-    state_fp.write("timestamp,speed,steer\n")
-    copyfile(args.config, os.path.join(folder, 'config.yaml'))
-    
-    # Initialize relevant classes
-    timestamp = int(time() * 1E6)
-    config = util.loadConfig(args.config)
-    camera = Camera(config, folder, mode)
+    # # Pepare variables for recording
+    # date = strftime('%Y%m%dT%H%M%SZ', gmtime())
+    # name = '%s' % (date, gethostname())
+    # folder = os.path.join(os.environ['DERP_DATA'], name)
+    # os.mkdir(folder)
+    # state_fp = open(os.path.join(folder, "state.csv"), 'w')
+    # state_fp.write("timestamp,speed,steer\n")
+    # copyfile(args.config, os.path.join(folder, 'config.yaml'))
+
+    # # Initialize relevant classes
+    # config_model = util.loadConfig(args.model)
+    # config_camera = util.loadConfig(args.camera)
+    # camera = Camera(config)
+    # inferer = Inferer(config, folder, mode, args.model) if args.model else None
+    command = Command()
+    controller = Controller(command)
     servo = Servo()
-    inferer = Inferer(config, folder, mode, args.model) if args.model else None
-    autonomous = False
-
-    # Prepare screen input
-    curses.noecho() # don't display pressed characters to screen
-    curses.cbreak() # process key instantly without explicit flushing
-    screen.keypad(1) # enable keypad mode so keys are not multibyte escape sequences
-    screen.nodelay(1) # nonblocking
-
-    # Print out labels
-    screen.addstr(0, 0, "SPEED")
-    screen.addstr(1, 0, "STEER")
-    screen.addstr(2, 0, "FPS")
-    if args.model: 
-        screen.addstr(3, 0, "AUTO")
-        screen.addstr(4, 0, "NNSPEED")
-        screen.addstr(5, 0, "NNSTEER")
-    screen.addstr(6, 0, name)
 
     # Main loop
     while True:
-
-        last_timestamp = timestamp
-        timestamp = int(time() * 1E6)
-        frame = camera.getFrame()
-        speed, steer = servo.speed, servo.steer
-        if autonomous:
-            #Important! All control calculations must be made in the inferer class.
-            #Otherwise the driving emulator will not properly predict road performance.
-            nn_speed, nn_steer, nn_thumb = inferer.evaluate(frame, timestamp, speed, steer)
-            #servo.move(nn_speed)
-            servo.turn(nn_steer)
-            screen.addstr(4, 8, "%6.3f" % nn_speed)
-            screen.addstr(5, 8, "%6.3f" % nn_steer)            
-        state_fp.write(",".join([str(x) for x in (timestamp, speed, steer)]))
-        state_fp.write("\n")
-        camera.record()
-            
-        # Handle heyboard
-        c = screen.getch()
-        if c < 0:                    pass
-        elif c == ord('q'):          break 
-        elif c == ord('a'):          autonomous = args.model
-        elif c == ord('s'):          autonomous = False ; servo.turn(0) ; servo.move(0)
-        elif c == curses.KEY_LEFT:   servo.turn_left(0.2)  # large left turn
-        elif c == curses.KEY_RIGHT:  servo.turn_right(0.2) # large right turn
-        elif c == curses.KEY_SLEFT:  servo.turn_left(0.05)  # small left turn
-        elif c == curses.KEY_SRIGHT: servo.turn_right(0.05) # small right turn
-        elif c == curses.KEY_UP:     servo.move_faster()    # moves faster
-        elif c == curses.KEY_DOWN:   servo.move_slower()    # slows down
-        elif c == ord('0'):          servo.move(0)          # stops the vehicle
-        elif c == ord('1'):          servo.move(0.16)       # slowest speed to move
-        elif c == ord('2'):          servo.move(0.17)       # moderate speed
-        elif c == ord('3'):          servo.move(0.20)       # fastest safe speed
-        elif c == ord('/'):          servo.turn(0)          # sets turn to zero
-
-        # Refresh the screen and wait before trying again
-        screen.addstr(0, 8, "%6.3f" % servo.speed)
-        screen.addstr(1, 8, "%6.3f" % servo.steer)
-        screen.addstr(2, 8, "%6.1f" % (1.0 / (timestamp - last_timestamp)))
-        if args.model:
-            screen.addstr(3, 8, "%6s" % autonomous)
-        screen.refresh()
-        if not autonomous:
-            sleep(1E-2)
+        sleep(0.02)
+        controller.process()
+        print("%.6f %s" % (time(), command))
+        servo.move(command.speed)
+        servo.turn(command.steer)
+    #     timestamp = int(time() * 1E6)
+    #     #frame = camera.getFrame()
+    #     speed, steer = servo.speed, servo.steer
+    #     if autonomous:
+    #         #Important! All control calculations must be made in the inferer class.
+    #         #Otherwise the driving emulator will not properly predict road performance.
+    #         nn_speed, nn_steer, nn_thumb = inferer.evaluate(frame, timestamp, speed, steer)
+    #         #servo.move(nn_speed)
+    #         servo.turn(nn_steer)
+    #     state_fp.write(",".join([str(x) for x in (timestamp, speed, steer)]))
+    #     state_fp.write("\n")
+    #     camera.record()            
         
-    # Prepare screen output
-    curses.nocbreak()
-    screen.keypad(0)
-    curses.echo()
-    curses.endwin()
-
-    # Cleanup sensors
-    if args.model:
-        del model
-    del servo
-    del camera
-    state_fp.close()
+    # # Cleanup sensors
+    # if args.model:
+    #     del model
+    # del servo
+    # del camera
+    # state_fp.close()
     
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True, help="Configuration to use")
-    parser.add_argument('--model', type=str, default="", help="Model to run")
+    #parser.add_argument('--config', type=str, required=True, help="Configuration to use")
+    #parser.add_argument('--model', type=str, default="", help="Model to run")
     args = parser.parse_args()
-
-    curses.wrapper(main, args)
+    main(args)
