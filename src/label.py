@@ -192,7 +192,7 @@ class Labeler(object):
         self.fw = self.frame.shape[1]
         self.bhh = 50 # bar half height
 
-        self.fwi = np.arange(self.fw) 	#frame width index
+        self.fwi = np.arange(self.fw)   #frame width index
         self.window_shape = list(self.frame.shape)
         self.window_shape[0] += self.bhh* 2 + 1
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
@@ -226,37 +226,10 @@ class Labeler(object):
         self.label_bar = np.ones((self.fw, 3), dtype=np.uint8) * self.gray50
         for i in range(self.n_frames):
             self.update_label(i, i, self.labels[i])
-            
         
-    def __init__(self, recording_path, scale):
-        self.recording_path = recording_path
-        self.scale = scale
-
-        # Variables useful for later
-        self.cap = None
-        self.red = np.array([0, 0, 255], dtype=np.uint8)
-        self.green = np.array([32, 192, 32], dtype=np.uint8)
-        self.blue = np.array([255, 128, 0], dtype=np.uint8)
-        self.yellow = np.array([0, 255, 255], dtype=np.uint8)
-        self.cyan = np.array([255, 255, 0], dtype=np.uint8)
-        self.magenta = np.array([255, 0, 255], dtype=np.uint8)
-        self.gray25 = np.array([64, 64, 64], dtype=np.uint8)
-        self.gray50 = np.array([128, 128, 128], dtype=np.uint8)
-        self.gray75 = np.array([192, 192, 192], dtype=np.uint8)
-        self.black = np.array([0, 0, 0], dtype=np.uint8)
-        self.white = np.array([255, 255, 255], dtype=np.uint8)
-        self.orange = np.array([255, 128, 0], dtype=np.uint8)
-        self.purple = np.array([255, 0, 128], dtype=np.uint8)
-        self.marker_color = { '' : self.gray50,
-                              'good': self.green,
-                              'risk': self.orange,
-                              'junk': self.red}
+    def run_labeler(self):
         
-        # Initialze
-        self.init_states()
-        self.init_camera()
-        self.init_labels()
-        self.init_window()
+        #Start the display window
         self.display()
         
         # Draw speed and steer
@@ -280,6 +253,40 @@ class Labeler(object):
             if not self.handle_input():
                 break
 
+        
+    def __init__(self, recording_path, scale = 1.0):
+        
+        self.scale = scale #Image Scale Factor
+        self.recording_path = recording_path
+
+        # Variables useful for later
+        self.cap = None
+        # Useful color variables:
+        self.red = np.array([0, 0, 255], dtype=np.uint8)
+        self.green = np.array([32, 192, 32], dtype=np.uint8)
+        self.blue = np.array([255, 128, 0], dtype=np.uint8)
+        self.yellow = np.array([0, 255, 255], dtype=np.uint8)
+        self.cyan = np.array([255, 255, 0], dtype=np.uint8)
+        self.magenta = np.array([255, 0, 255], dtype=np.uint8)
+        self.gray25 = np.array([64, 64, 64], dtype=np.uint8)
+        self.gray50 = np.array([128, 128, 128], dtype=np.uint8)
+        self.gray75 = np.array([192, 192, 192], dtype=np.uint8)
+        self.black = np.array([0, 0, 0], dtype=np.uint8)
+        self.white = np.array([255, 255, 255], dtype=np.uint8)
+        self.orange = np.array([255, 128, 0], dtype=np.uint8)
+        self.purple = np.array([255, 0, 128], dtype=np.uint8)
+        self.marker_color = { '' : self.gray50,
+                              'good': self.green,
+                              'risk': self.orange,
+                              'junk': self.red}
+
+        #Initialize all elements needed to label data.
+        self.init_states()
+        self.init_camera()
+        self.init_labels()
+        # Initialze the viewer window
+        self.init_window()
+
 
     def __del__(self):
         if self.cap:
@@ -290,4 +297,5 @@ class Labeler(object):
 if __name__ == "__main__":
     recording_path = sys.argv[1]
     scale = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
-    Labeler(recording_path, scale)
+    labeler = Labeler(recording_path = recording_path, scale = scale)
+    labeler.run_labeler()

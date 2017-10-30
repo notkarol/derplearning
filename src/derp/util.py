@@ -6,6 +6,7 @@ import pickle
 import PIL.Image
 import sys
 import yaml
+import re
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
@@ -81,7 +82,9 @@ def read_csv(path, floats=True):
             if not len(line):
                 continue
             state = []
-            timestamps.append(int(line[0]))
+            timestamps.append(int(re.sub('\D', '', line[0] ) ) )
+            #regex to remove any non-decimal characters from the timestamp so that 
+            #it can be read as an int
             for value in line[1:]:
                 value = float(value) if floats else value
                 state.append(value)
