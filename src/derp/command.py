@@ -12,9 +12,9 @@ class Command:
         self.auto_steer = False
         self.record = False
         self.alert = False
+        self.steer_offset = 0
 
     def __str__(self):
-        return ("Speed %.2f Steer %.2f AutoSpeed %s AutoSteer %s Record %s Alert %s" %
-                (self.speed, self.steer,
-                 self.auto_speed, self.auto_speed,
-                 self.record, self.alert))
+        return ("Speed %.2f Steer %.2f AutoSpeed %s AutoSteer %s Record %s Alert %s Offset %s" %
+                (self.speed, self.steer, self.auto_speed, self.auto_speed,
+                 self.record, self.alert, self.steer_offset))

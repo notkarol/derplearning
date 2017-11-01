@@ -36,9 +36,7 @@ def main(args):
 
     # Main loop
     while True:
-        sleep(0.02)
         controller.process()
-        print("%.6f %s" % (time(), command))
         servo.move(command.speed)
         servo.turn(command.steer)
     #     timestamp = int(time() * 1E6)

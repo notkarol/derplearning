@@ -131,11 +131,13 @@ class Controller:
             if event.code == self.ds4_circle:
                 self.command.record = False
 
-            # Fixed speed modifications using arrows
+            # Change wheel offset
             if event.code == self.ds4_arrow_horizontal:
-                self.command.speed += 0.01 * event.value
+                self.command.steer_offset += 0.01 * event.value
+
+            # Fixed speed modifications using arrows
             if event.code == self.ds4_arrow_vertical:
-                self.command.speed -= 0.1 * event.value
+                self.command.speed -= 0.02 * event.value
                 
             # Handle steer
             if event.code in [self.ds4_left_stick_horizontal, self.ds4_right_stick_horizontal]:

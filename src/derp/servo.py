@@ -15,7 +15,7 @@ class Servo:
                  max_speed=0.5,          # fastest to go
                  min_steer=-0.9,         # max steer to turn (left)
                  max_steer=0.9,          # max steer to turn (right)
-                 turn_offset=0.0         # how much to adjust 0 turn to drive straight
+                 steer_offset=0.0         # how much to adjust 0 turn to drive straight
     ):      
         """
         Interface through USB to the servo controller. At the moment the only
@@ -30,7 +30,7 @@ class Servo:
         self.max_steer = max_steer
         self.min_speed = min_speed
         self.max_speed = max_speed
-        self.turn_offset = turn_offset
+        self.steer_offset = steer_offset
 
         # Initialize usb device
         self.configuration = None
@@ -77,7 +77,7 @@ class Servo:
         self.speed = speed
         self.speed = min(self.max_speed, self.speed)
         self.speed = max(self.min_speed, self.speed)
-            
+      
         # Send request to servo
         return self.device.ctrl_transfer(0x40, 0x85, self.convert(self.speed), self.servo_speed_id)
 
@@ -93,7 +93,7 @@ class Servo:
             return None
 
         # Make sure we have an steer
-        self.steer = steer + self.turn_offset
+        self.steer = steer + self.steer_offset
         self.steer = min(self.max_steer, self.steer)
         self.steer = max(self.min_steer, self.steer)
         
