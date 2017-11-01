@@ -7,6 +7,7 @@ import derp.util
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from skimage.draw import line_aa
+#from derp.inferer import Inferer
 
 class Labeler(object):
 
@@ -78,19 +79,30 @@ class Labeler(object):
     def draw_bar_zeroline(self):
         self.window[self.fh + self.bhh + 1, self.fwi, :] = self.gray75
 
+    
+    def draw_graph(self, data_vector, color):
+        #interpolate the data vector to fill in gaps
+        d_interpld = interp1d(self.state_x, data_vector)
         
-    def draw_bar_speed_steer(self):
-        """
-        Draw the speed and steering lines on the bar below the video. 
-        Takes about 1ms to run through the for loops
-        """
-        self.window[self.speed_bar + self.fh + self.bhh + 1, self.fwi, :] = self.cyan
-        self.window[self.steer_bar + self.fh + self.bhh + 1, self.fwi, :] = self.magenta
-        for rr, cc in self.speed_jump_locs:
-            self.window[rr, cc, :] = self.cyan
-        for rr, cc in self.steer_jump_locs:
-            self.window[rr, cc, :] = self.magenta            
+        #convert data vector to a data array the size of the window's x dimension
+        data_bar = np.array([-d_interpld(x) * self.bhh + 0.5 for x in self.window_x],
+                                  dtype=np.int)
 
+        # All locations where we need to draw lines
+        data_jump_locs = []
+
+        for loc in np.where(abs(data_bar[:-1] - data_bar[1:]) >= 2)[0]:
+            rr, cc, val= line_aa(data_bar[loc] + self.fh + self.bhh + 1, loc, 
+                                 data_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
+            data_jump_locs.append( (rr, cc) )
+
+        """ Draw the speed and steering lines on the bar below the video. 
+        Takes about 1ms to run through the for loops"""
+        self.window[data_bar + self.fh + self.bhh + 1, self.fwi, :] = color
+        for rr, cc in data_jump_locs:
+            self.window[rr, cc, :] = color
+        
+    
     #This function updates the viewer calling all appropriate functions
     def display(self):
         
@@ -101,8 +113,9 @@ class Labeler(object):
         self.draw_bar_timemarker()
         self.draw_bar_zeroline()
         self.draw_bar_status()
-        self.draw_bar_speed_steer()
-        
+        self.draw_graph(data_vector=self.speeds, color=self.cyan)
+        self.draw_graph(data_vector=self.steers, color=self.magenta)
+
         # Display the newly generated window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
 
@@ -197,47 +210,22 @@ class Labeler(object):
         self.window_shape[0] += self.bhh* 2 + 1
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
 
+        #state_x is a vector containing the indicies of the x coordinate of the state graph
         self.state_x = np.linspace(0, 1, len(self.timestamps) )
         self.window_x = np.linspace(0, 1, self.fw)
-        #interpolation connects the dots between the recorded control state data for better graphs
-        speed_f = interp1d(self.state_x, self.speeds)
-        steer_f = interp1d(self.state_x, self.steers) 
-        self.speed_bar = np.array([-speed_f(x) * self.bhh + 0.5 for x in self.window_x],
-                                  dtype=np.int)
-        self.steer_bar = np.array([-steer_f(x) * self.bhh + 0.5 for x in self.window_x],
-                                  dtype=np.int)
-
-        # All locations where we need to draw lines
-        self.steer_jump_locs = []
-        self.speed_jump_locs = []
-
-        for loc in np.where(abs(self.speed_bar[:-1] - self.speed_bar[1:]) >= 2)[0]:
-            rr, cc, val= line_aa(self.speed_bar[loc] + self.fh + self.bhh + 1,loc, 
-                                 self.speed_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
-            self.speed_jump_locs.append( (rr, cc) )
-        for loc in np.where(abs(self.steer_bar[:-1] - self.steer_bar[1:]) >= 2)[0]:
-            rr, cc, val = line_aa(self.steer_bar[loc] + self.fh + self.bhh + 1,loc, 
-                                  self.steer_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
-            self.steer_jump_locs.append((rr, cc))
 
         self.paused = True
         self.show = False
         self.marker = ''
         self.label_bar = np.ones((self.fw, 3), dtype=np.uint8) * self.gray50
         for i in range(self.n_frames):
-            self.update_label(i, i, self.labels[i])
+            self.update_label(i, i, self.labels[i])    
         
-    def run_labeler(self):
+
+    def run_labeler(self, model=None):
         
         #Start the display window
         self.display()
-        
-        # Draw speed and steer
-        for i in range(self.frame.shape[1]):
-            speed = self.speed_bar[i] + self.frame.shape[0] + self.bhh + 1
-            steer = self.steer_bar[i] + self.frame.shape[0] + self.bhh + 1
-            self.window[speed, i, 0] = 255
-            self.window[steer, i, 1] = 255
         
         # Loop through video
         while self.cap.isOpened():
@@ -293,7 +281,7 @@ class Labeler(object):
             self.cap.release()
         cv2.destroyAllWindows()
 
-    
+
 if __name__ == "__main__":
     recording_path = sys.argv[1]
     scale = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
