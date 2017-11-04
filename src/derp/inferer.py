@@ -39,6 +39,9 @@ class Inferer:
         self.model.eval()
         self.model.mode = 'clone'
 
+        self.nn_speed = 0
+        self.nn_steer = 0
+
     def evaluate(self, frame, timestamp, speed, steer):
         """ 
         Cut out the patch and run the model on it
@@ -67,7 +70,13 @@ class Inferer:
             #center_vector = road_spots[1, :, 1] - road_spots[1, :, 0]
             #nn_steer = nn_steer + 2 * nn_speed * center_vector[0] / center_vector[1]
         elif self.model.mode == 'clone':
-            nn_speed = predictions[self.model_config['states'].index('speed')]
-            nn_steer = predictions[self.model_config['states'].index('steer')]
-        return (nn_speed, nn_steer, batch[0])
+            nn_speed_out = predictions[0 ] #self.model_config['states'].index('speed')] #config's broken
+            nn_steer_out = predictions[1 ] #self.model_config['states'].index('steer')] #config's broken
+
+            #self.nn_speed = self.nn_speed *.5 + nn_speed_out * .5
+            #self.nn_steer = self.nn_steer *.5 + nn_steer_out * .5
+
+            self.nn_speed = nn_speed_out
+            self.nn_steer = nn_steer_out
+        return (self.nn_speed, self.nn_steer, batch[0])
                 

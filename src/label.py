@@ -61,7 +61,7 @@ class Labeler(object):
             return False
 
         # Resize frame as needed
-        self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
+        self.frame = cv2.resize(frame, None, fx=self.scale[0], fy=self.scale[1],
                                 interpolation=cv2.INTER_AREA)
         self.frame_id += 1
         return True
@@ -117,11 +117,11 @@ class Labeler(object):
         self.draw_bar_zeroline()
         self.draw_bar_status()
         self.draw_graph(data_vector=self.speeds, color=self.cyan)
-        self.draw_graph(data_vector=self.steers, color=self.magenta)
+        self.draw_graph(data_vector=self.steers, color=self.green)
 
         if self.model:
-            self.draw_graph(data_vector=self.m_speeds, color=self.green)
-            self.draw_graph(data_vector=self.m_steers, color=self.orange)
+            self.draw_graph(data_vector=self.m_speeds, color=self.blue)
+            self.draw_graph(data_vector=self.m_steers, color=self.red)
 
         # Display the newly generated window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
@@ -210,7 +210,7 @@ class Labeler(object):
     def init_window(self):
         self.fh = self.frame.shape[0]
         self.fw = self.frame.shape[1]
-        self.bhh = 50 # bar half height
+        self.bhh = 150 # bar half height
 
         self.fwi = np.arange(self.fw)   #frame width index
         self.window_shape = list(self.frame.shape)
@@ -245,18 +245,23 @@ class Labeler(object):
         #Move the capture function to the start of the video
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, -1)
 
-        for i in range(self.n_frames):
+        for i in range(self.n_frames ):
             ret, frame = self.cap.read()
-            
+
             if not ret or frame is None:
                 print("read failed frame", frame_id)
 
-            (self.m_speeds[i], 
-             self.m_steers[i],
-             batch) = bot.evaluate(frame, 
+            if i%1==0:
+                (self.m_speeds[i], 
+                 self.m_steers[i],
+                 batch) = bot.evaluate(frame, 
                                     self.timestamps[i], 
                                     config, 
                                     model_path)
+
+            else:
+                self.m_speeds[i] = self.m_speeds[i-1]
+                self.m_steers[i] = self.m_steers[i-1]
 
         #Restore the camera position to wherever it was before predict was called
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
@@ -288,7 +293,7 @@ class Labeler(object):
                 break
 
         
-    def __init__(self, recording_path, scale = 1.0):
+    def __init__(self, recording_path, scale = (1.0, 1.0) ):
         
         self.scale = scale #Image Scale Factor
         self.recording_path = recording_path
@@ -334,7 +339,7 @@ if __name__ == "__main__":
     parser.add_argument('--path', type=str, 
                         default='../derp_data/auto/20171021T195353Z-paras-clone',
                         help="recording path location")
-    parser.add_argument('--scale', type=float, default=1.0, help="frame rescale ratio")
+    parser.add_argument('--scale', type=float, default=[2, 1.0], help="frame rescale ratio")
     parser.add_argument('--config', type=str,
                         default='config/clone_C.yaml',
                         required=True, help="physical configuration")
