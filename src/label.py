@@ -3,11 +3,14 @@ import cv2
 import os
 import sys
 import time
+import yaml
+import argparse
 import derp.util
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from skimage.draw import line_aa
-#from derp.inferer import Inferer
+from derp.inferer import Inferer
+import derp.util as util
 
 class Labeler(object):
 
@@ -116,6 +119,10 @@ class Labeler(object):
         self.draw_graph(data_vector=self.speeds, color=self.cyan)
         self.draw_graph(data_vector=self.steers, color=self.magenta)
 
+        if self.model:
+            self.draw_graph(data_vector=self.m_speeds, color=self.green)
+            self.draw_graph(data_vector=self.m_steers, color=self.orange)
+
         # Display the newly generated window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
 
@@ -222,8 +229,47 @@ class Labeler(object):
             self.update_label(i, i, self.labels[i])    
         
 
-    def run_labeler(self, model=None):
+    #Create arrays of predicted speed and steering using the designated model
+    def predict(self, config, model_path):
+        #Initialize the model output data vectors:
+        self.m_speeds = np.zeros(self.n_frames, dtype=float)
+        self.m_steers = np.zeros(self.n_frames, dtype=float)
+
+        #opens the video config file
+        video_config = util.load_config('%s/%s' % (self.recording_path, 'config.yaml') )
+        bot = Inferer(  video_config = video_config, 
+                        model_config = config,
+                        folder = self.recording_path,
+                        model_path = model_path)
+
+        #Move the capture function to the start of the video
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, -1)
+
+        for i in range(self.n_frames):
+            ret, frame = self.cap.read()
+            
+            if not ret or frame is None:
+                print("read failed frame", frame_id)
+
+            (self.m_speeds[i], 
+             self.m_steers[i],
+             batch) = bot.evaluate(frame, 
+                                    self.timestamps[i], 
+                                    config, 
+                                    model_path)
+
+        #Restore the camera position to wherever it was before predict was called
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
+
+
+    def run_labeler(self, config=None, model_path=None):
         
+        #create driving predictions:
+        if model_path:
+            self.model = model_path
+            l_config = util.load_config(path=config)
+            self.predict(l_config, model_path)
+
         #Start the display window
         self.display()
         
@@ -283,7 +329,19 @@ class Labeler(object):
 
 
 if __name__ == "__main__":
-    recording_path = sys.argv[1]
-    scale = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
-    labeler = Labeler(recording_path = recording_path, scale = scale)
-    labeler.run_labeler()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--path', type=str, 
+                        default='../derp_data/auto/20171021T195353Z-paras-clone',
+                        help="recording path location")
+    parser.add_argument('--scale', type=float, default=1.0, help="frame rescale ratio")
+    parser.add_argument('--config', type=str,
+                        default='config/clone_C.yaml',
+                        required=True, help="physical configuration")
+    parser.add_argument('--infer', type=str, 
+                        default='../DRP_MODEL/derp_scratch/clone_C/ResidualScaledModel_113_0.001107.pt', 
+                        help="infer configuration")
+    args = parser.parse_args()
+
+    labeler = Labeler(recording_path = args.path, scale = args.scale)
+    labeler.run_labeler(args.config, args.infer)

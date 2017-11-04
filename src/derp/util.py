@@ -52,7 +52,7 @@ def getPatchBbox(source_config, target_config):
     """
     
     patch = target_config['patch']
-    frame = source_config['frame']
+    frame = source_config['record']
     
     hfov_ratio = patch['hfov'] / frame['hfov']
     vfov_ratio = patch['vfov'] / frame['vfov']
