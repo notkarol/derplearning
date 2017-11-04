@@ -24,14 +24,13 @@ def clone_eval():
 
 class Inferer:
     
-    def __init__(self, config, folder, mode, model_path):
+    def __init__(self, config, folder, model_path):
         """
         Open the model
         """
         self.config = config
         self.folder = folder
         self.model_path = model_path
-        self.mode = mode
 
         self.bbox = util.getPatchBbox(self.config, self.config, perspective=mode)
         self.size = util.getPatchSize(self.config)
