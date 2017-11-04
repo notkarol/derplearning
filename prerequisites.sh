@@ -6,6 +6,7 @@ sudo apt upgrade -y
 sudo apt install \
      libusb-1.0-0-dev \
      python3-h5py
+sudo apt install python-evdev
 
 # Install Python Packages
 pip3 install --user -U pyusb
