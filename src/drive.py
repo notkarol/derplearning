@@ -16,18 +16,28 @@ def main(args):
     state = derp.state.State(config)
 
     # Prepare the hardware components
-    components = derp.component.Components(config)
+    components = util.loadComponents(config)
 
     # Prepare the inference pipeline
     infer = derp.infer.Infer(config, args.infer)
     
     # Event loop
     while True:
-        components.sense(state)
-        infer.plan(state)
-        components.act(state)
-        recorder.record(state)
+        # Update each component
+        for component in components:
+            component.sense(state)
 
+        # Plan action
+        infer.plan(state)
+
+        # Act upon those actions
+        for component in components:
+            component.act(state)
+
+        # Store record
+        infer.write(state)
+        for component in components:
+            component.write(state)
 
 if __name__ == "__main__":
 

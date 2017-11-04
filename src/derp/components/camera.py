@@ -68,8 +68,8 @@ class Camera(Component):
         # Prepare timestamp writer
         if self.timestamp_fp is not None:
             self.timestamp_fp.close()
-        self.timestamp_path = os.path.join(folder, "%s.csv" % self.name)
-        self.timestamp_fp = open(self.timestamp_path, 'w')
+        self.out_csv_path = os.path.join(folder, "%s.csv" % self.name)
+        self.out_csv_fp = open(self.timestamp_path, 'w')
 
         return True
     
@@ -82,27 +82,34 @@ class Camera(Component):
         
         # Read the next video frame
         ret = self.cap.grab()
-        timestamp = time()
+        timestamp = int(time() * 1E6)
         frame = self.cap.retrieve()
 
         # If we can't get a frame then return a blank one
         if not ret:
-            frame = np.zeros((self.config['frame']['height'], self.config['frame']['width'],
+           frame = np.zeros((self.config['frame']['height'], self.config['frame']['width'],
                               self.config['frame']['depth']), np.uint8)
 
         # Updat the state and return whet
         state[self.name] = (timestamp, frame)
+
+        # Update buffer
+        self.out_buffer.append((timestamp, frame))
+        
         return ret
 
 
-    def write(self, state):
+    def write(self):
 
-        # Make sure we have a video open
-        if self.video is None:
+        if self.video is None or self.out_csv_fp is None:
             return False
-        
-        timestamp, frame = state.get(self.name)
-        self.video.write(frame)
-        self.timestamp_fp.write(str(timestamp) + "\n")
+
+        for row in self.out_buffer:
+            timestamp, frame = row
+            self.out_csv_fp.write(str(timestamp) + "\n")
+            self.video.write(frame)
+        self.out_csv_fp.flush()
+        self.out_buffer = []
+            
         return True
 
