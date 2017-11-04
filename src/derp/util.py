@@ -7,6 +7,7 @@ import PIL.Image
 import sys
 import yaml
 import re
+import evdev
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
@@ -194,3 +195,11 @@ def plot_batch(example, label, name):
         
     plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
     print("Saved batch [%s]" % name)
+
+def find_device(name):
+    out = []
+    for filename in evdev.list_devices():
+        device = evdev.InputDevice(filename)
+        if device.name == name:
+            return device
+    return None
