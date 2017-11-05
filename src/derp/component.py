@@ -2,23 +2,24 @@ import sys
 
 class Component:
 
-    def __init__(self, config, name, index=None):
+    def __init__(self, config, name):
         self.config = config
         self.name = name
-        self.index = index
         self.connected = False
         self.out_buffer = []
+        self.out_csv_fp = None
+        self.folder = None
 
     def __del__(self):
         print("UNINITIALIZED __del__ %s" % self.__class__.__name__, file=sys.stderr)
 
         
     def __repr__(self):
-        return "(%s, %s, %s)" % (self.name, self.index, self.connected)
+        return "(%s, %s)" % (self.name, self.connected)
 
     
     def __str__(self):
-        return "(%s, %s)" % (self.name, self.connected)
+        return repr(self)
 
     
     # Responsible for updating settings or acting upon the world
@@ -33,7 +34,7 @@ class Component:
         return False
 
     
-    def folder(self, folder):
+    def scribe(self, folder):
         """ Update the recorders to use the specified folder """
         print("UNINITIALIZED record %s" % self.__class__.__name__, file=sys.stderr)
         return False

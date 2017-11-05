@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
 import evdev
+import numpy as np
+import os
 from time import time
 from derp.component import Component
 import derp.util as util
 
-class Dualshock4(derp.component.Component):
+class Dualshock4(Component):
 
-    def __init__(self, config, name, index=None):
-        super(Dualshock4).__init__()
-        self.command = command
-        
+    def __init__(self, config, name):
+        super(Dualshock4, self).__init__(config, name)
         self.device = None
-
+        self.out_csv_fp = None
+        
         # Prepare key code
         self.left_stick_horizontal = 0
         self.left_stick_vertical = 1
@@ -37,53 +38,28 @@ class Dualshock4(derp.component.Component):
         self.menu = 316
         self.touchpad = 317
 
-        # Set an analog stick deadzone
-        if 'deadzone' in self.config[name]:
-            self.deadzone = self.config[name]['deadzone']
-        else:
-            self.deadzone = 8
+        self.deadzone = self.config['deadzone']
+        
+        
+        # store when something was last active for deadman switches
+        self.active = {}
+        self.active[self.left_stick_horizontal] = None
+        self.active[self.left_stick_vertical] = None
+        self.active[self.left_trigger] = None
+        self.active[self.right_stick_horizontal] = None
+        self.active[self.right_stick_vertical] = None
+        self.active[self.right_trigger] = None
 
-        # Set the speed multipler
-        if 'speed_mult' in self.config[name]:
-            self.speed_mult = self.config[name]['speed_mult']
-        else:
-            self.speed_mult = 0.375
-
-        # Set the speed multipler
-        if 'speed_pow' in self.config[name]:
-            self.speed_pow = self.config[name]['speed_pow']
-        else:
-            self.speed_pow = 1
-
-        # Set the steer multipler
-        if 'steer_mult' in self.config[name]:
-            self.steer_mult = self.config[name]['steer_mult']
-        else:
-            self.steer_mult = 0.375
-
-        # Set the steer multipler
-        if 'steer_pow' in self.config[name]:
-            self.steer_pow = self.config[name]['steer_pow']
-        else:
-            self.steer_pow = 1
-
-        self.out_buffer = []
-        self.settings = {}
-        self.settings[self.left_stick_horizontal] = False
-        self.settings[self.left_stick_vertical] = False
-        self.settings[self.left_trigger] = 0
-        self.settings[self.right_stick_horizontal] = False
-        self.settings[self.right_stick_vertical] = False
-        self.settings[self.right_trigger] = 0
-
+        
     def __del__(self):
         if self.device is not None:
             self.device.close()
             self.device = None
-        if self.out_csv is not None:
-            self.out.csv.close()
-            self.out_csv = None
-        
+        if self.out_csv_fp is not None:
+            self.out_csv_fp.close()
+            self.out_csv_fp = None
+
+            
     def in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
         return 128 - self.deadzone < value <= 128 + self.deadzone
@@ -97,115 +73,182 @@ class Dualshock4(derp.component.Component):
         """
         Find and initialize the available devices
         """
-        self.device = util.find_device()
+        self.device = util.find_device('Wireless Controller')
         return self.device is not None
 
     
-    def folder(self, folder):
-        if self.out_csv is not None:
-            self.out.csv.close()
-        self.out_csv_path = os.path.join(folder, "%s.csv" % self.name)
-        self.out_csv = open(self.name, 'w')
-            
+    def scribe(self, state):
+        if not state['folder'] or state['folder'] == self.folder:
+            return False
+        self.folder = state['folder']
+
+        #  Open csv writer
+        if self.out_csv_fp is not None:
+            self.out_csv_fp.close()
+        self.out_csv_path = os.path.join(self.folder, "%s.csv" % self.name)
+        self.out_csv_fp = open(self.out_csv_path, 'w')
+        
+        return True
 
     def __normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
-
     
+
+    def __process(self, state, event):
+        speed = None
+        steer = None
+        record = None
+        auto_speed = None
+        auto_steer = None
+        steer_offset = None
+        exit = None
+
+        # skip vertical analog stick movement
+        if event.code == self.left_stick_vertical or event.code == self.right_stick_vertical:
+            return False
+
+        # Handle steer
+        elif event.code == self.left_stick_horizontal or event.code == self.right_stick_horizontal:
+
+            # Skip if junk
+            if event.value == 0:
+                return False
+
+            # If it's in the deadzone and it wasn't last time then clear steer
+            if self.in_deadzone(event.value):
+                if self.active[event.code]:
+                    steer = 0
+                    self.active[event.code] = 0
+                else:
+                    return False
+            # Otherwise handle this event
+            else:
+                self.active[event.code] = True
+
+                # Otherwise use proportional control
+                steer = self.__normalize_stick(event.value, self.deadzone)
+                if event.code == self.right_stick_horizontal: 
+                    sign = np.sign(steer)
+                    steer = abs(steer)
+                    steer *= self.config['steer_normalizer'][1]
+                    steer **= self.config['steer_normalizer'][2]
+                    steer += self.config['steer_normalizer'][0]
+                    steer = max(0, min(1, steer))
+                    steer *= sign
+                    steer = float(steer)
+
+        # Handle speed 
+        elif event.code == self.left_trigger or event.code == self.right_trigger:
+            if event.type == 4:
+                return False
+            self.active[event.code] = time()
+
+            # Normalize speed
+            speed = event.value / 256
+
+            # Further refine curve of speed resistance
+            z, x, y = self.config['speed_elbow']
+            if speed > 0:
+                if speed < x:
+                    speed = z + speed * (y - z) / x
+                else:
+                    speed = (y + (speed - x) * (1 - y) / (1 - x))
+                if event.code == self.right_trigger:
+                    speed *= -1
+
+        # Handle speed timeouts
+        elif ((event.code == self.l1 and event.value == 0) or
+            (self.active[self.left_trigger] and
+             self.active[self.left_trigger] - time() > 0.1)): # timeout
+            self.active[self.left_trigger] = 0
+            speed = 0
+        elif ((event.code == self.l2 and event.value == 0) or
+            (self.active[self.right_trigger] and
+             self.active[self.right_trigger] - time() > 0.1)): # timeout
+            self.active[self.right_trigger] = 0
+            speed = 0
+                        
+        # Stop car in every way
+        elif event.code == self.triangle:
+            speed = 0
+            steer = 0
+            record = False
+            auto_speed = False
+            auto_steer = False
+
+        # Start autonomous driving in some way
+        elif event.code == self.share:
+            if not state['record']:
+                record = util.get_record_name()
+            auto_speed = True
+        elif event.code == self.options:
+            if not state['record']:
+                record = util.get_record_name()
+            auto_steer = True
+        elif event.code == self.menu:
+            if not state['record']:
+                record = util.get_record_name()
+            auto_speed = True
+            auto_steer = True
+
+        # Disable Autonomous
+        elif event.code == self.cross:
+            auto_speed = False
+            auto_steer = False
+
+        # Enable/Disable Recording
+        elif event.code == self.square:
+            record = False
+        elif event.code == self.circle:
+            if not state['record']:
+                record = util.get_record_name()
+
+        # Change wheel offset
+        elif event.code == self.arrow_horizontal:
+            steer_offset = state['steer_offset'] + event.value / 128
+
+        # Fixed speed modifications using arrows
+        elif event.code == self.arrow_vertical:
+            speed = state['speed'] - 0.015625 * event.value
+
+        # TODO create an event
+        elif event.code == self.touchpad:
+            speed = 0
+            steer = 0
+            exit = True
+            
+        # Handle responses
+        if speed is not None:
+            state['speed'] = speed
+        if steer is not None:
+            state['steer'] = steer
+        if record is not None:
+            state['record'] = record
+        if auto_speed is not None:
+            state['auto_speed'] = auto_speed
+        if auto_steer is not None:
+            state['auto_steer'] = auto_steer
+        if steer_offset is not None:
+            state['steer_offset'] = steer_offset
+        if exit is not None:
+            state['exit'] = exit
+
+        # Store this event
+        if state['record']:
+            self.out_buffer.append((int(time() * 1E6), int(event.timestamp() * 1E6),
+                                    event.type, event.code, event.value,
+                                    speed, steer, record, auto_speed, auto_steer, steer_offset))
+        return True
+
+
     def sense(self, state):
+        out = {}
         try:
             for event in self.device.read():
-
-                # Stop car in every way
-                if event.code == self.triangle:
-                    continue
-
-                # Sound the alarm!
-                if event.code == self.touchpad:
-                    state.alert != state.alert
-
-                # Enable autonomous driving
-                if event.code == self.options:
-                    state.record = True
-                    state.auto_steer = True
-                if event.code == self.share:
-                    state.record = True
-                    state.auto_speed = True
-                if event.code == self.menu:
-                    state.record = True
-                    state.auto_steer = True
-                    state.auto_speed = True
-
-                # Disable Autonomous
-                if event.code == self.cross:
-                    state.auto_steer = False
-                    state.auto_speed = False
-
-                # Enable/Disable Recording
-                if event.code == self.square:
-                    state.record = True
-                if event.code == self.circle:
-                    state.record = False
-
-                # Change wheel offset
-                if event.code == self.arrow_horizontal:
-                    state.steer_offset += 0.01 * event.value
-
-                # Fixed speed modifications using arrows
-                if event.code == self.arrow_vertical:
-                    state.speed -= 0.02 * event.value
-
-                # Handle steer
-                if event.code in [self.left_stick_horizontal, self.right_stick_horizontal]:
-
-                    # Skip if junk
-                    if event.value == 0:
-                        continue
-
-                    # If it's in the deadzone and it wasn't last time then clear steer
-                    if self.in_deadzone(event.value):
-                        if self.settings[filename][event.code]:
-                            state.steer = 0
-                            self.settings[filename][event.code] = False
-                        continue
-                    self.settings[filename][event.code] = True
-
-                    # Otherwise use proportional control
-                    state.steer = self.__normalize_stick(event.value, self.stick_deadzone)
-                    state.steer = (np.sign(state.steer)
-                                   * abs(state.steer * self.steer_multiplier)
-                                   ** self.steer_power)
-
-                # Handle speed
-                if ((event.code == self.l2 and event.value == 0) or
-                    (self.settings[filename][self.left_trigger] and
-                     self.settings[filename][self.left_trigger] - time() > 0.1)):
-                    self.settings[filename][self.left_trigger] = 0
-                    state.speed = 0
-                if ((event.code == self.l2 and event.value == 0) or
-                    (self.settings[filename][self.right_trigger] and
-                     self.settings[filename][self.right_trigger] - time() > 0.1)):
-                    self.settings[filename][self.right_trigger] = 0
-                    state.speed = 0                
-                if event.code in [self.left_trigger, self.right_trigger]:
-                    if self.in_trigger_deadzone(event.value):
-                        continue
-                    if event.type == 4:
-                        continue
-                    self.settings[filename][event.code] = time()
-                    state.speed = event.value / 256
-                    state.speed = (np.sign(state.speed)
-                                   * abs(state.speed * self.speed_multiplier)
-                                   ** self.speed_power)
-                    if event.code == self.right_trigger:
-                        state.speed *= -1
-                self.out_buffer.append((int(event.timestamp() * 1E6),
-                                        event.type,
-                                        event.code,
-                                        event.value))
+                self.__process(state, event)
         except BlockingIOError:
             pass
         return True
@@ -217,7 +260,7 @@ class Dualshock4(derp.component.Component):
             return False
 
         for row in self.out_buffer:
-            self.out_csv_fp.write(",".join(row) + "\n")
+            self.out_csv_fp.write(",".join([str(x) for x in row]) + "\n")
         self.out_csv_fp.flush()
         self.out_buffer = []
         

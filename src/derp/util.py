@@ -8,6 +8,10 @@ import sys
 import yaml
 import re
 import evdev
+import socket
+from datetime import datetime
+from time import time
+from importlib import import_module
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
@@ -22,9 +26,16 @@ class Bbox:
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
+
 def get_name(path):
     return os.path.splitext(os.path.basename(path.rstrip('/')))[0]
-    
+
+
+def get_record_name():
+     dt = datetime.utcfromtimestamp(time()).strftime("%Y%m%d-%H%M%S")
+     hn = socket.gethostname()
+     return "%s-%s" % (dt, hn)
+
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
     
@@ -34,10 +45,12 @@ def load_image(path):
         with PIL.Image.open(f) as img:
             return img.convert('RGB')                    
 
+
 def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+        
 def load_config(path):
     config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
     with open(config_path) as f:
@@ -45,6 +58,31 @@ def load_config(path):
     if 'name' not in config:
         config['name'] = get_name(config_path)
     return config
+
+
+def load_components(config, state):
+    out = []
+
+    # Initialize components
+    for name in config:
+        if name == 'name':
+            continue
+        path = "derp.components." + config[name]['class'].lower()
+        m = import_module(path)
+        c = getattr(m, config[name]['class'])
+        obj = c(config[name], name)
+
+        for key in config[name]['state']:
+            state[key] = config[name]['state'][key]
+        
+        # Discover
+        discover = obj.discover()
+        print("Connecting to %s [%s]" % (name, discover))
+        if discover:
+            out.append(obj)
+
+    return out
+    
 
 def getPatchBbox(source_config, target_config):
     """
