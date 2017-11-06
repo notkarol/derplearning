@@ -38,16 +38,21 @@ class State(Mapping):
             return 'uninitialized'
         out = str(self.state['timestamp'])
         for key in sorted(self.state):
-            if key == 'timestamp':
+            if key == 'timestamp' or key == 'folder':
                 continue
             val = self.state[key]
             out += ','
-            if type(val) in [str, int, float]:
+            if type(val) is int:
                 out += str(val)
+            elif type(val) is float:
+                s = str(val)
+                if len(s) > 9:
+                    s = "%.6f" % val
+                out += s
             elif type(val) is bool:
                 out += str(int(val))
-            elif type(val) is np.ndarray:
-                out += '"' + str(val.shape) + '"'
+            else:
+                out += 'nan'
         return out
         
 
