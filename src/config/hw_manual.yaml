@@ -1,4 +1,5 @@
 camera_front:
+  required: True
   class: Camera
   index: 1
   hfov: 100
@@ -14,42 +15,42 @@ camera_front:
   yaw: 0
   roll: 0
   state:
-    folder: null
     camera_front: null
-    timestamp: 0
+    timestamp: null
 
 servo_speed:
+  required: True
   class: UsbServo
   index: 1
   act_state: speed
   min_value: -0.95
   max_value: 0.95
   state:
-    folder: null
-    speed: 0
+    speed: 0.0
   
 servo_steer:
+  required: True
   class: UsbServo
   index: 0
   act_state: steer
   min_value: -0.95
   max_value: 0.95
   state:
-    folder: null
-    steer: 0
+    steer: 0.0
+    steer_offset: 0.0
 
 controller_dualshock4:
+  required: False
   class: Dualshock4
   deadzone: 8
   speed_elbow: [0.12, 0.75, 0.3]
   steer_normalizer: [0.0, 1, 2]
   deadman: True
   state:
-    folder: null
-    auto_steer: False
-    auto_speed: False
-    record: False
-    speed: 0
-    steer: 0
-    steer_offset: 0
+    speed: null
+    steer: null
+    steer_offset: null
+    auto_speed: null
+    auto_steer: null
+    record: null
     

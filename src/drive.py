@@ -7,10 +7,14 @@ import derp.util
 
 def main(args):
 
-    config = derp.util.load_config(args.config)
+    # Load configs
+    hw_config = derp.util.load_config(args.hw)
+    sw_config = derp.util.load_config(args.sw)
+
+    # Prepare variables
     state = State()
-    components = derp.util.load_components(config, state)
-    #infer = Inferer(config, args.infer, args.model)
+    components = derp.util.load_components(hw_config, state)
+    infer = Inferer(hw_config, sw_config, args.path, state)
     
     # Event loop
     while True:
@@ -18,7 +22,7 @@ def main(args):
         # Sense Plan Act loop
         for component in components:
             component.sense(state)
-        # infer.plan(state)
+        infer.plan(state)
         for component in components:
             component.act(state)
 
@@ -42,9 +46,9 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True, help="physical configuration")
-    parser.add_argument('--infer', type=str, default=None, help="infer configuration")
-    parser.add_argument('--model', type=str, default=None, help="model to load")
+    parser.add_argument('--hw', type=str, required=True, help="physical configuration path")
+    parser.add_argument('--sw', type=str, default=None, help="infer configuration path")
+    parser.add_argument('--path', type=str, default=None, help="folder where models are stored")
     parser.add_argument('--verbose', action='store_true', default=False)
     args = parser.parse_args()
     

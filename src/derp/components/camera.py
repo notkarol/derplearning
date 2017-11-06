@@ -47,13 +47,15 @@ class Camera(Component):
             self.index = devices[-1]
         else:
             self.index = self.config['index']
-        
+
         # Connect to camera
-        self.cap = cv2.VideoCapture(self.index)
+        self.cap = cv2.VideoCapture(self.index)        
         self.cap.set(cv2.CAP_PROP_FPS, self.config['fps'])
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
-        self.connected = True
+
+        # Return whether we have succeeded
+        self.connected = self.cap.open(self.index)
         return self.connected
         
         

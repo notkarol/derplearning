@@ -1,0 +1,50 @@
+script: 'Clone'
+debug: False
+
+clone:
+
+  # Selection 
+  data_folders: ['train']
+  train_chance: 0.9
+
+  # How long to predict into the future
+  delay: 0.33
+  
+  # How to vary input before they're put into dataset
+  perturbations:
+    count: 0
+    shift:
+      min: -0.5
+      max:  0.5
+    rotate:
+      min: -5
+      max:  5
+    pitch:
+      min: -5
+      max:  5
+
+  # How to vary input after it's loaded
+  transforms:
+     colorjitter:
+       brightness: 0.5
+       contrast: 0.5
+       saturation: 0.5
+       hue: 0.1
+
+  # Input
+  patch:
+    component: 'camera_center'
+    hfov: 75
+    vfov: 37.5
+    height: 64
+    width: 128
+    depth: 3
+    x: 0
+    y: 0.38
+    z: -0.33
+    pitch: 0
+    yaw: 0
+    roll: 0
+
+  # Output
+  predict: ['speed', 'steer']

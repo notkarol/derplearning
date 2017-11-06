@@ -52,6 +52,11 @@ def mkdir(path):
 
         
 def load_config(path):
+
+    # Don't load blank paths
+    if path is None:
+        return None
+    
     config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
     with open(config_path) as f:
         config = yaml.load(f)
@@ -60,31 +65,53 @@ def load_config(path):
     return config
 
 
+def load_module(path):
+    return import_module(path)
+
+
+def load_class(path, name):
+    m = load_module(path)
+    c = getattr(m, name)
+    return c
+    
+
 def load_components(config, state):
     out = []
 
     # Initialize components
-    for name in config:
+    for name in sorted(config):
         if name == 'name':
             continue
-        path = "derp.components." + config[name]['class'].lower()
-        m = import_module(path)
-        c = getattr(m, config[name]['class'])
+        c = load_class("derp.components." + config[name]['class'].lower(), config[name]['class'])
         obj = c(config[name], name)
 
+        # Preset all state keys
         for key in config[name]['state']:
-            state[key] = config[name]['state'][key]
+            val = config[name]['state'][key]
+
+            # Don't set the key if it's already set and the proposed value is None
+            # This allows us to have components request fields, but have a master
+            # initializer. Useful for servo or car-specific steer_offset
+            if key in state and val is None:
+                continue
+            
+            state[key] = val
         
         # Discover
         discover = obj.discover()
-        print("Connecting to %s [%s]" % (name, discover))
-        if discover:
-            out.append(obj)
+        print("Connecting to %s %s [%s]" % ('required' if config[name]['required'] else 'optional',
+                                            name, discover))
 
+        # Exit if we're missing a component
+        if not discover and config[name]['required']:
+            sys.exit(1)
+
+        # Otherwise append this component to the output list
+        out.append(obj)
     return out
     
 
-def getPatchBbox(source_config, target_config):
+def get_patch_bbox(source_config, target_config):
     """
     Currently we assume that orientations and positions are identical
     """
@@ -102,9 +129,6 @@ def getPatchBbox(source_config, target_config):
 
     return Bbox(x, y, width, height)
 
-
-def getPatchSize(target_config):
-    return target_config['patch']['width'], target_config['patch']['height']
 
 
 def read_csv(path, floats=True):
