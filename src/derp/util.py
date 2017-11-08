@@ -117,15 +117,14 @@ def get_patch_bbox(source_config, target_config):
     """
     
     patch = target_config['patch']
-    frame = source_config['record']
     
-    hfov_ratio = patch['hfov'] / frame['hfov']
-    vfov_ratio = patch['vfov'] / frame['vfov']
+    hfov_ratio = patch['hfov'] / source_config['hfov']
+    vfov_ratio = patch['vfov'] / source_config['vfov']
 
-    width = frame['width'] * hfov_ratio
-    height = frame['height'] * vfov_ratio
-    x = (frame['width'] - width) // 2
-    y = frame['height'] - height
+    width = source_config['width'] * hfov_ratio
+    height = source_config['height'] * vfov_ratio
+    x = (source_config['width'] - width) // 2
+    y = source_config['height'] - height
 
     return Bbox(x, y, width, height)
 

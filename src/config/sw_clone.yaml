@@ -4,7 +4,7 @@ debug: False
 clone:
 
   # Selection 
-  data_folders: ['train']
+  data_folders: ['redvic']
   train_chance: 0.9
 
   # How long to predict into the future
@@ -33,7 +33,7 @@ clone:
 
   # Input
   patch:
-    component: 'camera_center'
+    component: 'camera_front'
     hfov: 75
     vfov: 37.5
     height: 64
@@ -47,4 +47,4 @@ clone:
     roll: 0
 
   # Output
-  predict: ['speed', 'steer']
+  predict: ['speed', 'steer', 'shift', 'rotation']

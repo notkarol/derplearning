@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import cv2
 import numpy as np
 import os
@@ -23,7 +24,7 @@ def write(frame, bbox, size, state, data_dir, writer, store_name):
     writer.write("\n")
     writer.flush()
 
-def process_recording(target_config, recording_dir, train_states_fd, val_states_fd,
+def process_recording(settings, recording_dir, train_states_fd, val_states_fd,
                       train_dir, val_dir):
     print('process_recording [%s]' % recording_dir)
     
@@ -33,19 +34,20 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
     state_timestamps, state_headers, states = derp.util.read_csv(states_path)
     label_timestamps, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
 
+    component = settings['patch']['component']
     recording_name = os.path.basename(recording_dir)
-    source_config = derp.util.load_config(recording_dir)
-    bbox = derp.util.getPatchBbox(source_config, target_config)
+    hw_config = derp.util.load_config(recording_dir)
+    bbox = derp.util.get_patch_bbox(hw_config[component], settings)
     qbbox = derp.util.Bbox(bbox.x // 4, bbox.y // 4, bbox.w // 4, bbox.h // 2)
-    size = derp.util.getPatchSize(target_config)
-    hfov_ratio = target_config['patch']['hfov'] / source_config['frame']['hfov']
-    n_perts = 0 if hfov_ratio > 0.75 else target_config['n_perts']
+    size = (settings['patch']['width'],  settings['patch']['height'])
+    hfov_ratio = settings['patch']['hfov'] / hw_config[component]['hfov']
+    n_perts = 0 if hfov_ratio > 0.75 else settings['n_perts']
     frame_id = 0
     video_path = os.path.join(recording_dir, 'camera_front.mp4')
     video_cap = cv2.VideoCapture(video_path)
-    rot_i = target_config['fields'].index('rotation')
-    shift_i = target_config['fields'].index('shift')
-    steer_i = target_config['fields'].index('steer')
+    rot_i = settings['predict'].index('rotation')
+    shift_i = settings['predict'].index('shift')
+    steer_i = settings['predict'].index('steer')
     
     # Create directories for this recording
     recording_train_dir = os.path.join(train_dir, recording_name)
@@ -76,16 +78,16 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
             continue
 
         # Prepare state array
-        state = np.zeros(len(target_config['fields']), dtype=np.float)
-        target_frame_id = frame_id + int(source_config['frame']['fps'] * target_config['delay'] + 0.5)
+        state = np.zeros(len(settings['predict']), dtype=np.float)
+        target_frame_id = frame_id + int(hw_config[component]['fps'] * settings['delay'] + 0.5)
         target_frame_id = max(target_frame_id, len(states) - 1)
-        for target_pos, name in enumerate(target_config['fields']):
+        for target_pos, name in enumerate(settings['predict']):
             if name in state_headers:
                 source_pos = state_headers.index(name)
                 state[target_pos] = states[frame_id, source_pos]
         
         # Figure out if this frame is going to be train or validation
-        if np.random.rand() < target_config['train_chance']:
+        if np.random.rand() < settings['train_chance']:
             data_dir = os.path.join(train_dir, recording_name)
             writer = train_states_fd
         else:
@@ -103,15 +105,15 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
             pstate = state.copy()
             
             # Generate perturbation variable
-            pstate[rot_i] = np.random.uniform(target_config['patch']['rotate_min'],
-                                              target_config['patch']['rotate_max'])
-            pstate[shift_i] = np.random.uniform(target_config['patch']['shift_min'],
-                                                target_config['patch']['shift_max'])
+            pstate[rot_i] = np.random.uniform(settings['perturbations']['rotate']['min'],
+                                              settings['perturbations']['rotate']['max'])
+            pstate[shift_i] = np.random.uniform(settings['perturbations']['shift']['min'],
+                                                settings['perturbations']['shift']['max'])
 
             # Generate perturbation
             pframe = derp.util.shiftimg(qframe, pstate[rot_i], pstate[shift_i],
-                                        source_config['frame']['hfov'],
-                                        source_config['frame']['vfov'])
+                                        hw_config[component]['hfov'],
+                                        hw_config[component]['vfov'])
             pstate[steer_i]= derp.util.shiftsteer(pstate[steer_i], pstate[rot_i],
                                                   pstate[shift_i])
             
@@ -124,14 +126,12 @@ def process_recording(target_config, recording_dir, train_states_fd, val_states_
         
     video_cap.release()
 
-def main():
-
-    # Handle arguments
-    config_path = sys.argv[1]
-
-    # Import config for ho we want to store
-    config = derp.util.load_config(config_path)
-
+def main(args):
+    
+    # Import config
+    config = derp.util.load_config(args.sw)
+    settings = config[args.name]
+    
     # Create folder and sates files
     experiment_dir = os.path.join(os.environ['DERP_SCRATCH'], config['name'])
     train_dir = os.path.join(experiment_dir, 'train')
@@ -144,22 +144,28 @@ def main():
     train_states_fd = open(train_states_path, 'a')
     val_states_fd = open(val_states_path, 'a')
     if os.path.getsize(train_states_path) == 0:
-        train_states_fd.write(",".join(['key'] + config['fields']) + "\n")
-        val_states_fd.write(",".join(['key'] + config['fields']) + "\n")
+        train_states_fd.write(",".join(['key'] + settings['predict']) + "\n")
+        val_states_fd.write(",".join(['key'] + settings['predict']) + "\n")
 
     # Run through each folder and include it in dataset
-    for data_folder in config['data_folders']:
+    for data_folder in settings['data_folders']:
         if data_folder[0] != '/':
             data_folder = os.path.join(os.environ['DERP_DATA'], data_folder)
             
         for filename in os.listdir(data_folder):
             recording_path = os.path.join(data_folder, filename)
             if os.path.isdir(recording_path):
-                process_recording(config, recording_path,
+                process_recording(settings, recording_path,
                                   train_states_fd, val_states_fd,
                                   train_dir, val_dir)
     train_states_fd.close()
     val_states_fd.close()
+    print("Wrote to", experiment_dir)
                 
 if __name__ == "__main__":
-    main()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sw', type=str, required=True, help="software yaml file")
+    parser.add_argument('--name', type=str, required=True, help="name of settings dict")
+    args = parser.parse_args()
+    main(args)
