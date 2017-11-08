@@ -27,6 +27,10 @@ class Inferer:
         # If we have a blank script run that
         if self.script is None:
             return True
+
+        # If we aren't enabled to run either autonomous steer or speed, exit
+        if not state['auto_steer'] and not state['auto_speed']:
+            return False
         
         # Get the proposed list of changes
         proposal = self.script.plan(state)
@@ -34,11 +38,8 @@ class Inferer:
         # Make sure we have the permissions to update these fields
         for field in proposal:
             val = proposal[field]
-            if field == 'speed':
-                continue
-            var = "auto_%s" % field
-            if var in state and not state[var]:
-                continue
-            state[field] = val
+            auto_field = 'auto_%s' % field
+            if state[auto_field]:
+                state[field] = float(val)
 
         return True
