@@ -1,4 +1,5 @@
 import torch.nn as nn
+import numpy as np
 
 class ConvBlock(nn.Module):
     def __init__(self, dim, n_out, kernel_size=3, stride=1,
@@ -8,13 +9,14 @@ class ConvBlock(nn.Module):
         if padding is None:
             padding = kernel_size // 2
 
-        self.conv2d = nn.Conv2d(dim[0], n_out, kernel_size=kernel_size,
+        print(dim, int(dim[0]), n_out, kernel_size, stride, padding)
+        self.conv2d = nn.Conv2d(int(dim[0]), n_out, kernel_size=kernel_size,
                                 stride=stride, padding=padding)
-        dim[1:] -= 2 * (kernel_size // 2 - padding)
-        dim[1:] //= stride
         self.batchnorm = nn.BatchNorm2d(n_out)
         self.activation = nn.ELU(inplace=True)
         self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else None
+        dim[0] = n_out
+        dim[1:] = (dim[1:] >= kernel_size) + np.floor((dim[1:] + padding * 2 - kernel_size) / stride)
 
         self.pool = None
         if pool == 'max':
@@ -24,7 +26,6 @@ class ConvBlock(nn.Module):
             self.pool = nn.AvgPool2d(2, stride=2, padding=0)
             dim[1:] //= 2
 
-            
     def forward(self, x):
         out = self.conv2d(x)
         out = self.batchnorm(out)
@@ -40,7 +41,7 @@ class LinearBlock(nn.Module):
     def __init__(self, dim, n_out, dropout=0.0, bn=False, activation=True):
         super(LinearBlock, self).__init__()
 
-        self.linear = nn.Linear(dim[0], n_out)
+        self.linear = nn.Linear(int(dim[0]), n_out)
         dim[0] = n_out if type(n_out) in (int, float) else n_out[0]
         self.batchnorm = nn.BatchNorm(dim[0]) if bn else None
         self.dropout = nn.Dropout(dropout) if dropout > 0.0 else None
@@ -58,14 +59,14 @@ class LinearBlock(nn.Module):
 
 
 class PoolBlock(nn.Module):
-    def __init__(self, dim, size=None, stride=None)
+    def __init__(self, dim, size=None, stride=None):
         super(PoolBlock, self).__init__()
 
-        if size = None:
+        if size == None:
             size = dim[-2:]
-            dim[-2:] = 1
+            dim[1:] = (size >= dim[1:]) + np.floor((dim[1:] + size) / stride)
         elif stride:
-            
+            size = dim[1:] // stride
             
     def forward(self, x):
         out = x.view(x.size(0), self.shape)

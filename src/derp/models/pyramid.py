@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
 
-from derp.models.convblock import ConvBlock
-from derp.models.linearblock import LinearBlock
-from derp.models.viewblock import ViewBlock
+from derp.models.blocks import ConvBlock, LinearBlock, ViewBlock
 
 class Pyramid(nn.Module):
 
@@ -20,7 +18,7 @@ class Pyramid(nn.Module):
         self.c5a = ConvBlock(dim, 80, 1)
         self.c5b = ConvBlock(dim, 192, 3, pool='max')
         self.c6a = ConvBlock(dim, 96, 1)
-        self.c6b = ConvBlock(dim, 224, dim[-2], padding=0)
+        self.c6b = ConvBlock(dim, 224, int(dim[-2]), padding=0)
         self.view = ViewBlock(dim)
         self.fc1 = LinearBlock(dim, 32)
         self.fc2 = LinearBlock(dim, out_dim, activation=False)
