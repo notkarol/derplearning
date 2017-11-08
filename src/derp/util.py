@@ -106,8 +106,8 @@ def load_components(config, state):
         if not discover and config[name]['required']:
             sys.exit(1)
 
-        # Otherwise append this component to the output list
-        out.append(obj)
+        if discover:
+            out.append(obj)
     return out
     
 
