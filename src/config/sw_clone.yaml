@@ -4,7 +4,7 @@ debug: False
 clone:
 
   # Selection 
-  data_folders: ['redvic']
+  data_folders: ['train']
   train_chance: 0.9
 
   # How long to predict into the future

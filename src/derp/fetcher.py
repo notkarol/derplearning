@@ -26,6 +26,13 @@ class Fetcher(data.Dataset):
         img = derp.util.load_image(self.paths[index])
         if self.transform is not None:
             img = self.transform(img)
+
+        #import cv2
+        #import numpy as np
+        #arr = np.array(np.transpose(img.numpy(), (1, 2, 0)) * 255, dtype=np.uint8)
+        #arr = cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+        #cv2.imwrite('%06i_%03i.png' % (index, int(np.random.randint(1000))), arr)
+
         return img, self.data[index]
 
     

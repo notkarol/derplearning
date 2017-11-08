@@ -9,7 +9,6 @@ class ConvBlock(nn.Module):
         if padding is None:
             padding = kernel_size // 2
 
-        print(dim, int(dim[0]), n_out, kernel_size, stride, padding)
         self.conv2d = nn.Conv2d(int(dim[0]), n_out, kernel_size=kernel_size,
                                 stride=stride, padding=padding)
         self.batchnorm = nn.BatchNorm2d(n_out)
@@ -17,14 +16,12 @@ class ConvBlock(nn.Module):
         self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else None
         dim[0] = n_out
         dim[1:] = (dim[1:] >= kernel_size) + np.floor((dim[1:] + padding * 2 - kernel_size) / stride)
-
-        self.pool = None
-        if pool == 'max':
-            self.pool = nn.MaxPool2d(2, stride=2, padding=0)
-            dim[1:] //= 2
-        elif pool == 'avg':
-            self.pool = nn.AvgPool2d(2, stride=2, padding=0)
-            dim[1:] //= 2
+        
+        if pool is None:
+            self.pool = pool
+        else:
+            self.pool = PoolBlock(dim, pool, 2)
+        
 
     def forward(self, x):
         out = self.conv2d(x)
@@ -40,7 +37,6 @@ class ConvBlock(nn.Module):
 class LinearBlock(nn.Module):
     def __init__(self, dim, n_out, dropout=0.0, bn=False, activation=True):
         super(LinearBlock, self).__init__()
-
         self.linear = nn.Linear(int(dim[0]), n_out)
         dim[0] = n_out if type(n_out) in (int, float) else n_out[0]
         self.batchnorm = nn.BatchNorm(dim[0]) if bn else None
@@ -59,17 +55,23 @@ class LinearBlock(nn.Module):
 
 
 class PoolBlock(nn.Module):
-    def __init__(self, dim, size=None, stride=None):
+    def __init__(self, dim, pool='max', size=None, stride=None):
         super(PoolBlock, self).__init__()
 
-        if size == None:
+        stride = size if stride is None else stride
+        if size is not None:
+            dim[1:] = np.floor(dim[1:] / stride)
+        else:
             size = dim[-2:]
-            dim[1:] = (size >= dim[1:]) + np.floor((dim[1:] + size) / stride)
-        elif stride:
-            size = dim[1:] // stride
+            dim[1:] = 1
+        if pool == 'max':
+            self.pool = nn.MaxPool2d(size, size)
+        elif pool == 'avg':
+            self.pool = nn.AvgPool2d(size, size)
+            
             
     def forward(self, x):
-        out = x.view(x.size(0), self.shape)
+        out = self.pool(x)
         return out
 
     
@@ -106,10 +108,11 @@ class ViewBlock(nn.Module):
         super(ViewBlock, self).__init__()
         self.shape = shape
         if self.shape == -1:
-            dim[-2] = dim[-1] * dim[-2]
+            dim[0] = dim[0] * dim[1] * dim[2]
+            dim[-2] = 0 
             dim[-1] = 0
         else:
-            dim[1:] = shape
+            dim[:] = shape
             
     def forward(self, x):
         out = x.view(x.size(0), self.shape)
