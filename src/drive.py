@@ -28,7 +28,7 @@ def main(args):
 
         # Write out state and each component buffer
         if state['record']:
-            state.scribe()
+            state.scribe(args.hw)
             state.write()
             for component in components:
                 component.scribe(state)

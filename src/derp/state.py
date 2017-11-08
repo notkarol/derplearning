@@ -1,6 +1,7 @@
 # A class that carries the state of the car through time
 
 from collections.abc import Mapping
+from shutil import copyfile
 import numpy as np
 import os
 
@@ -71,7 +72,7 @@ class State(Mapping):
         return ", ".join(out)
 
     
-    def scribe(self):
+    def scribe(self, hw_config_path):
         
         if 'record' not in self.state or not self.state['record']:
             return False
@@ -83,6 +84,8 @@ class State(Mapping):
         self.state['folder'] = folder
         os.mkdir(self.state['folder'])
         print('STATE:', self.state['folder'])
+
+        copyfile(hw_config_path, os.path.join(self.state['folder'], 'config.yaml'))
         
         # Prepare output csv
         out_csv_path = os.path.join(self.state['folder'], "state.csv")
