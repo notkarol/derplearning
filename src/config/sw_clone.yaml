@@ -3,7 +3,7 @@ debug: False
 
 clone:
 
-  # Selection 
+  # Selection
   data_folders: ['train']
   train_chance: 0.9
 

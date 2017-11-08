@@ -14,7 +14,7 @@ class Inferer:
             self.script = None
             return
 
-        script_path = 'derp.scripts.%s' % (sw_config['script'])
+        script_path = 'derp.scripts.%s' % (sw_config['script'].lower())
         script_class = util.load_class(script_path, sw_config['script'])
         self.script = script_class(hw_config, sw_config, model_dir, state)
         
