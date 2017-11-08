@@ -20,8 +20,8 @@ class Clone(Inferer):
         # Prepare camera inputs
         patch_config = self.sw_config['clone']['patch']
         self.component = patch_config['component']
-        self.bbox = util.getPatchBbox(self.hw_config[component], inputs[name])
-        self.size = (inputs[name]['width'], inputs[name]['height'])
+        self.bbox = util.get_patch_bbox(self.hw_config[self.component], sw_config['clone'])
+        self.size = (sw_config['clone']['patch']['width'], sw_config['clone']['patch']['height'])
 
         # Prepare model
         self.model_path = os.path.join(model_dir, 'clone.pt')

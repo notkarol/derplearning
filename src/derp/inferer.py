@@ -32,7 +32,10 @@ class Inferer:
         proposal = self.script.plan(state)
 
         # Make sure we have the permissions to update these fields
-        for field, val in proposal:
+        for field in proposal:
+            val = proposal[field]
+            if field == 'speed':
+                continue
             var = "auto_%s" % field
             if var in state and not state[var]:
                 continue
