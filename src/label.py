@@ -262,13 +262,14 @@ class Labeler(object):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
 
 
-    def run_labeler(self, config=None, model_path=None):
+    def run_labeler(self, config_path=None, model_path=None):
         
         #create driving predictions:
+        self.model = None
         if model_path:
             self.model = model_path
-            l_config = util.load_config(path=config)
-            self.predict(l_config, model_path)
+            config = util.load_config(path=config_path)
+            self.predict(config_path, model_path)
 
         #Start the display window
         self.display()
@@ -331,16 +332,10 @@ class Labeler(object):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', type=str, 
-                        default='../derp_data/auto/20171021T195353Z-paras-clone',
-                        help="recording path location")
+    parser.add_argument('--path', type=str, required=True, help="recording path location")
     parser.add_argument('--scale', type=float, default=1.0, help="frame rescale ratio")
-    parser.add_argument('--config', type=str,
-                        default='config/clone_C.yaml',
-                        required=True, help="physical configuration")
-    parser.add_argument('--infer', type=str, 
-                        default='../DRP_MODEL/derp_scratch/clone_C/ResidualScaledModel_113_0.001107.pt', 
-                        help="infer configuration")
+    parser.add_argument('--config', type=str, default=None, help="physical configuration")
+    parser.add_argument('--infer', type=str, default=None, help="infer configuration")
     args = parser.parse_args()
 
     labeler = Labeler(recording_path = args.path, scale = args.scale)
