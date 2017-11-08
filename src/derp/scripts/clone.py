@@ -54,5 +54,6 @@ class Clone(Inferer):
 
 
         # Desired upodates
-        proposal = {field: val for field, val in zip(self.sw_config['clone']['predict'], predictions)}
+        proposal = {field: float("%.6f" % val) for field, val in
+                    zip(self.sw_config['clone']['predict'], predictions)}
         return proposal

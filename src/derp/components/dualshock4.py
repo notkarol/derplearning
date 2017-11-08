@@ -218,6 +218,9 @@ class Dualshock4(Component):
         elif event.code == self.touchpad:
             speed = 0
             steer = 0
+            record = False
+            auto_speed = False
+            auto_steer = False
             exit = True
             
         # Handle responses

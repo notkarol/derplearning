@@ -14,7 +14,7 @@ def main(args):
     # Prepare variables
     state = State()
     components = derp.util.load_components(hw_config, state)
-    infer = Inferer(hw_config, sw_config, args.path, state)
+    inferer = Inferer(hw_config, sw_config, args.path, state)
     
     # Event loop
     while True:
@@ -22,7 +22,7 @@ def main(args):
         # Sense Plan Act loop
         for component in components:
             component.sense(state)
-        infer.plan(state)
+        inferer.plan(state)
         for component in components:
             component.act(state)
 
@@ -30,13 +30,20 @@ def main(args):
         if state['record']:
             state.scribe(args.hw)
             state.write()
+            inferer.scribe(state)
+            inferer.write()
             for component in components:
                 component.scribe(state)
                 component.write()
 
-        # If we're printing do so
+        # Print to the screen for verbose mode
         if args.verbose:
-            print(repr(state))
+            print("%.3f %3s %4s %.3f %4s %.3f" % (state['timestamp'] / 1E6,
+                                                  'REC' if state['record'] else 'off',
+                                                  'Aspd' if state['auto_speed'] else '!spd',
+                                                  state['speed'],
+                                                  'Astr' if state['auto_steer'] else '!str',
+                                                  state['steer']))
 
         # Exit
         if 'exit' in state and state['exit']:
@@ -47,7 +54,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--hw', type=str, required=True, help="physical configuration path")
-    parser.add_argument('--sw', type=str, default=None, help="infer configuration path")
+    parser.add_argument('--sw', type=str, default=None, help="inferer configuration path")
     parser.add_argument('--path', type=str, default=None, help="folder where models are stored")
     parser.add_argument('--verbose', action='store_true', default=False)
     args = parser.parse_args()
