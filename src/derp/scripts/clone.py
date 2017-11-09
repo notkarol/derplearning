@@ -44,7 +44,8 @@ class Clone(Inferer):
         batch /= 255
 
         # get predictions
-        predictions = self.model(Variable(batch)).data.cpu().numpy()[0]
+        out = self.model(Variable(batch))
+        predictions = out.data.cpu().numpy()[0]
 
         # Store the data we're getting if we're debugging
         if state['record'] and self.sw_config['debug']:

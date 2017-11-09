@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
 import cv2
+import io
 import numpy as np
 import os
 import re
+import select
 import sys
 from time import time
+import v4l2capture
+import PIL.Image
 from derp.component import Component
 
 class Camera(Component):
@@ -19,7 +23,7 @@ class Camera(Component):
         
     def __del__(self):
         if self.cap is not None:
-            self.cap.release()
+            self.cap.close()
             self.cap = None
         if self.video is not None:
             self.video.release()
@@ -49,14 +53,26 @@ class Camera(Component):
             self.index = self.config['index']
 
         # Connect to camera
-        self.cap = cv2.VideoCapture(self.index)        
-        self.cap.set(cv2.CAP_PROP_FPS, self.config['fps'])
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
+        try:
+            self.cap = v4l2capture.Video_device("/dev/video%i" % self.index)
+        except FileNotFoundError:
+            print("Camera index [%i] not found" % self.index)
+            self.cap = None
+            
+        self.connected = self.cap is not None
+        if not self.connected:
+            return self.connected
+
+        # start the camerea
+        w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG')
+        self.size = (w // 2, h  // 2) # cut it in half to reduce noise and speed up recording
+        fps = self.cap.set_fps(self.config['fps'])
+        self.cap.create_buffers(30)
+        self.cap.queue_all_buffers()
+        self.cap.start()
 
         # Return whether we have succeeded
-        self.connected = self.cap.open(self.index)
-        return self.connected
+        return True
         
         
     def scribe(self, state):
@@ -68,8 +84,7 @@ class Camera(Component):
         if self.video is not None:
             self.video.release()
         self.video_path = os.path.join(self.folder, "%s.mp4" % self.name)
-        self.video = cv2.VideoWriter(self.video_path, self.fourcc, self.config['fps'],
-                                     (self.config['width'], self.config['height']))
+        self.video = cv2.VideoWriter(self.video_path, self.fourcc, self.config['fps'], self.size)
 
         # Prepare timestamp writer
         if self.out_csv_fp is not None:
@@ -86,18 +101,20 @@ class Camera(Component):
             return False
         
         # Read the next video frame
-        ret, frame = self.cap.read()
+        select.select((self.cap,), (), ())
+        image_data = self.cap.read_and_queue()
+        frame = cv2.resize(np.array(PIL.Image.open(io.BytesIO(image_data))),
+                           self.size, interpolation=cv2.INTER_AREA)[:,:,::-1]
 
         # Update the state and our out buffer
-        if ret:
-            timestamp = int(time() * 1E6)
-            state['timestamp'] = timestamp
-            state[self.name] = frame
+        timestamp = int(time() * 1E6)
+        state['timestamp'] = timestamp
+        state[self.name] = frame
 
-            if state['record']:
-                self.out_buffer.append((timestamp, frame))
+        if state['record']:
+            self.out_buffer.append((timestamp, frame))
         
-        return ret
+        return True
 
 
     def write(self):

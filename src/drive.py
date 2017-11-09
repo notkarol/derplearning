@@ -15,8 +15,9 @@ def main(args):
     state = State()
     components = derp.util.load_components(hw_config, state)
     inferer = Inferer(hw_config, sw_config, args.path, state)
-    
+
     # Event loop
+    print("Ready")
     while True:
 
         # Sense Plan Act loop
