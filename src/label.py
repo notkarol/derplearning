@@ -80,7 +80,7 @@ class Labeler(object):
         
 
     def draw_bar_zeroline(self):
-        self.window[self.fh + self.bhh + 1, self.fwi, :] = self.gray75
+        self.window[self.fh + self.bhh, self.fwi, :] = self.gray75
 
     
     def draw_graph(self, data_vector, color):
@@ -95,13 +95,13 @@ class Labeler(object):
         data_jump_locs = []
 
         for loc in np.where(abs(data_bar[:-1] - data_bar[1:]) >= 2)[0]:
-            rr, cc, val= line_aa(data_bar[loc] + self.fh + self.bhh + 1, loc, 
-                                 data_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
+            rr, cc, val= line_aa(data_bar[loc] + self.fh + self.bhh, loc,
+                                 data_bar[loc + 1] + self.fh + self.bhh, loc + 1)
             data_jump_locs.append( (rr, cc) )
 
         """ Draw the speed and steering lines on the bar below the video. 
         Takes about 1ms to run through the for loops"""
-        self.window[data_bar + self.fh + self.bhh + 1, self.fwi, :] = color
+        self.window[data_bar + self.fh + self.bhh, self.fwi, :] = color
         for rr, cc in data_jump_locs:
             self.window[rr, cc, :] = color
         
