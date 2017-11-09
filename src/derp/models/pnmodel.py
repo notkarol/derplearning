@@ -1,7 +1,5 @@
 import torch.nn as nn
-from derp.models.convblock import ConvBlock
-from derp.models.linearblock import LinearBlock
-from derp.models.viewblock import ViewBlock
+from derp.models.blocks import ConvBlock, LinearBlock, ViewBlock
 
 class PNModel(nn.Module):
 

@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-
 from derp.models.blocks import ConvBlock, LinearBlock, ViewBlock
 
 class Pyramid(nn.Module):
