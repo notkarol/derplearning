@@ -181,16 +181,16 @@ class Dualshock4(Component):
 
         # Start autonomous driving in some way
         elif event.code == self.share:
-            if not state['record']:
-                record = util.get_record_name()
+            #if not state['record']:
+            #    record = util.get_record_name()
             auto_speed = True
         elif event.code == self.options:
-            if not state['record']:
-                record = util.get_record_name()
+            #if not state['record']:
+            #    record = util.get_record_name()
             auto_steer = True
         elif event.code == self.menu:
-            if not state['record']:
-                record = util.get_record_name()
+            #if not state['record']:
+            #    record = util.get_record_name()
             auto_speed = True
             auto_steer = True
 
