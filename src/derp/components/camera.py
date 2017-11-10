@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import cv2
 import io
 import numpy as np
 import os
@@ -11,28 +10,24 @@ from time import time
 import v4l2capture
 import PIL.Image
 from derp.component import Component
+import derp.util as util
 
 class Camera(Component):
 
     def __init__(self, config, name):
         super(Camera, self).__init__(config, name)
-        self.fourcc = cv2.VideoWriter_fourcc(*'H264')
         self.cap = None
-        self.video = None
 
         
     def __del__(self):
         if self.cap is not None:
             self.cap.close()
             self.cap = None
-        if self.video is not None:
-            self.video.release()
-            self.video = None
         if self.out_csv_fp is not None:
             self.out_csv_fp.close()
             self.out_csv_fp = None
 
-
+            
     def act(self, state):
         return True
     
@@ -64,8 +59,7 @@ class Camera(Component):
             return self.connected
 
         # start the camerea
-        w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG')
-        self.size = (w // 2, h  // 2) # cut it in half to reduce noise and speed up recording
+        w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG') # YUYV
         fps = self.cap.set_fps(self.config['fps'])
         self.cap.create_buffers(30)
         self.cap.queue_all_buffers()
@@ -79,13 +73,11 @@ class Camera(Component):
         if not state['folder'] or state['folder'] == self.folder:
             return False
         self.folder = state['folder']
-        
-        # Prepre video writer
-        if self.video is not None:
-            self.video.release()
-        self.video_path = os.path.join(self.folder, "%s.mp4" % self.name)
-        self.video = cv2.VideoWriter(self.video_path, self.fourcc, self.config['fps'], self.size)
 
+        # Create directory for storing images
+        self.recording_dir = os.path.join(self.folder, self.name)
+        os.mkdir(self.recording_dir)
+        
         # Prepare timestamp writer
         if self.out_csv_fp is not None:
             self.out_csv_fp.close()
@@ -103,8 +95,7 @@ class Camera(Component):
         # Read the next video frame
         select.select((self.cap,), (), ())
         image_data = self.cap.read_and_queue()
-        frame = cv2.resize(np.array(PIL.Image.open(io.BytesIO(image_data))),
-                           self.size, interpolation=cv2.INTER_AREA)[:,:,::-1]
+        frame = np.array(PIL.Image.open(io.BytesIO(image_data)))
 
         # Update the state and our out buffer
         timestamp = int(time() * 1E6)
@@ -112,20 +103,24 @@ class Camera(Component):
         state[self.name] = frame
 
         if state['record']:
-            self.out_buffer.append((timestamp, frame))
+            self.out_buffer.append((timestamp, image_data))
         
         return True
 
 
     def write(self):
 
-        if self.video is None or self.out_csv_fp is None:
+        if self.out_csv_fp is None:
             return False
 
         for row in self.out_buffer:
-            timestamp, frame = row
+            timestamp, image_data = row
             self.out_csv_fp.write(str(timestamp) + "\n")
-            self.video.write(frame)
+
+            # Store mp4
+            with open('%s/%i.jpg' % (self.recording_dir, timestamp), 'wb') as f:
+                f.write(image_data)
+            
         self.out_csv_fp.flush()
         del self.out_buffer[:]
             
