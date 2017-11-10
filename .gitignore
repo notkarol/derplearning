@@ -1,0 +1,11 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.manifest
+*.spec
+.ipynb_checkpoints
+
+# Emacs
+*~

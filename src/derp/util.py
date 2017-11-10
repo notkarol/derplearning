@@ -8,6 +8,10 @@ import sys
 import yaml
 import re
 import evdev
+import socket
+from datetime import datetime
+from time import time
+from importlib import import_module
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
@@ -22,9 +26,16 @@ class Bbox:
     def __str__(self):
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
+
 def get_name(path):
     return os.path.splitext(os.path.basename(path.rstrip('/')))[0]
-    
+
+
+def get_record_name():
+     dt = datetime.utcfromtimestamp(time()).strftime("%Y%m%d-%H%M%S")
+     hn = socket.gethostname()
+     return "%s-%s" % (dt, hn)
+
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
     
@@ -34,11 +45,18 @@ def load_image(path):
         with PIL.Image.open(f) as img:
             return img.convert('RGB')                    
 
+
 def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+        
 def load_config(path):
+
+    # Don't load blank paths
+    if path is None:
+        return None
+    
     config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
     with open(config_path) as f:
         config = yaml.load(f)
@@ -46,27 +64,70 @@ def load_config(path):
         config['name'] = get_name(config_path)
     return config
 
-def getPatchBbox(source_config, target_config):
+
+def load_module(path):
+    return import_module(path)
+
+
+def load_class(path, name):
+    m = load_module(path)
+    c = getattr(m, name)
+    return c
+    
+
+def load_components(config, state):
+    out = []
+
+    # Initialize components
+    for name in sorted(config):
+        if name == 'name':
+            continue
+        c = load_class("derp.components." + config[name]['class'].lower(), config[name]['class'])
+        obj = c(config[name], name)
+
+        # Preset all state keys
+        for key in config[name]['state']:
+            val = config[name]['state'][key]
+
+            # Don't set the key if it's already set and the proposed value is None
+            # This allows us to have components request fields, but have a master
+            # initializer. Useful for servo or car-specific steer_offset
+            if key in state and val is None:
+                continue
+            
+            state[key] = val
+        
+        # Discover
+        discover = obj.discover()
+        print("Connecting to %s %s [%s]" % ('required' if config[name]['required'] else 'optional',
+                                            name, discover))
+
+        # Exit if we're missing a component
+        if not discover and config[name]['required']:
+            sys.exit(1)
+
+        if discover:
+            out.append(obj)
+    return out
+    
+
+def get_patch_bbox(source_config, target_config):
     """
     Currently we assume that orientations and positions are identical
     """
     
     patch = target_config['patch']
-    frame = source_config['drive']
     
-    hfov_ratio = patch['hfov'] / frame['hfov']
-    vfov_ratio = patch['vfov'] / frame['vfov']
+    hfov_ratio = patch['hfov'] / source_config['hfov']
+    vfov_ratio = patch['vfov'] / source_config['vfov']
 
-    width = frame['width'] * hfov_ratio
-    height = frame['height'] * vfov_ratio
-    x = (frame['width'] - width) // 2
-    y = frame['height'] - height
+    width = source_config['width'] * hfov_ratio
+    height = source_config['height'] * vfov_ratio
+    x = (source_config['width'] - width) // 2
+    y = source_config['height'] - height
 
     return Bbox(x, y, width, height)
 
-
-def getPatchSize(target_config):
-    return target_config['patch']['width'], target_config['patch']['height']
 
 
 def read_csv(path, floats=True):

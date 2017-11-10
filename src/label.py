@@ -80,7 +80,7 @@ class Labeler(object):
         
 
     def draw_bar_zeroline(self):
-        self.window[self.fh + self.bhh + 1, self.fwi, :] = self.gray75
+        self.window[self.fh + self.bhh, self.fwi, :] = self.gray75
 
     
     def draw_graph(self, data_vector, color):
@@ -95,13 +95,13 @@ class Labeler(object):
         data_jump_locs = []
 
         for loc in np.where(abs(data_bar[:-1] - data_bar[1:]) >= 2)[0]:
-            rr, cc, val= line_aa(data_bar[loc] + self.fh + self.bhh + 1, loc, 
-                                 data_bar[loc + 1] + self.fh + self.bhh + 1, loc + 1)
+            rr, cc, val= line_aa(data_bar[loc] + self.fh + self.bhh, loc,
+                                 data_bar[loc + 1] + self.fh + self.bhh, loc + 1)
             data_jump_locs.append( (rr, cc) )
 
         """ Draw the speed and steering lines on the bar below the video. 
         Takes about 1ms to run through the for loops"""
-        self.window[data_bar + self.fh + self.bhh + 1, self.fwi, :] = color
+        self.window[data_bar + self.fh + self.bhh, self.fwi, :] = color
         for rr, cc in data_jump_locs:
             self.window[rr, cc, :] = color
         
@@ -267,13 +267,14 @@ class Labeler(object):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
 
 
-    def run_labeler(self, config=None, model_path=None):
+    def run_labeler(self, config_path=None, model_path=None):
         
         #create driving predictions:
+        self.model = None
         if model_path:
             self.model = model_path
-            l_config = util.load_config(path=config)
-            self.predict(l_config, model_path)
+            config = util.load_config(path=config_path)
+            self.predict(config_path, model_path)
 
         #Start the display window
         self.display()
@@ -336,17 +337,12 @@ class Labeler(object):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', type=str, 
-                        default='../derp_data/auto/20171021T195353Z-paras-clone',
-                        help="recording path location")
-    parser.add_argument('--scale', type=float, default=[2, 1.0], help="frame rescale ratio")
-    parser.add_argument('--config', type=str,
-                        default='config/clone_C.yaml',
-                        required=True, help="physical configuration")
-    parser.add_argument('--infer', type=str, 
-                        default='../DRP_MODEL/derp_scratch/clone_C/ResidualScaledModel_113_0.001107.pt', 
-                        help="infer configuration")
-    args = parser.parse_args()
+    parser.add_argument('--path', type=str, required=True, help="recording path location")
+    parser.add_argument('--scale', type=float, default=1.0, help="frame rescale ratio")
+    parser.add_argument('--config', type=str, default=None, help="physical configuration")
+    parser.add_argument('--infer', type=str, default=None, help="infer configuration")
 
+    args = parser.parse_args()
+    
     labeler = Labeler(recording_path = args.path, scale = args.scale)
     labeler.run_labeler(args.config, args.infer)

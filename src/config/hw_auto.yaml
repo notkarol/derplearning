@@ -1,0 +1,56 @@
+camera_front:
+  required: True
+  class: Camera
+  index: 1
+  hfov: 75
+  vfov: 56.25
+  fps: 30
+  height: 480
+  width: 640
+  depth: 3
+  x: 0
+  y: 0.38
+  z: -0.33
+  pitch: 0
+  yaw: 0
+  roll: 0
+  state:
+    camera_front: null
+    timestamp: null
+
+servo_speed:
+  required: True
+  class: UsbServo
+  index: 1
+  act_state: speed
+  min_value: -0.95
+  max_value: 0.95
+  state:
+    speed: 0.0
+  
+servo_steer:
+  required: True
+  class: UsbServo
+  index: 0
+  act_state: steer
+  min_value: -0.95
+  max_value: 0.95
+  state:
+    steer: 0.0
+    steer_offset: 0.0
+
+controller_dualshock4:
+  required: False
+  class: Dualshock4
+  deadzone: 8
+  speed_elbow: [0.12, 0.75, 0.3]
+  steer_normalizer: [0.0, 1, 2]
+  deadman: True
+  state:
+    speed: null
+    steer: null
+    steer_offset: null
+    auto_speed: null
+    auto_steer: null
+    record: null
+    
