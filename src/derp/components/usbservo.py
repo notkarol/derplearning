@@ -19,11 +19,10 @@ class UsbServo(Component):
         
         self.usb_vendor_id = 0x1ffb # Polulu
         self.usb_product_id = 0x0089  # maestro 6
-
-        self.min_value = self.config['min_value']
-        self.max_value = self.config['max_value']
-        self.servo_id = self.config['index']
-
+        
+        self.state_name = self.config['act_state']
+        self.state_offset_name = self.state_name + '_offset'
+        
         
     def __del__(self):
         pass
@@ -33,17 +32,24 @@ class UsbServo(Component):
 
         if self.device is None:
             return False
-        
+
+        # Prepare the current timestamp
         timestamp = int(time() * 1E6)
-        value = state[self.config['act_state']]
-        value = min(value, self.max_value)
-        value = max(value, self.min_value)
-        value = int((1500 + 500 * value) * 4)
+
+        # Prepare turning command
+        value = state[self.state_name]
+        if self.state_offset_name in state:
+            value += state[self.state_offset_name]
+
+        # Limit command to known limits and convert to command
+        value = min(value, self.config['max_value'])
+        value = max(value, self.config['min_value'])
+        command = int((1500 + 500 * value) * 4)
 
         if state['record']:
-            self.out_buffer.append((timestamp, value))
+            self.out_buffer.append((timestamp, command))
         
-        return self.device.ctrl_transfer(0x40, 0x85, value, self.servo_id)
+        return self.device.ctrl_transfer(0x40, 0x85, command, self.config['index'])
                                 
 
     def discover(self):
@@ -68,7 +74,8 @@ class UsbServo(Component):
         self.out_csv_path = os.path.join(self.folder, "%s.csv" % self.name)
         self.out_csv_fp = open(self.out_csv_path, 'w')   
         return True
-        
+
+
     def sense(self, state):
         return True
 
