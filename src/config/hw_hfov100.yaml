@@ -9,11 +9,14 @@ camera_front:
   width: 1920
   depth: 3
   x: 0
-  y: 0.38
-  z: -0.33
-  pitch: 0
+  y: 0.36
+  z: -0.23
+  pitch: -8.5
   yaw: 0
   roll: 0
+  bottom_row_width: 1.07
+  bottom_row_z: 0.49
+  vehicle_width: 0.3
   state:
     camera_front: null
     timestamp: null
