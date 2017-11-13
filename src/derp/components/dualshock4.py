@@ -1,95 +1,109 @@
 #!/usr/bin/env python3
 
-import evdev
 import numpy as np
 import os
-from time import time
+import socket
+import subprocess
+import select
+import sys
+from time import time, sleep
 from derp.component import Component
+from struct import Struct
 import derp.util as util
 
 class Dualshock4(Component):
 
-    def __init__(self, config, name):
-        super(Dualshock4, self).__init__(config, name)
-        self.device = None
-        self.out_csv_fp = None
-        
-        # Prepare key code
-        self.left_stick_horizontal = 0
-        self.left_stick_vertical = 1
-        self.right_stick_horizontal = 2
-        self.left_trigger = 3
-        self.right_trigger = 4
-        self.right_stick_vertical = 5
-        self.arrow_horizontal = 16
-        self.arrow_vertical = 17
-        self.square = 304
-        self.cross = 305
-        self.circle = 306
-        self.triangle = 307
-        self.l1 = 308
-        self.r1 = 309
-        self.l2 = 310
-        self.r2 = 311
-        self.share = 312
-        self.options = 313
-        self.left_stick_press = 314
-        self.right_stick_press = 315
-        self.menu = 316
-        self.touchpad = 317
+    def __init__(self, config):
+        super(Dualshock4, self).__init__(config)
 
-        self.deadzone = self.config['deadzone']
-        
-        
-        # store when something was last active for deadman switches
-        self.active = {}
-        self.active[self.left_stick_horizontal] = None
-        self.active[self.left_stick_vertical] = None
-        self.active[self.left_trigger] = None
-        self.active[self.right_stick_horizontal] = None
-        self.active[self.right_stick_vertical] = None
-        self.active[self.right_trigger] = None
+        # bluetooth control socket
+        self.report_id = 0x11
+        self.report_size = 79
+        self.ctrl_socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
+                                         socket.BTPROTO_L2CAP)
+        self.intr_socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
+                                         socket.BTPROTO_L2CAP)
 
-        
+        # Prepare packet
+        self.packet = bytearray(79)
+        self.packet[0] = 0x52
+        self.packet[1] = self.report_id
+        self.packet[2] = 0x80
+        self.packet[4] = 0xFF
+
+        # The deadzone of the analog sticks to ignore them
+        self.deadzone = self.config['deadzone']        
+        self.left_analog_active = False
+        self.right_analog_active = False
+        self.left_trigger_active = False
+        self.right_trigger_active = False
+        self.up_active = False
+        self.down_active = False
+        self.left_active = False
+        self.right_active = False
+
+
     def __del__(self):
-        if self.device is not None:
-            self.device.close()
-            self.device = None
-        if self.out_csv_fp is not None:
-            self.out_csv_fp.close()
-            self.out_csv_fp = None
+        """ Close all of our sockets and file descriptors """
+        self.ctrl_socket.close()
+        self.intr_socket.close()
 
-            
+
     def in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
         return 128 - self.deadzone < value <= 128 + self.deadzone
 
 
     def act(self, state):
-        return True
 
+        # Prepare command
+        rumble = (0, 0)
+        rgb = [0.1, 0.1, 0.1]
+        flash = (0, 0)
+
+        # Change things based on state
+        if state['record']:
+            rgb[1] = 1
+        if state['auto_steer']:
+            rgb[2] = 1
+        if state['auto_speed']:
+            rgb[0] = 1
+            
+        # Prepare and sendpacket
+        self.packet[7] = int(rumble[0] * 255)
+        self.packet[8] = int(rumble[1] * 255)
+        self.packet[9] = int(rgb[0] * 255)
+        self.packet[10] = int(rgb[1] * 255)
+        self.packet[11] = int(rgb[2] * 255)
+        self.packet[12] = int(flash[0] * 255)
+        self.packet[13] = int(flash[1] * 255)
+        self.ctrl_socket.sendall(self.packet)
+        return True
     
+
     def discover(self):
         """
         Find and initialize the available devices
         """
-        self.device = util.find_device('Wireless Controller')
-        return self.device is not None
+
+        # Make sure we can send commands
+        for attempt in range(3):
+            cmd = ["hcitool", "scan", "--flush"]
+            res = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf8")
+            for _, address, name in [l.split("\t") for l in res.splitlines()[1:]]:
+                if name == "Wireless Controller":
+                    self.ctrl_socket.connect((address, 0x11))
+                    self.intr_socket.connect((address, 0x13))
+                    self.intr_socket.setblocking(False)
+                    return True
+        
+        return False
 
     
-    def scribe(self, state):
-        if not state['folder'] or state['folder'] == self.folder:
-            return False
-        self.folder = state['folder']
-
-        #  Open csv writer
-        if self.out_csv_fp is not None:
-            self.out_csv_fp.close()
-        self.out_csv_path = os.path.join(self.folder, "%s.csv" % self.name)
-        self.out_csv_fp = open(self.out_csv_path, 'w')
-        
+    def scribe(self, state):        
         return True
 
+    
     def __normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
@@ -97,174 +111,189 @@ class Dualshock4(Component):
         return value
     
 
-    def __process(self, state, event):
-        speed = None
-        steer = None
-        record = None
-        auto_speed = None
-        auto_steer = None
-        steer_offset = None
-        exit = None
+    # Prepare status based on buffer
+    def __prepare(self, buf):
+        short = Struct("<h")
+        dpad = buf[8] % 16
+        status = {"left_analog_x" : buf[4],
+                  "left_analog_y" : buf[5],
+                  "right_analog_x" : buf[6],
+                  "right_analog_y" : buf[7],
+                  "up" :  (dpad in (0, 1, 7)),
+                  "down" : (dpad in (3, 4, 5)),
+                  "left" : (dpad in (5, 6, 7)),
+                  "right" : (dpad in (1, 2, 3)),
+                  "button_square" : (buf[8] & 16) != 0,
+                  "button_cross" : (buf[8] & 32) != 0,
+                  "button_circle" : (buf[8] & 64) != 0,
+                  "button_triangle" : (buf[8] & 128) != 0,
+                  "button_l1" : (buf[9] & 1) != 0,
+                  "button_l2" : (buf[9] & 4) != 0,
+                  "button_l3" : (buf[9] & 64) != 0,
+                  "button_r1" : (buf[9] & 2) != 0,
+                  "button_r2" : (buf[9] & 8) != 0,
+                  "button_r3" : (buf[9] & 128) != 0,
+                  "button_share" : (buf[9] & 16) != 0,
+                  "button_options" : (buf[9] & 32) != 0,
+                  "button_trackpad" :  (buf[10] & 2) != 0,
+                  "button_ps" : (buf[10] & 1) != 0,
+                  "timestamp" : buf[10] >> 2,
+                  "left_trigger" : buf[11],
+                  "right_trigger" : buf[12],
+                  "battery" : buf[15] % 16,
+                  "accel_y" : short.unpack_from(buf, 16)[0], 
+                  "accel_x" : short.unpack_from(buf, 18)[0], 
+                  "accel_z" : short.unpack_from(buf, 20)[0], 
+                  "roll" : -(short.unpack_from(buf, 22)[0]),
+                  "yaw" : short.unpack_from(buf, 24)[0],
+                  "pitch" : short.unpack_from(buf, 26)[0],
+                  "battery_level" : buf[33] % 16,
+                  "usb" : (buf[33] & 16) != 0,
+                  "audio" : (buf[33] & 32) != 0,
+                  "mic" : (buf[33] & 64) != 0}
+        return status
+            
+    
+    def __process(self, buf, state, out):
+        status = self.__prepare(buf)
 
-        # skip vertical analog stick movement
-        if event.code == self.left_stick_vertical or event.code == self.right_stick_vertical:
-            return False
+        # Left Analog Steering
+        if self.in_deadzone(status['left_analog_x']):
+            if self.left_analog_active:
+                self.left_analog_active = False
+                out['steer'] = 0
+        else:
+            self.left_analog_active = True
+            out['steer'] = self.__normalize_stick(status['left_analog_x'], self.deadzone)
 
-        # Handle steer
-        elif event.code == self.left_stick_horizontal or event.code == self.right_stick_horizontal:
+        # Right Analog Steering
+        if self.in_deadzone(status['right_analog_x']):
+            if self.right_analog_active:
+                self.right_analog_active = False
+                out['steer'] = 0
+        else:
+            self.right_analog_active = True
+            steer = self.__normalize_stick(status['right_analog_x'], self.deadzone)
+            sign = np.sign(steer)
+            steer = abs(steer)
+            steer *= self.config['steer_normalizer'][1]
+            steer **= self.config['steer_normalizer'][2]
+            steer += self.config['steer_normalizer'][0]
+            steer = max(0, min(1, steer))
+            steer *= sign
+            steer = float(steer)
+            out['steer'] = steer
 
-            # Skip if junk
-            if event.value == 0:
-                return False
-
-            # If it's in the deadzone and it wasn't last time then clear steer
-            if self.in_deadzone(event.value):
-                if self.active[event.code]:
-                    steer = 0
-                    self.active[event.code] = 0
-                else:
-                    return False
-            # Otherwise handle this event
-            else:
-                self.active[event.code] = True
-
-                # Otherwise use proportional control
-                steer = self.__normalize_stick(event.value, self.deadzone)
-                if event.code == self.right_stick_horizontal: 
-                    sign = np.sign(steer)
-                    steer = abs(steer)
-                    steer *= self.config['steer_normalizer'][1]
-                    steer **= self.config['steer_normalizer'][2]
-                    steer += self.config['steer_normalizer'][0]
-                    steer = max(0, min(1, steer))
-                    steer *= sign
-                    steer = float(steer)
-
-        # Handle speed 
-        elif event.code == self.left_trigger or event.code == self.right_trigger:
-            if event.type == 4:
-                return False
-            self.active[event.code] = time()
-
-            # Normalize speed
-            speed = event.value / 256
-
-            # Further refine curve of speed resistance
+        # Speed
+        if status['left_trigger']:
+            self.left_trigger_active = True
             z, x, y = self.config['speed_elbow']
-            if speed > 0:
-                if speed < x:
-                    speed = z + speed * (y - z) / x
-                else:
-                    speed = (y + (speed - x) * (1 - y) / (1 - x))
-                if event.code == self.right_trigger:
-                    speed *= -1
+            speed = status['left_trigger'] / 256
+            if speed < x:
+                speed = z + speed * (y - z) / x
+            else:
+                speed = (y + (speed - x) * (1 - y) / (1 - x))
+            out['speed'] = speed
+        elif self.left_trigger_active:
+            self.left_trigger_active = False
+            out['speed'] = 0
 
-        # Handle speed timeouts
-        elif ((event.code == self.l1 and event.value == 0) or
-            (self.active[self.left_trigger] and
-             self.active[self.left_trigger] - time() > 0.1)): # timeout
-            self.active[self.left_trigger] = 0
-            speed = 0
-        elif ((event.code == self.l2 and event.value == 0) or
-            (self.active[self.right_trigger] and
-             self.active[self.right_trigger] - time() > 0.1)): # timeout
-            self.active[self.right_trigger] = 0
-            speed = 0
+        # Handle speed reverse
+        if status['right_trigger']:
+            self.right_trigger_active = True
+            z, x, y = self.config['speed_elbow']
+            speed = status['right_trigger'] / 256
+            if speed < x:
+                speed = z + speed * (y - z) / x
+            else:
+                speed = (y + (speed - x) * (1 - y) / (1 - x))
+            out['speed'] = -speed
+        elif self.right_trigger_active:
+            self.right_trigger_active = False
+            out['speed'] = 0
                         
-        # Stop car in every way
-        elif event.code == self.triangle:
-            speed = 0
-            steer = 0
-            record = False
-            auto_speed = False
-            auto_steer = False
-
-        # Start autonomous driving in some way
-        elif event.code == self.share:
-            #if not state['record']:
-            #    record = util.get_record_name()
-            auto_speed = True
-        elif event.code == self.options:
-            #if not state['record']:
-            #    record = util.get_record_name()
-            auto_steer = True
-        elif event.code == self.menu:
-            #if not state['record']:
-            #    record = util.get_record_name()
-            auto_speed = True
-            auto_steer = True
-
-        # Disable Autonomous
-        elif event.code == self.cross:
-            auto_speed = False
-            auto_steer = False
-
-        # Enable/Disable Recording
-        elif event.code == self.square:
-            record = False
-        elif event.code == self.circle:
+        # Handle buttons
+        if status['button_triangle']:
+            out['speed'] = 0
+            out['steer'] = 0
+            out['record'] = False
+            out['auto_speed'] = False
+            out['auto_steer'] = False
+        if status['button_share']:
+            out['auto_speed'] = True
+        if status['button_options']:
+            out['auto_steer'] = True
+        if status['button_ps']:
+            out['auto_speed'] = True
+            out['auto_steer'] = True
+        if status['button_cross']:
+            out['auto_speed'] = True
+            out['auto_steer'] = True
+        if status['button_square']:
+            out['record'] = False
+        if status['button_circle']:
             if not state['record']:
-                record = util.get_record_name()
+                out['record'] = util.get_record_name()
 
         # Change wheel offset
-        elif event.code == self.arrow_horizontal:
-            steer_offset = state['steer_offset'] + event.value / 128
+        if status['left']:
+            self.left_active = True
+        elif self.left_active:
+            self.left_active = False
+            out['steer_offset'] = state['steer_offset'] - 1 / 128
+        if status['right']:
+            self.right_active = True
+        elif self.right_active:
+            self.right_active = False
+            out['steer_offset'] = state['steer_offset'] + 1 / 128
 
         # Fixed speed modifications using arrows
-        elif event.code == self.arrow_vertical:
-            speed = state['speed'] - 0.015625 * event.value
+        if status['up']:
+            self.up_active = True
+        elif self.up_active:
+            self.up_active = False
+            out['speed'] = state['speed'] + 0.015625
+        if status['down']:
+            self.down_active = True
+        elif self.down_active:
+            out['speed'] = state['speed'] - 0.015625
 
-        # TODO create an event
-        elif event.code == self.touchpad:
-            speed = 0
-            steer = 0
-            record = False
-            auto_speed = False
-            auto_steer = False
-            exit = True
-            
-        # Handle responses
-        if speed is not None:
-            state['speed'] = speed
-        if steer is not None:
-            state['steer'] = steer
-        if record is not None:
-            state['record'] = record
-        if auto_speed is not None:
-            state['auto_speed'] = auto_speed
-        if auto_steer is not None:
-            state['auto_steer'] = auto_steer
-        if steer_offset is not None:
-            state['steer_offset'] = steer_offset
-        if exit is not None:
-            state['exit'] = exit
+        # Close down
+        if status['button_trackpad']:
+            out['speed'] = 0
+            out['steer'] = 0
+            out['record'] = False
+            out['auto_speed'] = False
+            out['auto_steer'] = False
+            out['exit'] = True
 
-        # Store this event
-        if state['record']:
-            self.out_buffer.append((int(time() * 1E6), int(event.timestamp() * 1E6),
-                                    event.type, event.code, event.value,
-                                    speed, steer, record, auto_speed, auto_steer, steer_offset))
-        return True
-
-
+           
     def sense(self, state):
-        out = {}
-        try:
-            for event in self.device.read():
-                self.__process(state, event)
-        except BlockingIOError:
-            pass
+        ret = -1
+        buf = bytearray(77)
+        out = { 'speed' : None,
+                'steer' : None,
+                'record' : None,
+                'auto_speed' : None,
+                'auto_steer' : None,
+                'steer_offset' : None,
+                'exit' : None }
+
+        # Fetch input messages and process them. Store it in out
+        while True:
+            try:
+                ret = self.intr_socket.recv_into(buf)
+                if ret == len(buf) and buf[1] == self.report_id:
+                    self.__process(buf, state, out)
+            except BlockingIOError as e:
+                break
+
+        # Process 'out' into 'state'
+        for field in out:
+            if out[field] is not None:
+                state[field] = out[field]
         return True
-
+            
     
-    def write(self):
-
-        if self.out_csv_fp is None:
-            return False
-
-        for row in self.out_buffer:
-            self.out_csv_fp.write(",".join([str(x) for x in row]) + "\n")
-        self.out_csv_fp.flush()
-        self.out_buffer = []
-        
+    def write(self):        
         return True    

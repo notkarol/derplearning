@@ -12,6 +12,7 @@ import socket
 from datetime import datetime
 from time import time
 from importlib import import_module
+from collections import OrderedDict
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
@@ -79,31 +80,30 @@ def load_components(config, state):
     out = []
 
     # Initialize components
-    for name in sorted(config):
-        if name == 'name':
-            continue
-        c = load_class("derp.components." + config[name]['class'].lower(), config[name]['class'])
-        obj = c(config[name], name)
+    for component in config['components']:
+        c = load_class("derp.components." + component['class'].lower(), component['class'])
+        obj = c(component)
 
         # Preset all state keys
-        for key in config[name]['state']:
-            val = config[name]['state'][key]
+        if 'state' in component:
+            for key in component['state']:
+                val = component['state'][key]
 
-            # Don't set the key if it's already set and the proposed value is None
-            # This allows us to have components request fields, but have a master
-            # initializer. Useful for servo or car-specific steer_offset
-            if key in state and val is None:
-                continue
-            
-            state[key] = val
+                # Don't set the key if it's already set and the proposed value is None
+                # This allows us to have components request fields, but have a master
+                # initializer. Useful for servo or car-specific steer_offset
+                if key in state and val is None:
+                    continue
+
+                state[key] = val
         
         # Discover
         discover = obj.discover()
-        print("Connecting to %s %s [%s]" % ('required' if config[name]['required'] else 'optional',
-                                            name, discover))
+        print("Connecting to %s %s [%s]" % ('required' if component['required'] else 'optional',
+                                            component['name'], discover))
 
         # Exit if we're missing a component
-        if not discover and config[name]['required']:
+        if not discover and component['required']:
             sys.exit(1)
 
         if discover:

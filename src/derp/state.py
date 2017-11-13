@@ -8,7 +8,14 @@ import os
 class State(Mapping):
 
     def __init__(self):
-        self.state = {'folder': None}
+        self.state = {'folder': None,
+                      'record': None,
+                      'speed': 0,
+                      'steer': 0,
+                      'auto_speed': False,
+                      'auto_steer': False,
+                      'steer_offset': 0.0,
+                      'exit': False}
         self.out_csv_fp = None
 
         

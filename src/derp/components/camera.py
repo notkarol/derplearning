@@ -14,23 +14,20 @@ import derp.util as util
 
 class Camera(Component):
 
-    def __init__(self, config, name):
-        super(Camera, self).__init__(config, name)
+    def __init__(self, config):
+        super(Camera, self).__init__(config)
         self.cap = None
 
-        
+
     def __del__(self):
         if self.cap is not None:
             self.cap.close()
             self.cap = None
-        if self.out_csv_fp is not None:
-            self.out_csv_fp.close()
-            self.out_csv_fp = None
 
-            
+
     def act(self, state):
         return True
-    
+
 
     def discover(self):
         """
@@ -67,25 +64,20 @@ class Camera(Component):
 
         # Return whether we have succeeded
         return True
-        
-        
+
+
     def scribe(self, state):
         if not state['folder'] or state['folder'] == self.folder:
             return False
         self.folder = state['folder']
 
         # Create directory for storing images
-        self.recording_dir = os.path.join(self.folder, self.name)
+        self.recording_dir = os.path.join(self.folder, self.config['name'])
         os.mkdir(self.recording_dir)
-        
-        # Prepare timestamp writer
-        if self.out_csv_fp is not None:
-            self.out_csv_fp.close()
-        self.out_csv_path = os.path.join(self.folder, "%s.csv" % self.name)
-        self.out_csv_fp = open(self.out_csv_path, 'w')
+
         return True
-    
-        
+
+
     def sense(self, state):
         
         # Make sure we have a camera open
@@ -100,7 +92,7 @@ class Camera(Component):
         # Update the state and our out buffer
         timestamp = int(time() * 1E6)
         state['timestamp'] = timestamp
-        state[self.name] = frame
+        state[self.config['name']] = frame
 
         if state['record']:
             self.out_buffer.append((timestamp, image_data))
@@ -110,18 +102,11 @@ class Camera(Component):
 
     def write(self):
 
-        if self.out_csv_fp is None:
-            return False
-
-        for row in self.out_buffer:
-            timestamp, image_data = row
-            self.out_csv_fp.write(str(timestamp) + "\n")
-
-            # Store mp4
-            with open('%s/%i.jpg' % (self.recording_dir, timestamp), 'wb') as f:
+        for timestamp, image_data in self.out_buffer:
+            path = '%s/%i.jpg' % (self.recording_dir, timestamp)
+            with open(path, 'wb') as f:
                 f.write(image_data)
             
-        self.out_csv_fp.flush()
         del self.out_buffer[:]
             
         return True

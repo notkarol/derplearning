@@ -2,9 +2,8 @@ import sys
 
 class Component:
 
-    def __init__(self, config, name):
+    def __init__(self, config):
         self.config = config
-        self.name = name
         self.connected = False
         self.out_buffer = []
         self.out_csv_fp = None
@@ -15,7 +14,7 @@ class Component:
 
         
     def __repr__(self):
-        return "(%s, %s)" % (self.name, self.connected)
+        return "(%s, %s)" % (self.config['name'], self.connected)
 
     
     def __str__(self):
