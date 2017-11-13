@@ -43,17 +43,14 @@ servo_steer:
     steer_offset: 0.0
 
 controller_dualshock4:
-  required: False
+  required: True
   class: Dualshock4
-  deadzone: 8
-  speed_elbow: [0.12, 0.75, 0.3]
-  steer_normalizer: [0.0, 1, 2]
+  deadzone: 4
+  speed_elbow: [0.1, 0.8, 0.3]
+  steer_normalizer: [0, 1, 2]
   deadman: True
-  state:
-    speed: null
-    steer: null
-    steer_offset: null
-    auto_speed: null
-    auto_steer: null
-    record: null
-    
+
+controller_keyboard:
+  required: False
+  class: Keyboard
+  deadman: False
