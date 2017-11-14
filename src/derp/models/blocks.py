@@ -20,7 +20,7 @@ class ConvBlock(nn.Module):
 
         # Output dimensions just from convolution
         dim[0] = n_out
-        dim[1:] = (dim[1:] >= kernel_size) + np.floor((dim[1:] + padding * 2 - kernel_size) / stride)
+        dim[1:] = 1 + np.floor((dim[1:] + padding * 2 - kernel_size) / stride)
 
         # Add a pooling block, which might further change dim
         self.pool = pool if pool is None else PoolBlock(dim, pool, 2, verbose=verbose)
@@ -130,7 +130,7 @@ class PoolBlock(nn.Module):
             
         self.n_params = 0
         if verbose:
-            print("P%s            d %3i h %3i w %3i" % (pool, *dim))
+            pass
 
             
     def forward(self, x):
