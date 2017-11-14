@@ -3,8 +3,8 @@ PYTORCH_VERSION=v0.2.0
 
 TORCH_VISION_VERSION=83263d8571c9cdd46f250a7986a5219ed29d19a1
 
-# Install latest python pip and setuptools
-sudo apt-get install python3-pip
+# Install latest python pip and setuptools and openblas
+sudo apt-get install libopenblas-dev
 pip3 install --user --upgrade pip setuptools
 
 # Get pytorch
@@ -20,10 +20,10 @@ fi
 git checkout ${PYTORCH_VERSION}
 
 # Install specified requirements
-sudo pip3 install -r requirements.txt
+pip3 install --user -r requirements.txt
 
 # Build dependencies and install. This might need to be restarted
-sudo python3 setup.py install
+python3 setup.py install --user
 
 
 #torch-vision:
@@ -40,6 +40,6 @@ fi
 
 git checkout ${TORCH_VISION_VERSION}
 
-sudo pip3 install -r requirements.txt
+pip3 install --user -r requirements.txt
 
-sudo python3 setup.py install
+python3 setup.py install --user
