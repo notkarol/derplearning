@@ -17,10 +17,14 @@ class Clone(Inferer):
         self.sw_config = sw_config
         self.model_dir = model_dir
 
+        # Prepare the input camera
+        self.component_name = self.sw_config['clone']['patch']['component']
+        for component in self.hw_config['components']:
+            if component['name'] == self.component_name:
+                self.hw_component = component
+
         # Prepare camera inputs
-        patch_config = self.sw_config['clone']['patch']
-        self.component = patch_config['component']
-        self.bbox = util.get_patch_bbox(self.hw_config[self.component], sw_config['clone'])
+        self.bbox = util.get_patch_bbox(self.hw_component, sw_config['clone'])
         self.size = (sw_config['clone']['patch']['width'], sw_config['clone']['patch']['height'])
 
         # Prepare model
@@ -32,7 +36,7 @@ class Clone(Inferer):
     def plan(self, state):
 
         # Prepare input thumbnail
-        frame = state[self.component]
+        frame = state[self.component_name]
         patch = frame[self.bbox.y : self.bbox.y + self.bbox.h,
                       self.bbox.x : self.bbox.x + self.bbox.w]
         thumb = cv2.resize(patch, self.size, interpolation=cv2.INTER_AREA)
