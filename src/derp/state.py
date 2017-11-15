@@ -80,18 +80,23 @@ class State(Mapping):
 
     
     def scribe(self, hw_config_path):
-        
+
+        # Do not do anything if recording is off
         if 'record' not in self.state or not self.state['record']:
             return False
 
-        # Create Folder
+        # If we already have this folder, write out the state
         folder = os.path.join(os.environ['DERP_DATA'], self.state['record'])
         if folder == self.state['folder']:
+            self.write()
             return False
+
+        # Create the folder
         self.state['folder'] = folder
         os.mkdir(self.state['folder'])
         print('STATE:', self.state['folder'])
 
+        # Make a copy of our config
         copyfile(hw_config_path, os.path.join(self.state['folder'], 'config.yaml'))
         
         # Prepare output csv
@@ -106,7 +111,10 @@ class State(Mapping):
             self.out_csv_fp.write(',' + key)
         self.out_csv_fp.write("\n")
         self.out_csv_fp.flush()
-            
+
+        # Write out the first row of data
+        self.write()
+
         
     def write(self):
         self.out_csv_fp.write(repr(self) + "\n")

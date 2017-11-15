@@ -7,29 +7,20 @@ clone:
   data_folders: ['train']
   train_chance: 0.9
 
-  # How long to predict into the future
-  delay: 0.33
-  
   # How to vary input before they're put into dataset
+  perturbation_count: 0
   perturbations:
-    count: 0
     shift:
       min: -0.5
       max:  0.5
     rotate:
       min: -5
       max:  5
-    pitch:
-      min: -5
-      max:  5
 
   # How to vary input after it's loaded
-  transforms:
-     colorjitter:
-       brightness: 0.5
-       contrast: 0.5
-       saturation: 0.5
-       hue: 0.1
+  transform_x:
+    - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
+  transform_xy: []
 
   # Input
   patch:
@@ -40,11 +31,13 @@ clone:
     width: 128
     depth: 3
     x: 0
-    y: 0.38
-    z: -0.33
-    pitch: 0
+    y: 0.36
+    z: -0.23
+    pitch: -8.5
     yaw: 0
     roll: 0
-
-  # Output
-  predict: ['speed', 'steer', 'shift', 'rotation']
+    
+  # States we will predict
+  predict:
+    - {name: 'speed', field: 'speed', delay: 0.3, mult: 1 }
+    - {name: 'steer', field: 'steer', delay: 0.3, mult: 1 }

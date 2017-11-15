@@ -87,7 +87,9 @@ class Dualshock4(Component):
         """
 
         # Make sure we can send commands
-        for attempt in range(3):
+        n_attemps = 3
+        for attempt in range(n_attemps):
+            print("Attempt %i of %i" % (attempt + 1, n_attemps), end='\r')
             cmd = ["hcitool", "scan", "--flush"]
             res = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf8")
             for _, address, name in [l.split("\t") for l in res.splitlines()[1:]]:

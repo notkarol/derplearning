@@ -1,0 +1,43 @@
+script: 'Clone'
+debug: False
+
+clone:
+
+  # Selection
+  data_folders: ['train']
+  train_chance: 0.9
+
+  # How to vary input before they're put into dataset
+  perturbation_count: 0
+  perturbations:
+    shift:
+      min: -0.5
+      max:  0.5
+    rotate:
+      min: -5
+      max:  5
+
+  # How to vary input after it's loaded
+  transform_x:
+    - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
+  transform_xy: []
+
+  # Input
+  patch:
+    component: 'camera_front'
+    hfov: 75
+    vfov: 37.5
+    height: 64
+    width: 128
+    depth: 3
+    x: 0
+    y: 0.36
+    z: -0.23
+    pitch: -8.5
+    yaw: 0
+    roll: 0
+    
+  # States we will predict
+  predict:
+    - {name: 'speed', field: 'speed', delay: 0.4, mult: 1 }
+    - {name: 'steer', field: 'steer', delay: 0.4, mult: 1 }

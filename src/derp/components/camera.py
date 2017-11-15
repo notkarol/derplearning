@@ -68,13 +68,15 @@ class Camera(Component):
 
     def scribe(self, state):
         if not state['folder'] or state['folder'] == self.folder:
+            self.write()
             return False
-        self.folder = state['folder']
 
         # Create directory for storing images
+        self.folder = state['folder']
         self.recording_dir = os.path.join(self.folder, self.config['name'])
         os.mkdir(self.recording_dir)
 
+        self.write()
         return True
 
 

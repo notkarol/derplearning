@@ -30,12 +30,8 @@ def main(args):
         # Write out state and each component buffer
         if state['record']:
             state.scribe(args.hw)
-            state.write()
-            inferer.scribe(state)
-            inferer.write()
             for component in components:
                 component.scribe(state)
-                component.write()
 
         # Print to the screen for verbose mode
         if args.verbose:

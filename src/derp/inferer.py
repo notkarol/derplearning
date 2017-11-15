@@ -11,12 +11,8 @@ class Inferer:
         """
         Loads the supplied python script as this inferer.
         """
-        self.folder = None
-        self.out_json_fp = None
-        self.out_buffer = []
-        
         # If we have a blank config or model dir, then assume we can't plan 
-        if sw_config is None or model_dir is None:
+        if sw_config is None:
             self.script = None
             return
 
@@ -34,43 +30,15 @@ class Inferer:
         if self.script is None:
             return True
 
-        # If we aren't enabled to run either autonomous steer or speed, exit
-        if not state['auto_steer'] and not state['auto_speed']:
-            return False
-        
         # Get the proposed list of changes
-        proposal = self.script.plan(state)
-        proposal['timestamp'] = int(time() * 1E6)
-        self.out_buffer.append(proposal)
+        speed, steer = self.script.plan(state)
 
         # Make sure we have the permissions to update these fields
-        for field in proposal:
-            val = proposal[field]
-            auto_field = 'auto_%s' % field
-            if auto_field in state and state[auto_field]:
-                state[field] = float(val)
+        if state['auto_speed']:
+            state['speed'] = speed
+        if state['auto_steer']:
+            state['steer'] = steer
 
         return True
 
 
-    def scribe(self, state):
-        if not state['folder'] or state['folder'] == self.folder:
-            return False
-        self.folder = state['folder']
-        
-        if self.out_json_fp is not None:
-            self.out_json_fp.close()
-        self.out_json_path = os.path.join(self.folder, "inferer.json")
-        self.out_json_fp = open(self.out_json_path, 'w')
-        return True
-
-    
-    def write(self):
-        if self.out_json_fp is None:
-            return False
-        for row in self.out_buffer:
-            json.dump(self.out_buffer, self.out_json_fp)
-            self.out_json_fp.write("\n")
-        self.out_json_fp.flush()
-        self.out_buffer = []
-        return True                 
