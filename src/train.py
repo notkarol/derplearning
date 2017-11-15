@@ -2,7 +2,8 @@
 
 import argparse
 import numpy as np
-import os
+from os.path import join
+from os import environ
 import sys
 import time
 import torch
@@ -14,7 +15,7 @@ from derp.fetcher import Fetcher
 import torchvision.transforms as transforms
 import derp.util as util
 
-def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batch=False):
+def step(epoch, config, model, loader, optimizer, criterion, is_train, nocuda, plot_batch=False):
 
     # prepare model for either training or evaluation
     if is_train:
@@ -28,11 +29,8 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batc
     # Go throgh each epoch
     for batch_idx, (example, state) in enumerate(loader):
 
-        # If we're given a dictionary, then figure out the keys, otherwise just return the state
-        if type(state) == dict:
-            label = torch.stack([state[x] for x in config['predict']], dim=1).float()
-        else:
-            label = state.float()
+        # Prepare label based on what we want to predict
+        label = torch.stack([state[x] for x in config['predict']], dim=1).float()
 
         # Plot this batch if desired
         if plot_batch:
@@ -49,67 +47,85 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, plot_batc
         if is_train:
             loss.backward()
             optimizer.step()
-        print("%03i %.6f" % (batch_idx, np.mean(step_loss)), end='\r')
-    return np.mean(step_loss)
+        letter = 'T' if is_train else 'V'
+        print("%s %03i %.6f" % (letter, batch_idx, np.mean(step_loss)), end='\r')
+        
+    return np.mean(step_loss), batch_idx
 
 
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True, help="Configuration to use")
-    parser.add_argument('--name', type=str, required=True, help="Experiment in configruation")
-    parser.add_argument('--model', type=str, default="Pyramid", help="Model to run")
+    parser.add_argument('--sw', type=str, required=True, help="Software configuration to use")
+    parser.add_argument('--exp', type=str, required=True, help="Experiment in configruation")
+    parser.add_argument('--model', type=str, default="BasicModel", help="Model to run")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
-    parser.add_argument('--bs', type=int, default=32, help="Batch Size")
+    parser.add_argument('--bs', type=int, default=64, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
-    parser.add_argument('--threads', type=int, default=3, help="Number of threads to collect data")
-    parser.add_argument('--epochs', type=int, default=128, help="Number of epochs to run for")
-    
+    parser.add_argument('--threads', type=int, default=4, help="Number of threads to fetch data")
+    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
+    parser.add_argument('--nocuda', default=False, action='store_true', help='do not use cuda')
+    parser.add_argument('--plot', default=False, action='store_true',
+                        help='save a plot of each batch for verification purposes')
     args = parser.parse_args()    
-    
+
     # Make sure we have somewhere to run the experiment
-    config = util.load_config(args.config)
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
-    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], config['name'])
+    config = util.load_config(args.sw)
+    experiment_path = join(environ["DERP_SCRATCH"], config['name'])
 
     # Prepare model
-    pc = config[args.name]['patch']
+    pc = config[args.exp]['patch']
     dim_in = np.array((pc['depth'], pc['height'], pc['width']))
-    dim_out = len(config[args.name]['predict'])
-    model = util.load_class('derp.models.' + args.model.lower(), args.model)(dim_in, dim_out).cuda()
-    criterion = nn.MSELoss().cuda()
+    dim_out = len(config[args.exp]['predict'])
+    model = util.load_class('derp.models.' + args.model.lower(), args.model)(dim_in, dim_out)
+    criterion = nn.MSELoss()
+    if not args.nocuda:
+        environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
+        model = model.cuda()
+        criterion = criterion.cuda()
     optimizer = optim.Adam(model.parameters(), args.lr)
 
     # prepare data loaders
-    cj = config[args.name]['transforms']['colorjitter']
-    transform = transforms.Compose([
-        transforms.ColorJitter(brightness=cj['brightness'] if 'brightness' in cj else 0.0,
-                               contrast=cj['contrast'] if 'contrast' in cj else 0.0,
-                               saturation=cj['saturation'] if 'saturation' in cj else 0.0,
-                               hue=cj['hue'] if 'hue' in cj else 0.0),
-        transforms.ToTensor()]) 
-    train_dir = os.path.join(experiment_path, 'train')
-    val_dir = os.path.join(experiment_path, 'val')
-    train_set = Fetcher(train_dir, transform)
-    val_set = Fetcher(val_dir, transform)
-    train_loader = DataLoader(train_set, batch_size=args.bs, num_workers=args.threads, shuffle=True)
+    cj = config[args.exp]['transforms']['colorjitter']
+    transform_x = transforms.Compose([
+        transforms.ColorJitter(brightness=cj['brightness'], contrast=cj['contrast'],
+                               saturation=cj['saturation'], hue=cj['hue']),
+        transforms.ToTensor()])
+    transform_xy = transforms.Compose([])
+
+    train_dir = join(experiment_path, 'train')
+    val_dir = join(experiment_path, 'val')
+    train_set = Fetcher(train_dir, transform_x, transform_xy)
+    val_set = Fetcher(val_dir, transform_x, transform_xy)
+    train_loader = DataLoader(train_set, batch_size=args.bs, num_workers=args.threads,
+                              shuffle=True)
     val_loader = DataLoader(val_set, batch_size=args.bs, num_workers=args.threads)
 
     # Train
     min_loss = 1
     for epoch in range(args.epochs + 1):
-        tloss = step(epoch, config[args.name], model, train_loader,
-                     optimizer, criterion, is_train=epoch)
-        vloss = step(epoch, config[args.name], model, val_loader,
-                     optimizer, criterion, is_train=False)
-
-        # Only save models that have a lower loss
+        start_time = time.time()
+        tloss, tcount = step(epoch, config[args.exp], model, train_loader,
+                             optimizer, criterion, epoch, args.nocuda, args.plot)
+        train_time = time.time()
+        vloss, vcount = step(epoch, config[args.exp], model, val_loader,
+                             optimizer, criterion, False, args.nocuda, args.plot)
+        trainval_time = time.time()
+        
+        # Only save models that have a lower loss than ever seen before
         if vloss < min_loss:
             min_loss = vloss
-            torch.save(model, os.path.join(experiment_path, "%s_%03i_%.6f.pt" %
-                                           (args.model, epoch, vloss)))
-        print("epoch %03i  tloss:%.6f  vloss:%.6f %s" %
-              (epoch, tloss, vloss, '*' if vloss == min_loss else ''))
+            name = "%s_%03i_%.6f.pt" % (args.model, epoch, vloss)
+            torch.save(model, join(experiment_path, name))
+
+        # Prepare
+        dur = trainval_time - start_time
+        tms = 1000 * (train_time - start_time) / tcount
+        vms = 1000 * (trainval_time - train_time) / vcount
+        note = '*' if vloss == min_loss else ''
+        print("epoch %03i  tloss: %.6f  vloss: %.6f  dur: %6.1f  tms: %3i, vms: %3i  %s" %
+              (epoch, tloss, vloss, dur, tms, vms, note))
+               
     
 if __name__ == "__main__":
     main()

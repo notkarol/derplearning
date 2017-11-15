@@ -47,6 +47,12 @@ def load_image(path):
             return img.convert('RGB')                    
 
 
+def save_image(path, img):
+    if type(img) == np.ndarray:
+        img = PIL.Image.fromarray((img * 255).astype(np.uint8))
+    img.save(path)
+        
+
 def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
