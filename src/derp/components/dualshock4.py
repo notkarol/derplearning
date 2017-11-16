@@ -57,17 +57,24 @@ class Dualshock4(Component):
     def act(self, state):
 
         # Prepare command
-        rumble = (0, 0)
-        rgb = [0.1, 0.1, 0.1]
-        flash = (0, 0)
-
-        # Change things based on state
+        rumble = [0, 0]
+        flash = [0, 0]
+        
+        # Base color
+        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
+            rgb = [0.1, 0.1, 0.1]
+        else:
+            rgb = [0, 0, 0]
+            
+        # Update based on state
         if state['record']:
+            flash[0] = 0.3
+            flash[1] = 0.1
             rgb[1] = 1
         if state['auto_steer']:
-            rgb[2] = 1
+            rgb[0] = 0.5
         if state['auto_speed']:
-            rgb[0] = 1
+            rgb[2] = 0.5
             
         # Prepare and sendpacket
         self.packet[7] = int(rumble[0] * 255)
@@ -87,7 +94,7 @@ class Dualshock4(Component):
         """
 
         # Make sure we can send commands
-        n_attemps = 3
+        n_attemps = 5
         for attempt in range(n_attemps):
             print("Attempt %i of %i" % (attempt + 1, n_attemps), end='\r')
             cmd = ["hcitool", "scan", "--flush"]
@@ -229,8 +236,8 @@ class Dualshock4(Component):
             out['auto_speed'] = True
             out['auto_steer'] = True
         if status['button_cross']:
-            out['auto_speed'] = True
-            out['auto_steer'] = True
+            out['auto_speed'] = False
+            out['auto_steer'] = False
         if status['button_square']:
             out['record'] = False
         if status['button_circle']:

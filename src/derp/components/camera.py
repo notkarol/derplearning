@@ -6,7 +6,7 @@ import os
 import re
 import select
 import sys
-from time import time
+from time import time, sleep
 import v4l2capture
 import PIL.Image
 from derp.component import Component
@@ -58,7 +58,7 @@ class Camera(Component):
         # start the camerea
         w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG') # YUYV
         fps = self.cap.set_fps(self.config['fps'])
-        self.cap.create_buffers(30)
+        self.cap.create_buffers(1)
         self.cap.queue_all_buffers()
         self.cap.start()
 
@@ -86,11 +86,19 @@ class Camera(Component):
         if self.cap is None:
             return False
         
-        # Read the next video frame
-        select.select((self.cap,), (), ())
-        image_data = self.cap.read_and_queue()
-        frame = np.array(PIL.Image.open(io.BytesIO(image_data)))
-
+        # Read the next video frame. If we couldn't get it, use the last one
+        frame = None
+        counter = 1
+        while frame is None and counter:
+            counter -= 1
+            select.select((self.cap,), (), ())
+            try:
+                image_data = self.cap.read_and_queue()
+                frame = np.array(PIL.Image.open(io.BytesIO(image_data)))
+            except:
+                print("Camera: Unable to get frame. Retrying")
+            
+            
         # Update the state and our out buffer
         timestamp = int(time() * 1E6)
         state['timestamp'] = timestamp
@@ -98,7 +106,6 @@ class Camera(Component):
 
         if state['record']:
             self.out_buffer.append((timestamp, image_data))
-        
         return True
 
 
