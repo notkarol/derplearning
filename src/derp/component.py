@@ -2,6 +2,7 @@ import sys
 
 class Component:
 
+    #initializes the component
     def __init__(self, config):
         self.config = config
         self.connected = False
@@ -9,14 +10,17 @@ class Component:
         self.out_csv_fp = None
         self.folder = None
 
+    #deletes the class object
     def __del__(self):
         print("UNINITIALIZED __del__ %s" % self.__class__.__name__, file=sys.stderr)
 
-        
+    
+    #returns an unambiguous representation of the object
     def __repr__(self):
         return "(%s, %s)" % (self.config['name'], self.connected)
 
     
+    #returns a human readable representation of the object
     def __str__(self):
         return repr(self)
 
