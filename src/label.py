@@ -66,7 +66,7 @@ class Labeler(object):
             return False
 
         # Resize frame as needed
-        self.frame = cv2.resize(frame, None, fx=self.scale[0], fy=self.scale[1],
+        self.frame = cv2.resize(frame, None, fx=self.scale, fy=self.scale,
                                 interpolation=cv2.INTER_AREA)
         self.frame_id += 1
         return True
@@ -299,7 +299,7 @@ class Labeler(object):
                 break
 
         
-    def __init__(self, recording_path, scale = (1.0, 1.0) ):
+    def __init__(self, recording_path, scale=1):
         
         self.scale = scale #Image Scale Factor
         self.recording_path = recording_path
@@ -349,5 +349,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    labeler = Labeler(recording_path = args.path, scale = args.scale)
+    labeler = Labeler(recording_path=args.path, scale=args.scale)
     labeler.run_labeler(args.config, args.infer)
