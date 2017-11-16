@@ -226,6 +226,7 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
+            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
         if status['button_share']:
@@ -240,9 +241,11 @@ class Dualshock4(Component):
             out['auto_steer'] = False
         if status['button_square']:
             out['record'] = False
+            out['folder'] = False
         if status['button_circle']:
             if not state['record']:
-                out['record'] = util.get_record_name()
+                out['record'] = True
+                out['folder'] = util.get_record_folder()
 
         # Change wheel offset
         if status['left']:
@@ -272,6 +275,7 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
+            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
             out['exit'] = True
@@ -283,6 +287,7 @@ class Dualshock4(Component):
         out = { 'speed' : None,
                 'steer' : None,
                 'record' : None,
+                'folder' : None,
                 'auto_speed' : None,
                 'auto_steer' : None,
                 'steer_offset' : None,

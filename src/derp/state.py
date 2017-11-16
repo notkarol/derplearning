@@ -9,13 +9,14 @@ class State(Mapping):
 
     def __init__(self):
         self.state = {'folder': None,
-                      'record': None,
+                      'record': False,
                       'speed': 0,
                       'steer': 0,
                       'auto_speed': False,
                       'auto_steer': False,
                       'steer_offset': 0.0,
                       'exit': False}
+        self.folder = None
         self.out_csv_fp = None
 
         
@@ -82,39 +83,36 @@ class State(Mapping):
     def scribe(self, hw_config_path):
 
         # Do not do anything if recording is off
-        if 'record' not in self.state or not self.state['record']:
+        if not self.state['record']:
             return False
 
         # If we already have this folder, write out the state
-        folder = os.path.join(os.environ['DERP_DATA'], self.state['record'])
-        if folder == self.state['folder']:
-            self.write()
-            return False
+        if self.folder != self.state['folder']:
 
-        # Create the folder
-        self.state['folder'] = folder
-        os.mkdir(self.state['folder'])
-        print('STATE:', self.state['folder'])
+            # Create the folder
+            self.folder = self.state['folder']
+            os.mkdir(self.state['folder'])
+            print('Created:', self.state['folder'])
 
-        # Make a copy of our config
-        copyfile(hw_config_path, os.path.join(self.state['folder'], 'config.yaml'))
-        
-        # Prepare output csv
-        out_csv_path = os.path.join(self.state['folder'], "state.csv")
-        self.out_csv_fp = open(out_csv_path, 'w')
+            # Make a copy of our config
+            copyfile(hw_config_path, os.path.join(self.folder, 'config.yaml'))
 
-        # Write out headers
-        self.out_csv_fp.write("timestamp")
-        for key in sorted(self.state):
-            if key == 'timestamp':
-                continue
-            self.out_csv_fp.write(',' + key)
-        self.out_csv_fp.write("\n")
-        self.out_csv_fp.flush()
+            # Prepare output csv
+            out_csv_path = os.path.join(self.folder, "state.csv")
+            self.out_csv_fp = open(out_csv_path, 'w')
+
+            # Write out headers
+            self.out_csv_fp.write("timestamp")
+            for key in sorted(self.state):
+                if key == 'timestamp':
+                    continue
+                self.out_csv_fp.write(',' + key)
+            self.out_csv_fp.write("\n")
+            self.out_csv_fp.flush()
 
         # Write out the first row of data
         self.write()
-
+        return True
         
     def write(self):
         self.out_csv_fp.write(repr(self) + "\n")

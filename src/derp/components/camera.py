@@ -11,12 +11,16 @@ import v4l2capture
 import PIL.Image
 from derp.component import Component
 import derp.util as util
+import subprocess
 
 class Camera(Component):
 
     def __init__(self, config):
         super(Camera, self).__init__(config)
         self.cap = None
+        self.frame_counter = 0
+        self.start_time = 0
+        self.config = config
 
 
     def __del__(self):
@@ -67,15 +71,37 @@ class Camera(Component):
 
 
     def scribe(self, state):
-        if not state['folder'] or state['folder'] == self.folder:
-            self.write()
-            return False
 
+        # If we're not recording, make sure we also don't have to encode mp4s
+        if not state['record']:
+            if self.folder:
+                fps = int(self.frame_counter / (time() - self.start_time) + 0.5)
+                cmd = " ".join(['gst-launch-1.0',
+                                  'multifilesrc',
+                                  'location="%s/%s/%%06d.jpg"' % (self.folder, self.config['name']),
+                                  '!', '"image/jpeg,framerate=%i/1"' % fps, 
+                                  '!', 'jpegparse',
+                                  '!', 'jpegdec',
+                                  '!', 'omxh264enc', 'bitrate=8000000',
+                                  '!', '"video/x-h264, stream-format=(string)byte-stream"',
+                                  '!', 'h264parse',
+                                  '!', 'mp4mux',
+                                  '!', 'filesink location="%s/%s.mp4"' % (self.folder,
+                                                                          self.config['name'])])
+                subprocess.Popen(cmd, shell=True)
+                self.folder = None
+            return True
+                
         # Create directory for storing images
-        self.folder = state['folder']
-        self.recording_dir = os.path.join(self.folder, self.config['name'])
-        os.mkdir(self.recording_dir)
+        if state['folder'] != self.folder:
+            self.folder = state['folder']
+            self.recording_dir = os.path.join(self.folder, self.config['name'])
+            os.mkdir(self.recording_dir)
+            self.frame_counter = 0
+            self.start_time = time()
 
+
+        # Write the frame
         self.write()
         return True
 
@@ -112,9 +138,10 @@ class Camera(Component):
     def write(self):
 
         for timestamp, image_data in self.out_buffer:
-            path = '%s/%i.jpg' % (self.recording_dir, timestamp)
+            path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
             with open(path, 'wb') as f:
                 f.write(image_data)
+            self.frame_counter += 1
             
         del self.out_buffer[:]
             

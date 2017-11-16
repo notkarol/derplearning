@@ -32,10 +32,10 @@ def get_name(path):
     return os.path.splitext(os.path.basename(path.rstrip('/')))[0]
 
 
-def get_record_name():
+def get_record_folder():
      dt = datetime.utcfromtimestamp(time()).strftime("%Y%m%d-%H%M%S")
      hn = socket.gethostname()
-     return "%s-%s" % (dt, hn)
+     return os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
 
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)

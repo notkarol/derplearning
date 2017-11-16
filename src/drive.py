@@ -28,10 +28,9 @@ def main(args):
             component.act(state)
 
         # Write out state and each component buffer
-        if state['record']:
-            state.scribe(args.hw)
-            for component in components:
-                component.scribe(state)
+        state.scribe(args.hw)
+        for component in components:
+            component.scribe(state)
 
         # Print to the screen for verbose mode
         if args.verbose:
@@ -43,7 +42,8 @@ def main(args):
                                                   state['steer']))
 
         # Exit
-        if 'exit' in state and state['exit']:
+        if state['exit']:
+            print("Exiting")
             return
             
 
