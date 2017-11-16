@@ -37,6 +37,7 @@ def get_record_folder():
      hn = socket.gethostname()
      return os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
 
+
 def has_image_ext(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
     
@@ -270,3 +271,18 @@ def find_device(name):
         if device.name == name:
             return device
     return None
+
+
+def find_value(haystack, key, values, interpolate=False):
+    """
+    Find the nearest value in the sorted haystack to the specified key.
+    """
+
+    nearest = 0
+    diff = np.abs(haystack - key)
+    if interpolate:
+        nearest = diff.argsort()[:2]
+        return (values[nearest[0]] + values[nearest[1]]) / 2
+
+    nearest = diff.argmin()
+    return values[nearest]
