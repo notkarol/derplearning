@@ -1,5 +1,5 @@
-import copy
 import csv
+import numpy as np
 from os.path import expanduser, exists, join, basename, splitext
 import torch.utils.data
 import derp.util
@@ -33,10 +33,9 @@ class Fetcher(torch.utils.data.Dataset):
         # Each video has a certain fixed number of state variables which we will encode as a dict
         with open(state_path) as f:
             reader = csv.reader(f)
-            headers = next(reader)
             for row in reader:
                 path = join(self.root, row[0])
-                state = {k : float(v) for k, v in zip(headers[1:], row[1:])}
+                state = np.array([float(x) for x in row[1:]], dtype=np.float32)
                 self.paths.append(path)
                 self.states.append(state)
 
@@ -46,7 +45,7 @@ class Fetcher(torch.utils.data.Dataset):
         
         # Prepare 
         x = derp.util.load_image(self.paths[index])
-        y = copy.deepcopy(self.states[index])
+        y = self.states[index].copy()
         
         # Transform x
         if self.transform_x is not None:

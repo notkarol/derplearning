@@ -27,10 +27,7 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, nocuda, p
     step_loss = []
 
     # Go throgh each epoch
-    for batch_idx, (example, state) in enumerate(loader):
-
-        # Prepare label based on what we want to predict
-        label = torch.stack([state[x] for x in config['predict']], dim=1).float()
+    for batch_idx, (example, label) in enumerate(loader):
 
         # Plot this batch if desired
         if plot_batch:
@@ -85,14 +82,22 @@ def main():
         criterion = criterion.cuda()
     optimizer = optim.Adam(model.parameters(), args.lr)
 
-    # prepare data loaders
-    cj = config[args.exp]['transforms']['colorjitter']
-    transform_x = transforms.Compose([
-        transforms.ColorJitter(brightness=cj['brightness'], contrast=cj['contrast'],
-                               saturation=cj['saturation'], hue=cj['hue']),
-        transforms.ToTensor()])
+    # Prepare perturbation of example
+    tx = []
+    for td in config[args.exp]['transform_x']:
+        if td['name'] == 'colorjitter':
+            t = transforms.ColorJitter(brightness=td['brightness'],
+                                       contrast=td['contrast'],
+                                       saturation=td['saturation'],
+                                       hue=td['hue'])
+            tx.append(t)
+    tx.append(transforms.ToTensor())
+    transform_x = transforms.Compose(tx)
+
+    # Prepare perturbation of both example and target
     transform_xy = transforms.Compose([])
 
+    # prepare data loaders
     train_dir = join(experiment_path, 'train')
     val_dir = join(experiment_path, 'val')
     train_set = Fetcher(train_dir, transform_x, transform_xy)

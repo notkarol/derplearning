@@ -15,7 +15,7 @@ def write(inferer, state, predict, data_dir, writer, store_name):
 
     # Crop, resize, and write out image
     thumb = inferer.prepare_x(state)
-    store_path = join(data_dir, store_name + '.png')
+    store_path = join(data_dir, store_name)
     cv2.imwrite(store_path, thumb)            
 
     # Write out state
@@ -134,12 +134,12 @@ def main(args):
     # If we haven't yet written the heading 
     if not exists(train_states_path):
         headers = (['key'] +
-                   [sd['name'] for sd in sw_config[args.name]['predict']])
+                   [sd['name'] for sd in sw_config[args.exp]['predict']])
         train_states_fd.write(",".join(headers) + "\n")
         val_states_fd.write(",".join(headers) + "\n")
 
     # Run through each folder and include it in dataset
-    for data_folder in sw_config[args.name]['data_folders']:
+    for data_folder in sw_config[args.exp]['data_folders']:
 
         # If we don't have an absolute path, prepend derp_data
         if data_folder[0] != '/':
@@ -149,7 +149,7 @@ def main(args):
         for filename in os.listdir(data_folder):
             recording_dir = join(data_folder, filename)
             if isdir(recording_dir):
-                process_recording(sw_config, args.name, recording_dir,
+                process_recording(sw_config, args.exp, recording_dir,
                                   train_states_fd, val_states_fd,
                                   train_dir, val_dir)
 
@@ -162,6 +162,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--sw', type=str, required=True, help="software yaml file")
-    parser.add_argument('--name', type=str, required=True, help="name of which experiment to train")
+    parser.add_argument('--exp', type=str, required=True, help="name of which experiment to train")
     args = parser.parse_args()
     main(args)
