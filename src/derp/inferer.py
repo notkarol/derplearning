@@ -7,7 +7,7 @@ import derp.util as util
 
 class Inferer:
     
-    def __init__(self, hw_config, sw_config, model_dir, state):
+    def __init__(self, hw_config, sw_config, model_dir):
         """
         Loads the supplied python script as this inferer.
         """
@@ -18,7 +18,7 @@ class Inferer:
 
         script_path = 'derp.scripts.%s' % (sw_config['script'].lower())
         script_class = util.load_class(script_path, sw_config['script'])
-        self.script = script_class(hw_config, sw_config, model_dir, state)
+        self.script = script_class(hw_config, sw_config, model_dir)
 
 
     def plan(self, state):

@@ -14,7 +14,7 @@ def main(args):
     # Prepare variables
     state = State(args.speed, args.steer)
     components = derp.util.load_components(hw_config, state)
-    inferer = Inferer(hw_config, sw_config, args.path, state)
+    inferer = Inferer(hw_config, sw_config, args.path)
 
     # Event loop
     print("Ready")

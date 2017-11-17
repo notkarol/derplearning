@@ -35,7 +35,7 @@ class Fetcher(torch.utils.data.Dataset):
             reader = csv.reader(f)
             headers = next(reader)
             for row in reader:
-                path = join(self.root, "%s.png" % row[0])
+                path = join(self.root, row[0])
                 state = {k : float(v) for k, v in zip(headers[1:], row[1:])}
                 self.paths.append(path)
                 self.states.append(state)
