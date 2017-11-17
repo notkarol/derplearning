@@ -37,13 +37,17 @@ clone:
     yaw: 0
     roll: 0
     
-  # States we will predict
+  # States we will predict.
   predict:
     - {name: 'steer', field: 'steer', delay: 0.3, mult: 1 }
-    - {name: 'steer', field: 'steer', delay: 1.3, mult: 1 }
+    - {name: 'steer-future', field: 'steer', delay: 2.3, mult: 1 }
 
+  # Can modify these after training
   params:
     scale: 0.5
     power: 2
     prev: 0.2
     curr: 0.8
+    prev_future: 0.5
+    curr_future: 0.5
+    use_min_of_both_for_speed: true

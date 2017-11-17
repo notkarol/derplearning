@@ -1,4 +1,4 @@
-script: 'Clone'
+script: 'CloneFixSpeed'
 debug: False
 
 clone:
@@ -39,7 +39,9 @@ clone:
     
   # States we will predict
   predict:
-    - {name: 'speed', field: 'speed', delay: 0.3, mult: 1 }
     - {name: 'steer', field: 'steer', delay: 0.3, mult: 1 }
 
-  #params:
+  # Can modify these after training
+  params:
+    prev: 0.2
+    curr: 0.8

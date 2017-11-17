@@ -36,7 +36,7 @@ class CloneAdaSpeed(Inferer):
         else:
             self.model_path = None
             self.model = None
-
+        self.prev_future_steer = 0
 
     def prepare_x(self, state):
         frame = state[self.component_name]
@@ -69,12 +69,22 @@ class CloneAdaSpeed(Inferer):
         else:
             predictions = out.data.cpu().numpy()[0]
 
+        # Our steering output
         steer = (self.sw_config['params']['curr'] * float(predictions[0]) +
                  self.sw_config['params']['prev'] * state['steer'])
 
-        future_steer = float[predictions[1]]
-        multiplier = 1 + (self.sw_config['params']['scale'] *
-                          (1 - abs(future_speed)) ** self.sw_config['params']['power'])
+        # Figure out future_steer based on various normalizations and weights
+        if self.sw_config['params']['use_min_for_speed']:
+            future_steer = float(min(predictions))
+        else:
+            future_steer = float(predictions[1])
+        future_steer = (self.sw_config['params']['curr_future'] * future_steer +
+                        self.sw_config['params']['prev_future'] * self.prev_future_steer)
+        self.future_steer = future_steer
+
+        # Use future steer to figure out speed
+        multiplier = (1 + (self.sw_config['params']['scale'] *
+                           (1 - abs(future_steer)) ** self.sw_config['params']['power']))
         speed = state['speed_offset'] * multiplier
         
         return speed, steer

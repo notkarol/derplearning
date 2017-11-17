@@ -69,6 +69,7 @@ class CloneFixSpeed(Inferer):
         else:
             predictions = out.data.cpu().numpy()[0]
 
+        # Figure out speed and steer. Speed is fixed based on state
         speed = state['speed_offset']
         steer = (self.sw_config['params']['curr'] * float(predictions[0]) +
                  self.sw_config['params']['prev'] * state['steer'])
