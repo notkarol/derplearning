@@ -10,13 +10,13 @@ from derp.inferer import Inferer
 
 class CloneAdaSpeed(Inferer):
 
-    def __init__(self, hw_config, sw_config, exp='clone', model_dir=None, nocuda=False):
+    def __init__(self, hw_config, sw_config, model_dir=None, nocuda=False):
 
         self.hw_config = hw_config
         self.sw_config = sw_config
         self.model_dir = model_dir
         self.nocuda = nocuda
-        self.exp = exp
+        self.exp = 'clone'
         
         # Prepare the input camera
         self.component_name = self.sw_config[self.exp]['patch']['component']
@@ -70,21 +70,21 @@ class CloneAdaSpeed(Inferer):
             predictions = out.data.cpu().numpy()[0]
 
         # Our steering output
-        steer = (self.sw_config['params']['curr'] * float(predictions[0]) +
-                 self.sw_config['params']['prev'] * state['steer'])
+        steer = (self.sw_config[self.exp]['params']['curr'] * float(predictions[0]) +
+                 self.sw_config[self.exp]['params']['prev'] * state['steer'])
 
         # Figure out future_steer based on various normalizations and weights
-        if self.sw_config['params']['use_min_for_speed']:
+        if self.sw_config[self.exp]['params']['use_min_for_speed']:
             future_steer = float(min(predictions))
         else:
             future_steer = float(predictions[1])
-        future_steer = (self.sw_config['params']['curr_future'] * future_steer +
-                        self.sw_config['params']['prev_future'] * self.prev_future_steer)
+        future_steer = (self.sw_config[self.exp]['params']['curr_future'] * future_steer +
+                        self.sw_config[self.exp]['params']['prev_future'] * self.prev_future_steer)
         self.future_steer = future_steer
 
         # Use future steer to figure out speed
-        multiplier = (1 + (self.sw_config['params']['scale'] *
-                           (1 - abs(future_steer)) ** self.sw_config['params']['power']))
+        multiplier = (1 + (self.sw_config[self.exp]['params']['scale'] *
+                           (1 - abs(future_steer)) ** self.sw_config[self.exp]['params']['power']))
         speed = state['speed_offset'] * multiplier
         
         return speed, steer

@@ -10,13 +10,13 @@ from derp.inferer import Inferer
 
 class CloneFixSpeed(Inferer):
 
-    def __init__(self, hw_config, sw_config, exp='clone', model_dir=None, nocuda=False):
+    def __init__(self, hw_config, sw_config, model_dir=None, nocuda=False):
 
         self.hw_config = hw_config
         self.sw_config = sw_config
         self.model_dir = model_dir
         self.nocuda = nocuda
-        self.exp = exp
+        self.exp = 'clone'
         
         # Prepare the input camera
         self.component_name = self.sw_config[self.exp]['patch']['component']
@@ -71,6 +71,6 @@ class CloneFixSpeed(Inferer):
 
         # Figure out speed and steer. Speed is fixed based on state
         speed = state['speed_offset']
-        steer = (self.sw_config['params']['curr'] * float(predictions[0]) +
-                 self.sw_config['params']['prev'] * state['steer'])
+        steer = (self.sw_config[self.exp]['params']['curr'] * float(predictions[0]) +
+                 self.sw_config[self.exp]['params']['prev'] * state['steer'])
         return speed, steer

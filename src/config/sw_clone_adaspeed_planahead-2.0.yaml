@@ -50,4 +50,4 @@ clone:
     curr: 0.8
     prev_future: 0.5
     curr_future: 0.5
-    use_min_of_both_for_speed: true
+    use_min_for_speed: true

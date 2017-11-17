@@ -10,13 +10,13 @@ from derp.inferer import Inferer
 
 class Clone(Inferer):
 
-    def __init__(self, hw_config, sw_config, exp='clone', model_dir=None, nocuda=False):
+    def __init__(self, hw_config, sw_config, model_dir=None, nocuda=False):
 
         self.hw_config = hw_config
         self.sw_config = sw_config
         self.model_dir = model_dir
         self.nocuda = nocuda
-        self.exp = exp
+        self.exp = 'clone'
         
         # Prepare the input camera
         self.component_name = self.sw_config[self.exp]['patch']['component']
