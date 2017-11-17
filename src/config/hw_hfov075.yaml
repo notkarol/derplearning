@@ -9,6 +9,11 @@ components:
    state:
      timeout: 1.0
 
+ - name: 'keyboard'
+   required: False
+   class: 'Keyboard'
+   exact: False
+
  - name: 'camera_front'
    required: True
    class: 'Camera'

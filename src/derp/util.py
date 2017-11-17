@@ -264,11 +264,12 @@ def plot_batch(example, label, name):
     plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
     print("Saved batch [%s]" % name)
 
-def find_device(name):
+def find_device(name, exact=False):
     out = []
     for filename in evdev.list_devices():
         device = evdev.InputDevice(filename)
-        if device.name == name:
+        if ((exact and device.name == name) or
+            (not exact and name in device.name)):
             return device
     return None
 

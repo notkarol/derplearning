@@ -264,11 +264,11 @@ class Dualshock4(Component):
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['speed'] = state['speed'] + 0.015625
+            out['speed_offset'] = state['speed_offset'] + 0.1
         if status['down']:
             self.down_active = True
         elif self.down_active:
-            out['speed'] = state['speed'] - 0.015625
+            out['speed_offset'] = state['speed_offset'] - 0.1
 
         # Close down
         if status['button_trackpad']:
@@ -291,6 +291,7 @@ class Dualshock4(Component):
                 'auto_speed' : None,
                 'auto_steer' : None,
                 'steer_offset' : None,
+                'speed_offset' : None,
                 'exit' : None }
 
         # Fetch input messages and process them. Store it in out
