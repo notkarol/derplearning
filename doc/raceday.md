@@ -1,10 +1,16 @@
 # Recording
 
-You will need a Dualshock 4 controller unpaired from your car. Run the following command. Then press the PS and Share buttons together until you get a double white flash. The program will take a few seconds to sync. Once it is ready, you can control the car. 
+You will need a Dualshock 4 controller unpaired from your car. Run the following command in a terminal logged into the car's ubuntu user account:
 
 ```bash
 python3 drive.py --hw config/hw_hfov100.yaml
 ```
+
+Then press the PS and Share buttons together until you get a double white blink, The blinks should look like this:
+----.-.
+If the controller starts flashing evenly then the sync attemp failed controller side. Once the device stops flashing you can try to sink by pushing the PS and Share buttons again. Even flashing looks like this:
+--..--..
+The program will take a few seconds to sync. Once it is ready the blinking will stop, you can now control the car. 
 
 ## Dualshock 4 Controls
 
