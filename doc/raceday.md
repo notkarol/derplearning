@@ -38,8 +38,8 @@ L1 and R1 are unmapped.
 1. Start the program and sync the car.
 2. Start recording by pressing the Circle key.
 3. Drive the car around the course the way you wish to. Two recommended modes are:
-⋅⋅1. Follow the yellow line as best you can.
-⋅⋅2. Stay in lane.
+  1. Follow the yellow line as best you can.
+  2. Stay in lane.
 4. When you're done press the Triangle key to stop the car and recording.
 
 # Label
@@ -53,35 +53,35 @@ python3 label.py --path ${DERP_DATA}/train/20170812T184653Z-paras
 ## Navigation
 You can maneuver through the tool through the arrow keys.
 
-Left Arrow: Move backward in time 1 frame
-Right Arrow: Move forward in time 1 frame
-Up Arrow: Move forward in time 1 second
-Down Arrow: Move backward in time 1 second
-`: Move to the beginning of the file.
-1: Move to 10% into the file.
-2: Move to 20% into the file.
-3: Move to 30% into the file.
-4: Move to 40% into the file.
-5: Move to 50% into the file.
-6: Move to 60% into the file.
-7: Move to 70% into the file.
-8: Move to 80% into the file.
-9: Move to 90% into the file.
-0: Move to 100% into the file.
+* Left Arrow: Move backward in time 1 frame
+* Right Arrow: Move forward in time 1 frame
+* Up Arrow: Move forward in time 1 second
+* Down Arrow: Move backward in time 1 second
+* `: Move to the beginning of the file.
+* 1: Move to 10% into the file.
+* 2: Move to 20% into the file.
+* 3: Move to 30% into the file.
+* 4: Move to 40% into the file.
+* 5: Move to 50% into the file.
+* 6: Move to 60% into the file.
+* 7: Move to 70% into the file.
+* 8: Move to 80% into the file.
+* 9: Move to 90% into the file.
+* 0: Move to 100% into the file.
 
 ## Modes
 
-g: good data that we should use for data
-r: risky data that we mark is interesting but probably don't want to train
-t: trash data that we wish to junk and not use again
+* g: good data that we should use for data
+* r: risky data that we mark is interesting but probably don't want to train
+* t: trash data that we wish to junk and not use again
 
 You an also clear the marker so that when you maneuver through the video you don't update the mode at the time.
 
-c: clear marker
+* c: clear marker
 
 ## Saving
 
-s: Save video
+* s: Save video
 
 # Create Dataset
 
