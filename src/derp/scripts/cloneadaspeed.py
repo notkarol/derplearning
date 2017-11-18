@@ -80,7 +80,7 @@ class CloneAdaSpeed(Inferer):
             future_steer = float(predictions[1])
         future_steer = (self.sw_config[self.exp]['params']['curr_future'] * future_steer +
                         self.sw_config[self.exp]['params']['prev_future'] * self.prev_future_steer)
-        self.future_steer = future_steer
+        self.prev_future_steer = future_steer
 
         # Use future steer to figure out speed
         multiplier = (1 + (self.sw_config[self.exp]['params']['scale'] *
