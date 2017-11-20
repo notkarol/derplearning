@@ -7,14 +7,13 @@ import derp.util
 
 def main(args):
 
-    # Load configs
+    # Load hw config config
     hw_config = derp.util.load_config(args.hw)
-    sw_config = derp.util.load_config(args.sw)
-
+    
     # Prepare variables
     state = State(args.speed, args.steer)
     components = derp.util.load_components(hw_config, state)
-    inferer = Inferer(hw_config, sw_config, args.path)
+    inferer = Inferer(hw_config, path=args.model)
 
     # Event loop
     print("Ready")
@@ -34,10 +33,10 @@ def main(args):
 
         # Print to the screen for verbose mode
         if args.verbose:
-            print("%.3f %3s %4s %.3f %4s %.3f" %
+            print("%.3f %3s %sspd %.3f %sstr %.3f" %
                   (state['timestamp'] / 1E6, 'REC' if state['record'] else 'off',
-                   'Aspd' if state['auto_speed'] else '!spd', state['speed'],
-                   'Astr' if state['auto_steer'] else '!str', state['steer']))
+                   'A' if state['auto_speed'] else '!', state['speed'],
+                   'A' if state['auto_steer'] else '!', state['steer']))
 
         # Exit
         if state['exit']:
@@ -45,15 +44,16 @@ def main(args):
             return
             
 
+# Load all the arguments and feed them to the main event loader and loop
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--hw', type=str, required=True, help="physical configuration path")
-    parser.add_argument('--sw', type=str, default=None, help="inferer configuration path")
-    parser.add_argument('--path', type=str, default=None, help="folder where models are stored")
-    parser.add_argument('--verbose', action='store_true', default=False)
+    parser.add_argument('--hw', type=str, required=True,
+                        help="path to physical configuration of the car")
+    parser.add_argument('--model', type=str, default=None,
+                        help="folder where models and configs are stored")
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help="print a summarized state of the car")
     parser.add_argument('--speed', type=float, default=0.0, help="steer offset")
     parser.add_argument('--steer', type=float, default=0.0, help="speed offset")
-    args = parser.parse_args()
-    
+    args = parser.parse_args()    
     main(args)
