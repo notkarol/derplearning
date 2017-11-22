@@ -123,10 +123,9 @@ def get_patch_bbox(source_config, target_config):
     Currently we assume that orientations and positions are identical
     """
     
-    patch = target_config['patch']
-    
-    hfov_ratio = patch['hfov'] / source_config['hfov']
-    vfov_ratio = patch['vfov'] / source_config['vfov']
+    hfov_ratio = target_config['hfov'] / source_config['hfov']
+    vfov_ratio = target_config['vfov'] / source_config['vfov']
+
 
     width = source_config['width'] * hfov_ratio
     height = source_config['height'] * vfov_ratio

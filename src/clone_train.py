@@ -15,7 +15,8 @@ from derp.fetcher import Fetcher
 import torchvision.transforms as transforms
 import derp.util as util
 
-def step(epoch, config, model, loader, optimizer, criterion, is_train, nocuda, plot_batch=False):
+def step(epoch, config, model, loader, optimizer, criterion,
+         is_train, nocuda, plot_batch=False):
 
     # prepare model for either training or evaluation
     if is_train:
@@ -27,7 +28,7 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, nocuda, p
     step_loss = []
 
     # Go throgh each epoch
-    for batch_idx, (example, label) in enumerate(loader):
+    for batch_idx, (example, status, label) in enumerate(loader):
 
         # Plot this batch if desired
         if plot_batch:
@@ -35,10 +36,13 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, nocuda, p
             util.plot_batch(example, label, name)
 
         # Run training or evaluation to get loss, and then use loss if in training
-        example, label = Variable(example.cuda()), Variable(label.cuda())
+        if not nocuda:
+            example, status, label = example.cuda(), status.cuda(), label.cuda()
+        example, status, label = Variable(example), Variable(status), Variable(label)
+        
         if is_train:
             optimizer.zero_grad()
-        out = model(example)
+        out = model(example, status)
         loss = criterion(out, label)
         step_loss.append(loss.data.mean())
         if is_train:
@@ -54,7 +58,6 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--sw', type=str, required=True, help="Software configuration to use")
-    parser.add_argument('--exp', type=str, required=True, help="Experiment in configruation")
     parser.add_argument('--model', type=str, default="BasicModel", help="Model to run")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
     parser.add_argument('--bs', type=int, default=64, help="Batch Size")
@@ -67,14 +70,15 @@ def main():
     args = parser.parse_args()    
 
     # Make sure we have somewhere to run the experiment
-    config = util.load_config(args.sw)
-    experiment_path = join(environ["DERP_SCRATCH"], config['name'])
+    sw_config = util.load_config(args.sw)
+    experiment_path = join(environ["DERP_SCRATCH"], sw_config['name'])
 
     # Prepare model
-    pc = config[args.exp]['patch']
-    dim_in = np.array((pc['depth'], pc['height'], pc['width']))
-    dim_out = len(config[args.exp]['predict'])
-    model = util.load_class('derp.models.' + args.model.lower(), args.model)(dim_in, dim_out)
+    tc = sw_config['thumb']
+    dim_in = np.array((tc['depth'], tc['height'], tc['width']))
+    n_status = len(sw_config['status'])
+    n_out = len(sw_config['predict'])
+    model = util.load_class('derp.models.' + args.model.lower(), args.model)(dim_in, n_status, n_out)
     criterion = nn.MSELoss()
     if not args.nocuda:
         environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
@@ -83,54 +87,57 @@ def main():
     optimizer = optim.Adam(model.parameters(), args.lr)
 
     # Prepare perturbation of example
-    tx = []
-    for td in config[args.exp]['transform_x']:
+    tlist = []
+    for td in sw_config['train']['prepare']:
         if td['name'] == 'colorjitter':
             t = transforms.ColorJitter(brightness=td['brightness'],
                                        contrast=td['contrast'],
                                        saturation=td['saturation'],
                                        hue=td['hue'])
-            tx.append(t)
-    tx.append(transforms.ToTensor())
-    transform_x = transforms.Compose(tx)
-
-    # Prepare perturbation of both example and target
-    transform_xy = transforms.Compose([])
+            tlist.append(t)
+    tlist.append(transforms.ToTensor())
+    transform = transforms.Compose(tlist)
 
     # prepare data loaders
-    train_dir = join(experiment_path, 'train')
-    val_dir = join(experiment_path, 'val')
-    train_set = Fetcher(train_dir, transform_x, transform_xy)
-    val_set = Fetcher(val_dir, transform_x, transform_xy)
-    train_loader = DataLoader(train_set, batch_size=args.bs, num_workers=args.threads,
-                              shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=args.bs, num_workers=args.threads)
+    parts = ['train', 'val']
+    loaders = {}
+    for part in parts:
+        path = join(experiment_path, part)
+        fetcher = Fetcher(path, transform)
+        loaders[part] = DataLoader(fetcher, batch_size=args.bs,
+                                   num_workers=args.threads, shuffle=True)
 
     # Train
     min_loss = 1
-    for epoch in range(args.epochs + 1):
-        start_time = time.time()
-        tloss, tcount = step(epoch, config[args.exp], model, train_loader,
-                             optimizer, criterion, epoch, args.nocuda, args.plot)
-        train_time = time.time()
-        vloss, vcount = step(epoch, config[args.exp], model, val_loader,
-                             optimizer, criterion, False, args.nocuda, args.plot)
-        trainval_time = time.time()
-        
+    for epoch in range(args.epochs + 1):        
+        durations = {}
+        batch_durations = {}
+        losses = {}
+        for part in parts:
+            start_time = time.time()
+            is_train = epoch if 'train' in part else False
+            loss, count = step(epoch, sw_config, model, loaders[part],
+                               optimizer, criterion, is_train,
+                               args.nocuda, args.plot)
+            durations[part] = time.time() - start_time
+            batch_durations[part] = 1000 * (time.time() - start_time) / count
+            losses[part] = loss
+
         # Only save models that have a lower loss than ever seen before
-        if vloss < min_loss:
-            min_loss = vloss
-            name = "%s_%03i_%.6f.pt" % (args.model, epoch, vloss)
+        note = ''
+        if losses[parts[-1]] < min_loss:
+            min_loss = losses[parts[-1]]
+            name = "%s_%03i_%.6f.pt" % (args.model, epoch, min_loss)
             torch.save(model, join(experiment_path, name))
+            note = '*'
 
         # Prepare
-        dur = trainval_time - start_time
-        tms = 1000 * (train_time - start_time) / tcount
-        vms = 1000 * (trainval_time - train_time) / vcount
-        note = '*' if vloss == min_loss else ''
-        print("epoch %03i  tloss: %.6f  vloss: %.6f  dur: %6.1f  tms: %3i, vms: %3i  %s" %
-              (epoch, tloss, vloss, dur, tms, vms, note))
-               
+        print("epoch %03i" % epoch, end=" ")
+        total_duration = 0
+        for part in parts:
+            total_duration += durations[part]
+            print("%s (%.5f %ims)" % (part, losses[part], batch_durations[part]), end=' ')
+        print("%.1fs %s" % (total_duration, note))
     
 if __name__ == "__main__":
     main()

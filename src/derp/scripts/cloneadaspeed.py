@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from derp.scripts.cameraclone import CameraClone
+from derp.scripts.clone import Clone
 
-class CameraCloneFixSpeed(CameraClone):
+class CloneFixSpeed(Clone):
 
-    def __init__(self, sw_config, target_hw_config, source_hw_config, path, nocuda):
-        super(CameraCloneFixSpeed, self).__init__(sw_config, target_hw_config,
-                                                  source_hw_config, path, nocuda)
+    def __init__(self, source_hw_config, target_hw_config, sw_config, path, nocuda):
+        super(CloneFixSpeed, self).__init__(source_hw_config, target_hw_config, sw_config, x
+                                            path, nocuda)
 
 
     def plan(self, state):

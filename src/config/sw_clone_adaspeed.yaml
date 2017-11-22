@@ -1,5 +1,5 @@
 # Which script to load from derp.scripts
-script: 'CameraClone'
+script: 'CloneAdaSpeed'
 
 # Training related parameters
 training:
@@ -36,8 +36,8 @@ thumb:
 
 # States we will predict
 predict:
-  - {field: 'speed', delay: 0.33, scale: 1 }
   - {field: 'steer', delay: 0.33, scale: 1 }
+  - {field: 'steer', delay: 2.33, scale: 1 }
 
 # Other parameters that will affect things during autonomous mode
 params:
@@ -45,3 +45,6 @@ params:
   steer_curr: 0.8
   speed_prev: 0.2
   speed_curr: 0.8
+  scale: 0.5
+  power: 2
+  use_min_for_speed: true

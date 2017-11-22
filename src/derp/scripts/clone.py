@@ -6,9 +6,9 @@ import torch
 from torch.autograd import Variable
 import derp.util as util
 
-class CameraClone():
+class Clone():
 
-    def __init__(self, sw_config, target_hw_config, source_hw_config, path, nocuda):
+    def __init__(self, source_hw_config, target_hw_config, sw_config, path, nocuda):
 
         self.sw_config = sw_config
         self.target_hw_config = target_hw_config
@@ -20,7 +20,7 @@ class CameraClone():
             self.source_hw_config = self.target_hw_config
 
         # Which component our patch comes from
-        self.component_name = self.sw_config['patch']['component']
+        self.component_name = self.sw_config['thumb']['component']
         for component in self.target_hw_config['components']:
             if component['name'] == self.component_name:
                 self.target_hw_component = component
@@ -30,15 +30,14 @@ class CameraClone():
 
         # Prepare camera inputs
         self.bbox = util.get_patch_bbox(self.target_hw_component,
-                                        self.source_hw_component,
-                                        self.sw_component['patch'])
-        self.size = (sw_config['patch']['width'],
-                     sw_config['patch']['height'])
+                                        self.source_hw_component)
+        self.size = (sw_config['thumb']['width'],
+                     sw_config['thumb']['height'])
 
         # Prepare model
         self.model = None
-        if self.path is not None:
-            model_path = util.find_matching_file(self.path, 'pt$')
+        if path is not None:
+            model_path = util.find_matching_file(path, 'pt$')
             if model_path is not None:
                 self.model = torch.load(model_path)
                 self.model.eval()
@@ -57,40 +56,61 @@ class CameraClone():
         return thumb
 
 
+    # Prepare status
+    def prepare_status(self, state):
+        status = np.zeros(len(self.sw_config['status']), dtype=np.float32)
+        for i, sd in enumerate(self.sw_config['status']):
+            status[i] = state[sd['field']] * sd['scale']
+        return status
+    
+
     # Prepare input batch
-    def prepare_batch(self, thumbs):
+    def prepare_batch(self, thumbs, statuses):
 
         # If we're given a single image make it a 4d batch
         if len(thumbs.shape) == 3:
-            new_shape = [1] + list(thumb.shape)
-            thumbs = np.reshape(thumb, new_shape)
+            new_shape = [1] + list(thumbs.shape)
+            thumbs = np.reshape(thumbs, new_shape)
 
+        if len(statuses.shape) == 1:
+            new_shape = [1] + list(statuses.shape)
+            statuses = np.reshape(statuses, new_shape)
+            
         # Change from HWD to DHW
         thumbs = thumbs.transpose((0, 3, 1, 2))
 
         # Convert to torch batch
-        batch = torch.from_numpy(thumbs).float()
+        thumbs_batch = torch.from_numpy(thumbs).float()
+        statuses_batch = torch.from_numpy(statuses).float()
 
         # Convert to cuda if we need to
         if not self.nocuda:
-            batch = batch.cuda()
+            thumbs_batch = thumbs_batch.cuda()
+            statuses_batch = statuses_batch.cuda()
 
         # Normalize batch
-        batch /= 255
+        thumbs_batch /= 255
 
         # Return as variable
-        return Variable(batch)
+        return Variable(thumbs_batch), Variable(statuses_batch)
 
 
     def predict(self, state):
         thumb = self.prepare_thumb(state)
-        batch = self.prepare_batch(thumb)
-        out = self.model(batch)
+        status = self.prepare_status(state)
+        thumb_batch, status_batch = self.prepare_batch(thumb, status)
+        out = self.model(thumb_batch, status_batch)
 
+        # Prepare predictions from model output by converting them to numpy vector
         if self.nocuda:
             predictions = out.data.numpy()[0]
         else:
             predictions = out.data.cpu().numpy()[0]
+
+        # Normalize predictions to desired range
+        for i, pd in enumerate(self.sw_config['predict']):
+            predictions[i] /= pd['scale']
+
         return predictions
 
 

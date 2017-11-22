@@ -1,5 +1,5 @@
 # Which script to load from derp.scripts
-script: 'CameraCloneFixSpeed'
+script: 'CloneFixSpeed'
 
 # Training related parameters
 training:

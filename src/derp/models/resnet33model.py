@@ -3,7 +3,7 @@ import torch.nn as nn
 from derp.models.blocks import *
 
 class Resnet33Model(nn.Module):
-    def __init__(self, in_dim, out_dim, verbose=True):
+    def __init__(self, in_dim, n_status, n_out, verbose=True):
         super(Resnet33Model, self).__init__()
         dim = in_dim.copy()
         self.c1 = ConvBlock(dim, 32, kernel_size=5, stride=2, verbose=verbose)
@@ -24,22 +24,21 @@ class Resnet33Model(nn.Module):
         self.c4f = ResnetBlock(dim, 32, pool='max', verbose=verbose)
         self.c5 = ConvBlock(dim, 64, kernel_size=3, padding=0, verbose=verbose)
         self.view = ViewBlock(dim, verbose=verbose)
-        self.fc1 = LinearBlock(dim, out_dim, activation=False, verbose=verbose)
+        dim[0] += n_status
+        self.fc1 = LinearBlock(dim, n_out, activation=False, verbose=verbose)
 
-    def forward(self, x):
+    def forward(self, x, status):
         out = self.c1(x)
         
         out = self.c2a(out)
         out = self.c2b(out)
         out = self.c2c(out)
-        
         out = self.c3a(out)
         out = self.c3b(out)
         out = self.c3c(out)
         out = self.c3d(out)
         out = self.c3e(out)
         out = self.c3f(out)
-        
         out = self.c4a(out)
         out = self.c4b(out)
         out = self.c4c(out)
@@ -49,6 +48,7 @@ class Resnet33Model(nn.Module):
 
         out = self.c5(out)
         out = self.view(out)
+        out = torch.cat((out, status), 1)
         out = self.fc1(out)
         return out
     

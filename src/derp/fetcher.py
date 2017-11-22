@@ -6,7 +6,7 @@ import derp.util
 
 class Fetcher(torch.utils.data.Dataset):
 
-    def __init__(self, root, transform_x=None, transform_xy=None):
+    def __init__(self, root, transform=None):
         """ 
         Our data fetcher is responsible for handling data input to the model training.
         It loads each image in the dataset along with the states for that image.
@@ -17,45 +17,50 @@ class Fetcher(torch.utils.data.Dataset):
 
         # Store constructor arguments
         self.root = expanduser(root)
-        self.transform_x = transform_x
-        self.transform_xy = transform_xy
+        self.transform = transform
 
         # Pepare variables to store each item
         self.paths = []
-        self.states = []
+        self.status = []
+        self.predict = []
 
         # Make sure we can find the path
-        state_path = join(self.root, 'states.csv')
-        if not exists(state_path):
-            raise(RuntimeError("Fetcher: Unable to find state path [%s]" % state_path))
+        status_path = join(self.root, 'status.csv')
+        if not exists(status_path):
+            raise(RuntimeError("Fetcher: Unable to find status path"))
+
+        predict_path = join(self.root, 'predict.csv')
+        if not exists(predict_path):
+            raise(RuntimeError("Fetcher: Unable to find predict path"))
 
         # Read in states and paths
         # Each video has a certain fixed number of state variables which we will encode as a dict
-        with open(state_path) as f:
-            reader = csv.reader(f)
-            for row in reader:
-                path = join(self.root, row[0])
-                state = np.array([float(x) for x in row[1:]], dtype=np.float32)
+        with open(status_path) as sp, open(predict_path) as pp:
+            sp_reader, pp_reader = csv.reader(sp), csv.reader(pp)
+            for status_row, predict_row in zip(sp_reader, pp_reader):
+                if status_row[0] != predict_row[0]:
+                    raise(ValueError("Fetcher: discrepancy between status and predict"))
+                path = join(self.root, status_row[0])
+                status = np.array([float(x) for x in status_row[1:]], dtype=np.float32)
+                predict = np.array([float(x) for x in predict_row[1:]], dtype=np.float32)
                 self.paths.append(path)
-                self.states.append(state)
+                self.status.append(status)
+                self.predict.append(predict)
 
 
     def __getitem__(self, index):
         """ Return the specified index. Apply transforms as specified """
         
         # Prepare 
-        x = derp.util.load_image(self.paths[index])
-        y = self.states[index].copy()
+        thumb = derp.util.load_image(self.paths[index])
+        status = self.status[index]
+        predict = self.predict[index]
         
         # Transform x
-        if self.transform_x is not None:
-            x = self.transform_x(x)
+        if self.transform is not None:
+            thumb = self.transform(thumb)
 
-        # Transform x and y
-        if self.transform_xy is not None:
-            x, y = self.transform_xy((x, y))
-            
-        return x, y
+        return thumb, status, predict
 
     
     def __len__(self):
