@@ -37,7 +37,7 @@ class Clone():
         # Prepare model
         self.model = None
         if path is not None:
-            model_path = util.find_matching_file(path, 'pt$')
+            model_path = util.find_matching_file(path, '\.pt$')
             if model_path is not None:
                 self.model = torch.load(model_path)
                 self.model.eval()

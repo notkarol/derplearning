@@ -3,7 +3,7 @@
 import os
 import json
 from time import time
-import derp.util as util
+import derp.util
 
 class Inferer:
     
@@ -36,7 +36,7 @@ class Inferer:
 
         # If we are not given a path then we have no script, and therefore cannot plan
         script_path = 'derp.scripts.%s' % (sw_config['script'].lower())
-        script_class = util.load_class(script_path, sw_config['script'])
+        script_class = derp.util.load_class(script_path, sw_config['script'])
         self.script = script_class(source_hw_config, target_hw_config,
                                    sw_config, path, nocuda)
 
@@ -45,6 +45,10 @@ class Inferer:
         """
         Runs the loaded python inferer script's plan
         """
+
+        # Skip if we're not autonomous
+        if not state['auto_speed'] and not state['auto_steer']:
+            return True
 
         # If we have a blank script, drop out
         if self.script is None:

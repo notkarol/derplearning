@@ -291,7 +291,7 @@ def find_value(haystack, key, values, interpolate=False):
 def find_matching_file(path, name):
     pattern = re.compile(name)
     for filename in os.listdir(path):
-        if pattern.match(filename) is not None:
+        if pattern.search(filename) is not None:
             return os.path.join(path, filename)
     return None
         
