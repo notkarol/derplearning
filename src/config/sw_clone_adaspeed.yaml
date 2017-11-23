@@ -6,14 +6,10 @@ training:
   debug: False
   data_folders: ['train']
   train_chance: 0.9
-  perturbation_count: 0
-  perturbations:
-    shift:
-      min: -0.5
-      max:  0.5
-    rotate:
-      min: -5
-      max:  5
+  n_perts: 1
+  perts:
+    shift: 0.5
+    rotate: 5
 
   # How to prepare input/output
   prepare:

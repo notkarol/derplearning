@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 import torch
 from torch.autograd import Variable
-import derp.util as util
+import derp.util 
+import derp.imagemanip
 
 class Clone():
 
@@ -29,15 +30,15 @@ class Clone():
                 self.source_hw_component = component
 
         # Prepare camera inputs
-        self.bbox = util.get_patch_bbox(self.target_hw_component,
-                                        self.source_hw_component)
+        self.bbox = derp.imagemanip.get_patch_bbox(self.target_hw_component,
+                                                   self.source_hw_component)
         self.size = (sw_config['thumb']['width'],
                      sw_config['thumb']['height'])
 
         # Prepare model
         self.model = None
         if path is not None:
-            model_path = util.find_matching_file(path, '\.pt$')
+            model_path = derp.util.find_matching_file(path, '\.pt$')
             if model_path is not None:
                 self.model = torch.load(model_path)
                 self.model.eval()

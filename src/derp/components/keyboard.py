@@ -2,8 +2,9 @@
 
 import os
 from time import time
+import evdev
 from derp.component import Component
-import derp.util as util
+import derp.util
 
 class Keyboard(Component):
 
@@ -123,12 +124,22 @@ class Keyboard(Component):
     def act(self, state):
         return True
 
+
+    def find_device(name, exact=False):
+        out = []
+        for filename in evdev.list_devices():
+            device = evdev.InputDevice(filename)
+            if ((exact and device.name == name) or
+                (not exact and name in device.name)):
+                return device
+        return None
+
     
     def discover(self):
         """
         Find and initialize the available devices
         """
-        self.device = util.find_device('keyboard', exact=self.config['exact'])
+        self.device = find_device('keyboard', exact=self.config['exact'])
         return self.device is not None
 
     
@@ -201,7 +212,7 @@ class Keyboard(Component):
         # Record
         if self.code_map[event.code] == 'r' and event.value:
             out['record'] = True
-            out['folder'] = util.get_record_folder()
+            out['folder'] = derp.util.get_record_folder()
             return
 
         # Autonomous
