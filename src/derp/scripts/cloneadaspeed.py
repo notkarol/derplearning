@@ -4,9 +4,8 @@ from derp.scripts.clone import Clone
 
 class CloneFixSpeed(Clone):
 
-    def __init__(self, source_hw_config, target_hw_config, sw_config, path, nocuda):
-        super(CloneFixSpeed, self).__init__(source_hw_config, target_hw_config, sw_config, x
-                                            path, nocuda)
+    def __init__(self, hw_config, sw_config, path, nocuda):
+        super(CloneFixSpeed, self).__init__(hw_config, sw_config, path, nocuda)
 
 
     def plan(self, state):

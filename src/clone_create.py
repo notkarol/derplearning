@@ -80,7 +80,7 @@ def write_csv(writer, array, data_dir, store_name):
 
 
 def process_recording(args):
-    sw_config, target_hw_config, recording_path, folders = args
+    sw_config, recording_path, folders = args
     print("Processing", recording_path)
     recording_name = basename(recording_path)
     
@@ -96,8 +96,8 @@ def process_recording(args):
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
     
     # Prepare  configs
-    source_hw_config = derp.util.load_config(recording_path)
-    inferer = derp.inferer.Inferer(source_hw_config, target_hw_config, sw_config).script
+    hw_config = derp.util.load_config(recording_path)
+    inferer = derp.inferer.Inferer(hw_config, sw_config).script
 
     # Prepare directories and writers
     predict_fds = {}
@@ -154,7 +154,6 @@ def main(args):
     
     # Import configs that we wish to train for
     sw_config = derp.util.load_config(args.sw)
-    target_hw_config = derp.util.load_config(args.hw)
     
     # Create folders
     experiment_path = join(os.environ['DERP_SCRATCH'], sw_config['name'])
@@ -178,7 +177,7 @@ def main(args):
         for filename in os.listdir(data_folder):
             recording_path = join(data_folder, filename)
             if isdir(recording_path):
-                process_args.append([sw_config, target_hw_config, recording_path, folders])
+                process_args.append([sw_config, recording_path, folders])
                 
     # Prepare pool of workers
     if args.count <= 0:
@@ -195,8 +194,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--sw', type=str, required=True,
                         help="software config we wish to make dataset for")
-    parser.add_argument('--hw', type=str, required=True,
-                        help="target hardware config our car will be at")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')
     args = parser.parse_args()

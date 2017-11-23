@@ -9,29 +9,21 @@ import derp.imagemanip
 
 class Clone():
 
-    def __init__(self, source_hw_config, target_hw_config, sw_config, path, nocuda):
+    def __init__(self, hw_config, sw_config, path, nocuda):
 
+        self.hw_config = hw_config
         self.sw_config = sw_config
-        self.target_hw_config = target_hw_config
-        self.source_hw_config = source_hw_config
         self.nocuda = nocuda
-
-        # If there is not a different source hw config, use the target one
-        if self.source_hw_config is None:
-            self.source_hw_config = self.target_hw_config
 
         # Which component our patch comes from
         self.component_name = self.sw_config['thumb']['component']
-        for component in self.target_hw_config['components']:
+        for component in self.hw_config['components']:
             if component['name'] == self.component_name:
-                self.target_hw_component = component
-        for component in self.source_hw_config['components']:
-            if component['name'] == self.component_name:
-                self.source_hw_component = component
+                self.hw_component = component
 
         # Prepare camera inputs
-        self.bbox = derp.imagemanip.get_patch_bbox(self.target_hw_component,
-                                                   self.source_hw_component)
+        self.bbox = derp.imagemanip.get_patch_bbox(self.sw_config['thumb'],
+                                                   self.hw_component)
         self.size = (sw_config['thumb']['width'],
                      sw_config['thumb']['height'])
 
@@ -50,6 +42,7 @@ class Clone():
 
     # Prepare input image
     def prepare_thumb(self, state):
+        import cv2
         frame = state[self.component_name]
         patch = frame[self.bbox.y : self.bbox.y + self.bbox.h,
                       self.bbox.x : self.bbox.x + self.bbox.w]

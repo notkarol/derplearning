@@ -7,8 +7,7 @@ import derp.util
 
 class Inferer:
     
-    def __init__(self, source_hw_config, target_hw_config=None,
-                 sw_config=None, path=None, nocuda=False):
+    def __init__(self, hw_config, sw_config=None, path=None, nocuda=False):
         """
         Loads the supplied python script as this inferer.
         """
@@ -18,27 +17,18 @@ class Inferer:
             return
 
         # Make sure we have
-        if source_hw_config is None:
-            raise ValueError("Source hw_config can not be none")
+        if hw_config is None:
+            raise ValueError("hw_config can not be none")
         
         # If we are not given a sw config, use the one in path
         if sw_config is None:
             sw_config_path = os.path.join(path, 'sw_config.yaml')
             sw_config = derp.util.load_config(sw_config_path)
 
-        # If target_hw_config is none, figure it out
-        if target_hw_config is None:
-            if path is None:
-                target_hw_config = source_hw_config
-            else:
-                target_hw_config_path = os.path.join(path, 'hw_config.yaml')
-                target_hw_config = derp.util.load_config(target_hw_config_path)
-
         # If we are not given a path then we have no script, and therefore cannot plan
         script_path = 'derp.scripts.%s' % (sw_config['script'].lower())
         script_class = derp.util.load_class(script_path, sw_config['script'])
-        self.script = script_class(source_hw_config, target_hw_config,
-                                   sw_config, path, nocuda)
+        self.script = script_class(hw_config, sw_config, path, nocuda)
 
 
     def plan(self, state):
