@@ -4,7 +4,7 @@
 # Assumes existing disk is already partitioned to ext4
 dev=/dev/mmcblk1p1
 root=/mnt/sdcard
-folders=scratch data model
+folders="scratch data model"
 
 # Create a folder for the SD card
 sudo mkdir -p $root
