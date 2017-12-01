@@ -13,7 +13,7 @@ class Inferer:
         """
         # If we have a blank config or path, then assume we can't plan, 
         if path is None and sw_config is None:
-            raise ValueError("Both path and sw_config can not be none")
+            self.script = None
             return
 
         # Make sure we have
@@ -36,12 +36,8 @@ class Inferer:
         Runs the loaded python inferer script's plan
         """
 
-        # Skip if we're not autonomous
-        if not state['auto_speed'] and not state['auto_steer']:
-            return True
-
-        # If we have a blank script, drop out
-        if self.script is None:
+        # Skip if we have no script to run or we're not asked to control the cor
+        if self.script is None or not (state['auto_speed'] or state['auto_steer']):
             return True
 
         # Get the proposed list of changes

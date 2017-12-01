@@ -2,7 +2,6 @@
 
 import os
 from time import time
-import evdev
 from derp.component import Component
 import derp.util
 
@@ -124,22 +123,12 @@ class Keyboard(Component):
     def act(self, state):
         return True
 
-
-    def find_device(name, exact=False):
-        out = []
-        for filename in evdev.list_devices():
-            device = evdev.InputDevice(filename)
-            if ((exact and device.name == name) or
-                (not exact and name in device.name)):
-                return device
-        return None
-
     
     def discover(self):
         """
         Find and initialize the available devices
         """
-        self.device = find_device('keyboard', exact=self.config['exact'])
+        self.device = derp.util.find_device('keyboard', exact=self.config['exact'])
         return self.device is not None
 
     

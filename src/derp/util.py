@@ -40,7 +40,7 @@ def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
         return True
-    return False
+    return
 
 
 def load_config(path):
@@ -168,3 +168,15 @@ def plot_batch(example, label, name):
         
     plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
     print("Saved batch [%s]" % name)
+
+
+def find_device(name, exact=False):
+    import evdev
+    out = []
+    for filename in sorted(evdev.list_devices()):
+        device = evdev.InputDevice(filename)
+        if ((exact and device.name == name) or
+            (not exact and name.lower() in device.name.lower())):
+            return device
+    return None
+    
