@@ -1,15 +1,15 @@
 import csv
 import numpy as np
 import os
-import re
-import yaml
 import PIL.Image
+import re
+import time
+import yaml
 
-
-IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
 
 def has_image_ext(filename):
-    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+    return any(filename.endswith(extension) for extension in ['.jpg', '.png'])
+
 
 def load_image(path):
     with open(path, 'rb') as f:
@@ -30,8 +30,7 @@ def get_name(path):
 def get_record_folder():
     from datetime import datetime
     import socket
-    from time import time
-    dt = datetime.utcfromtimestamp(time()).strftime("%Y%m%d-%H%M%S")
+    dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
     return os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
 
@@ -39,31 +38,45 @@ def get_record_folder():
 def mkdir(path):
     if not os.path.exists(path):
         os.mkdir(path)
+        print("Created [%s]" % path)
         return True
     return
 
 
-def load_config(path):
+def load_config(paths):
+
+    # Default config has no components
+    out = { 'name': 'config', 'components': [ {'state' : {} }] }
 
     # Don't load blank paths
-    if path is None:
-        return None
-    
-    config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
-    with open(config_path) as f:
-        config = yaml.load(f)
-    if 'name' not in config:
-        config['name'] = get_name(config_path)
-    return config
+    if paths is None:
+        return out
 
+    # For each path we're given
+    for path in paths:
 
-def load_module(path):
-    from importlib import import_module
-    return import_module(path)
+        # if we're given a folder, load it's config.yaml by default
+        config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
+
+        # Open the config file 
+        with open(config_path) as f:
+            config = yaml.load(f)
+
+            if 'components' in config:
+                out['components'].extend(config['components'])
+            else:
+                if 'name' not in config:
+                    config['name'] = get_name(config_path)
+                out['components'].append(config)
+    return out
 
 
 def load_class(path, name):
-    m = load_module(path)
+    """ 
+    Loads the class "name" at relative path (period separated) "path" and returns it
+    """
+    from importlib import import_module
+    m = import_module(path)
     c = getattr(m, name)
     return c
     
@@ -90,15 +103,14 @@ def load_components(config, state):
                 state[key] = val
         
         # Discover
-        discover = obj.discover()
-        print("Connecting to %s %s [%s]" % ('required' if component['required'] else 'optional',
-                                            component['name'], discover))
+        text = 'required' if component['required'] else 'optional'
+        print("Connecting to %s %s [%s]" % (text, obj.ready, component.ready))
 
         # Exit if we're missing a component
-        if not discover and component['required']:
+        if not component.ready and obj.ready:
             return None
 
-        if discover:
+        if obj.ready:
             out.append(obj)
     return out
     
@@ -180,3 +192,9 @@ def find_device(name, exact=False):
             return device
     return None
     
+
+def get_current_timestamp():
+    """ 
+    The cononical way to get the timestamp for this program
+    """
+    return time.now()

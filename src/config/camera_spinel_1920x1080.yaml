@@ -1,0 +1,21 @@
+name: 'camera'
+required: True
+class: 'Camera'
+index: 1
+hfov: 100
+vfov: 56.25
+fps: 30
+height: 1080
+width: 1920
+depth: 3
+x: 0
+y: 0.36
+z: -0.23 
+pitch: -8.5
+yaw: 0
+roll: 0
+bottom_row_width: 1.07
+bottom_row_z: 0.49
+vehicle_width: 0.3
+state:
+  camera_frame: null

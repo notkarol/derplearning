@@ -1,7 +1,7 @@
 # Which script to load from derp.scripts
 script: 'Clone'
 
-# Training related parameters
+# Dataset creation parameters
 create:
   data_folders: ['train']
   train_chance: 0.9
@@ -9,14 +9,15 @@ create:
   perts:
     shift: 0.2 # meters
     rotate: 5 # degrees
-
+    
+# Training related parameters
 train:
   prepare:
     - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
 
-# What we expect for input from the camera
+# Where to cut out the patch
 thumb:
-  component: 'camera_front'
+  component: 'camera'
   hfov: 75
   vfov: 37.5
   height: 64

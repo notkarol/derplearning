@@ -1,55 +1,102 @@
-import sys
+import os
+import csv
+import derp.util
 
 class Component:
 
-    #initializes the component
-    def __init__(self, config):
-        self.config = config
-        self.connected = False
-        self.out_buffer = []
-        self.out_csv_fp = None
-        self.folder = None
+    def __init__(self):
+        raise ValueError("Please do not use default constructor; supply a config")
 
-    #deletes the class object
+
+    def __init__(self, config, full_config):
+        # Common variables
+        self.__config = config
+        self.__ready = False
+
+        # Output csv variables
+        self.__folder = None
+        self.__csv_fd = None
+        self.__csv_writer = None
+        self.__csv_buffer = []
+        self.__csv_header = []
+
+
     def __del__(self):
-        print("UNINITIALIZED __del__ %s" % self.__class__.__name__, file=sys.stderr)
+        if self.__csv_fd is not None:
+            self.__csv_fd.close()
 
-    
-    #returns an unambiguous representation of the object
+
     def __repr__(self):
-        return "(%s, %s)" % (self.config['name'], self.connected)
+        return "%s_%s_%s" % (self.__class__.__name__, self.__config['name'], self.__ready)
 
-    
-    #returns a human readable representation of the object
+
     def __str__(self):
         return repr(self)
 
-    
-    # Responsible for updating settings or acting upon the world
-    def act(self, state):
-        print("UNINITIALIZED act %s" % self.__class__.__name__, file=sys.stderr)
-        return False
 
-    
-    # Responsible for finding and connecting to the appropriate sensor[s]
-    def discover(self):
-        print("UNINITIALIZED discover %s" % self.__class__.__name__, file=sys.stderr)
-        return False
+    def __is_recording(self, state):
+        return state['record']
 
-    
-    def scribe(self, folder):
-        """ Update the recorders to use the specified folder """
-        print("UNINITIALIZED record %s" % self.__class__.__name__, file=sys.stderr)
-        return False
 
-    
+    def __is_recording_initialized(self, state):
+        return state['folder'] == self.__folder
+
+
+    def ready(self):
+        """
+        Returns whether this component is ready to be used
+        """
+        return self.__ready
+
+
     def sense(self, state):
-        """ Read in sensor data """
-        print("UNINITIALIZED sense %s" % self.__class__.__name__, file=sys.stderr)
-        return False
-
+        return True
     
-    def write(self, state):
-        """ Write sensor data """
-        print("UNINITIALIZED write %s" % self.__class__.__name__, file=sys.stderr)
-        return False
+
+    def plan(self, state):
+        return True
+
+
+    def act(self, state):
+        return True
+
+
+    def record(self, state):
+        """
+        Creates the output csv file
+        If it returns true, that means that it is good to write outputs
+        """
+
+        # Skip if aren't asked to record or we have nothing to record
+        if not self.__is_recording(state):
+            return False
+
+        # Create a new output csv writer since the folder name changed
+        if len(self.__csv_header):
+            if not self.__is_recording_initialized(state) and
+                self.__folder = state['folder']
+
+                # Close existing csv file descriptor if it exists
+                if self.__csv_fd is not None:
+                    self.__csv_fd.close()
+
+                # Create a new folder if we don't have one yet
+                derp.util.mkdir(self.__folder)
+
+                # Create output csv
+                filename = "%s.csv" % (str(self).lower())
+                csv_path = os.path.join(self.__folder, filename)
+                self.__csv_fd = open(csv_path, 'w')
+                self.__csv_writer = csv.writer(self.__csv_fd, delimiter=',', quotechar='"',
+                                               quoting=csv.QUOTE_MINIMAL)
+                self.__csv_writer.write(out.csv_header)
+
+            # Write out buffer and flush it
+            for row in self.__csv_buffer:
+                self.__csv_writer.write(row)
+            self.__csv_fd.flush()
+
+        # Clear csv buffer in any case to prevent memory leaks
+        del self.__csv_buffer[:]
+
+        return True

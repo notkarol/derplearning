@@ -13,8 +13,8 @@ import derp.util as util
 
 class Dualshock4(Component):
 
-    def __init__(self, config):
-        super(Dualshock4, self).__init__(config)
+    def __init__(self, config, full_config):
+        super(Dualshock4, self).__init__(config, full_config)
 
         # bluetooth control socket
         self.report_id = 0x11
@@ -42,58 +42,6 @@ class Dualshock4(Component):
         self.left_active = False
         self.right_active = False
 
-
-    def __del__(self):
-        """ Close all of our sockets and file descriptors """
-        self.ctrl_socket.close()
-        self.intr_socket.close()
-
-
-    def in_deadzone(self, value):
-        """ Deadzone checker for analog sticks """
-        return 128 - self.deadzone < value <= 128 + self.deadzone
-
-
-    def act(self, state):
-
-        # Prepare command
-        rumble = [0, 0]
-        flash = [0, 0]
-        
-        # Base color
-        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
-            rgb = [0.1, 0.1, 0.1]
-        else:
-            rgb = [0, 0, 0]
-            
-        # Update based on state
-        if state['record']:
-            flash[0] = 0.3
-            flash[1] = 0.1
-            rgb[1] = 1
-        if state['auto_steer']:
-            rgb[0] = 0.5
-        if state['auto_speed']:
-            rgb[2] = 0.5
-            
-        # Prepare and sendpacket
-        self.packet[7] = int(rumble[0] * 255)
-        self.packet[8] = int(rumble[1] * 255)
-        self.packet[9] = int(rgb[0] * 255)
-        self.packet[10] = int(rgb[1] * 255)
-        self.packet[11] = int(rgb[2] * 255)
-        self.packet[12] = int(flash[0] * 255)
-        self.packet[13] = int(flash[1] * 255)
-        self.ctrl_socket.sendall(self.packet)
-        return True
-    
-
-    def discover(self):
-        """
-        Find and initialize the available devices
-        """
-
-        # Make sure we can send commands
         n_attemps = 5
         for attempt in range(n_attemps):
             print("Attempt %i of %i" % (attempt + 1, n_attemps), end='\r')
@@ -104,21 +52,28 @@ class Dualshock4(Component):
                     self.ctrl_socket.connect((address, 0x11))
                     self.intr_socket.connect((address, 0x13))
                     self.intr_socket.setblocking(False)
-                    return True
-        
-        return False
+                    self.ready = True
+                    return
 
-    
-    def scribe(self, state):        
-        return True
 
-    
+    def __del__(self):
+        """ Close all of our sockets and file descriptors """
+        super(Dualshock4, self).__del__()
+        self.ctrl_socket.close()
+        self.intr_socket.close()
+
+
+    def in_deadzone(self, value):
+        """ Deadzone checker for analog sticks """
+        return 128 - self.deadzone < value <= 128 + self.deadzone
+
+
     def __normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
-    
+
 
     # Prepare status based on buffer
     def __prepare(self, buf):
@@ -161,8 +116,8 @@ class Dualshock4(Component):
                   "audio" : (buf[33] & 32) != 0,
                   "mic" : (buf[33] & 64) != 0}
         return status
-            
-    
+
+
     def __process(self, buf, state, out):
         status = self.__prepare(buf)
 
@@ -226,7 +181,6 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
         if status['button_share']:
@@ -241,11 +195,9 @@ class Dualshock4(Component):
             out['auto_steer'] = False
         if status['button_square']:
             out['record'] = False
-            out['folder'] = False
         if status['button_circle']:
             if not state['record']:
                 out['record'] = True
-                out['folder'] = util.get_record_folder()
 
         # Change wheel offset
         if status['left']:
@@ -275,25 +227,54 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
-            out['exit'] = True
+            state.close()
 
-           
+    def act(self, state):
+        # Prepare command
+        rumble = [0, 0]
+        flash = [0, 0]
+        
+        # Base color
+        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
+            rgb = [0.1, 0.1, 0.1]
+        else:
+            rgb = [0, 0, 0]
+            
+        # Update based on state
+        if state['record']:
+            flash[0] = 0.3
+            flash[1] = 0.1
+            rgb[1] = 1
+        if state['auto_steer']:
+            rgb[0] = 0.5
+        if state['auto_speed']:
+            rgb[2] = 0.5
+            
+        # Prepare and sendpacket
+        self.packet[7] = int(rumble[0] * 255)
+        self.packet[8] = int(rumble[1] * 255)
+        self.packet[9] = int(rgb[0] * 255)
+        self.packet[10] = int(rgb[1] * 255)
+        self.packet[11] = int(rgb[2] * 255)
+        self.packet[12] = int(flash[0] * 255)
+        self.packet[13] = int(flash[1] * 255)
+        self.ctrl_socket.sendall(self.packet)
+        return True
+
+
     def sense(self, state):
         ret = -1
         buf = bytearray(77)
-        out = { 'speed' : None,
-                'steer' : None,
-                'record' : None,
-                'folder' : None,
-                'auto_speed' : None,
-                'auto_steer' : None,
-                'steer_offset' : None,
-                'speed_offset' : None,
-                'exit' : None }
-
+        out = {'record' : None,
+               'auto_speed' : None,
+               'auto_steer' : None,
+               'speed' : None,
+               'steer' : None,
+               'speed_offset' : None,
+               'steer_offset' : None}
+        
         # Fetch input messages and process them. Store it in out
         while True:
             try:
@@ -307,8 +288,5 @@ class Dualshock4(Component):
         for field in out:
             if out[field] is not None:
                 state[field] = out[field]
+
         return True
-            
-    
-    def write(self):        
-        return True    

@@ -1,0 +1,19 @@
+name: 'imu_stalk'
+required: False
+class: 'BNO055'
+busnum: 0
+state:
+  quaternion_w: 0.0
+  quaternion_x: 0.0
+  quaternion_y: 0.0
+  quaternion_z: 0.0
+  euler_h: 0.0
+  euler_r: 0.0
+  euler_p: 0.0
+  gravity_x: 0.0
+  gravity_y: 0.0
+  gravity_z: 0.0
+  gravity_x: 0.0
+  gravity_y: 0.0
+  gravity_z: 0.0  
+  temp: 0.0

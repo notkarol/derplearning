@@ -1,35 +1,26 @@
 #!/usr/bin/env python3
 
 import os
-import json
 from time import time
+from derp.component import Component
 import derp.util
 
-class Inferer:
+class Inferer(Component):
     
-    def __init__(self, hw_config, sw_config=None, path=None, nocuda=False):
-        """
-        Loads the supplied python script as this inferer.
-        """
+    def __init__(self, config, full_config):
+        super(Inferer, self).__init__(config, full_config)  
+        
         # If we have a blank config or path, then assume we can't plan, 
-        if path is None and sw_config is None:
+        if 'path' not in config or not config['path']:
             self.script = None
+            self.ready = True
             return
 
-        # Make sure we have
-        if hw_config is None:
-            raise ValueError("hw_config can not be none")
-        
-        # If we are not given a sw config, use the one in path
-        if sw_config is None:
-            sw_config_path = os.path.join(path, 'sw_config.yaml')
-            sw_config = derp.util.load_config(sw_config_path)
-
         # If we are not given a path then we have no script, and therefore cannot plan
-        script_path = 'derp.scripts.%s' % (sw_config['script'].lower())
-        script_class = derp.util.load_class(script_path, sw_config['script'])
-        self.script = script_class(hw_config, sw_config, path, nocuda)
-
+        script_path = 'derp.scripts.%s' % (config['script'].lower())
+        script_class = derp.util.load_class(script_path, config['script'])
+        self.script = script_class(config, full_config)
+        self.ready = True
 
     def plan(self, state):
         """
@@ -50,5 +41,3 @@ class Inferer:
             state['steer'] = steer
 
         return True
-
-

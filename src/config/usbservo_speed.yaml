@@ -1,0 +1,9 @@
+name: 'servo_speed'
+required: True
+class: 'UsbServo'
+index: 1
+act_state: 'speed'
+min_value: -0.95
+max_value: 0.95
+state:
+  speed: 0.0

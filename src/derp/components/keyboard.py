@@ -7,10 +7,9 @@ import derp.util
 
 class Keyboard(Component):
 
-    def __init__(self, config):
-        super(Keyboard, self).__init__(config)
+    def __init__(self, config, full_config)
+        super(Keyboard, self).__init__(config, full_config)
         self.device = None
-        self.config = config
 
         # Prepare key code
         self.code_map = {1: 'escape',
@@ -113,27 +112,16 @@ class Keyboard(Component):
                          125: 'super',
                      }
 
+        exact = self.config['exact'] if 'exact' in self.config else True
+        self.device = derp.util.find_device('keyboard', exact=exact)
+        self.ready = self.device is not None
+
 
     def __del__(self):
+        super(Keyboard, self).__del__()
         if self.device is not None:
             self.device.close()
             self.device = None
-
-
-    def act(self, state):
-        return True
-
-    
-    def discover(self):
-        """
-        Find and initialize the available devices
-        """
-        self.device = derp.util.find_device('keyboard', exact=self.config['exact'])
-        return self.device is not None
-
-    
-    def scribe(self, state):
-        return True
 
 
     def __process(self, state, out, event):
@@ -201,7 +189,6 @@ class Keyboard(Component):
         # Record
         if self.code_map[event.code] == 'r' and event.value:
             out['record'] = True
-            out['folder'] = derp.util.get_record_folder()
             return
 
         # Autonomous
@@ -221,7 +208,6 @@ class Keyboard(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
 
@@ -230,23 +216,20 @@ class Keyboard(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['folder'] = False
             out['auto_speed'] = False
             out['auto_steer'] = False
-            out['exit'] = True
+            state.close()
             return
-           
+
 
     def sense(self, state):
         out = {'record' : None,
-               'folder' : None,
                'speed' : None,
                'steer' : None,
                'auto_speed' : None,
                'auto_steer' : None,
                'speed_offset' : None,
-               'steer_offset' : None,
-               'exit' : None }
+               'steer_offset' : None}
 
         # Process every action we received until there are no more left
         try:
@@ -260,8 +243,3 @@ class Keyboard(Component):
             if out[field] is not None:
                 state[field] = out[field]
         return True
-
-
-    def write(self):
-        
-        return True    

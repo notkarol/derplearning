@@ -1,0 +1,4 @@
+name: 'keyboard'
+required: False
+class: 'Keyboard'
+exact: False

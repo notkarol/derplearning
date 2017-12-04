@@ -17,7 +17,7 @@ training:
 
 # What we expect for input from the camera
 thumb:
-  component: 'camera_front'
+  component: 'camera'
   hfov: 75
   vfov: 37.5
   height: 64
