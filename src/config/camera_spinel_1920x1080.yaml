@@ -8,14 +8,14 @@ fps: 30
 height: 1080
 width: 1920
 depth: 3
-x: 0
-y: 0.36
-z: -0.23 
-pitch: -8.5
-yaw: 0
-roll: 0
-bottom_row_width: 1.07
-bottom_row_z: 0.49
-vehicle_width: 0.3
+x: -0.23 # meters forward from front axle
+y:  0.00 # meters left from center of vehicle. Assume zero for now
+z:  0.36 # meters up from floor
+roll:   0.0 # degrees left tilt. Assume zero for now
+pitch: -8.5 # degrees incline
+yaw:    0.0 # degrees left turn. Assume zero for now
+bottom_row_width: 1.07 # width in meters of bottom pixel row
+bottom_row_x:     0.49 # distance in meters of bottom pixel row from camera
+vehicle_width:    0.30 # width of car in meters
 state:
   camera_frame: null

@@ -27,86 +27,47 @@ def get_patch_bbox(sw_config, hw_config):
     return Bbox(x, y, width, height)
 
 
-'''
-Produces side shifts and z axis rotations of training data
-'''
+def perturb(frame, rotate_degrees, shift_meters, config):
+    out = np.zeros(np.shape(img), dtype=np.uint8)
+    horizon_pixels = horizonset(config['height'], config['vfov'],
+                                config['bottom_row_x'], config['z'])
+    rotate_pixels = config['width'] * rotate_degrees / config['hfov']
+    shift_pixels = ymetertopixel(shift_meters, config['width'], config['hfov'])
 
-#shift label function
-'''
-    dsteer is the stearing in degrees
-        (positive steering is turning left atm)
-    drot is the number of degrees the car is rotated about zaxis for perm
-        (rotate car left is postiive in degrees)
-    mshift is the number of car is shifted along yaxis for perm
-        (shift car left is positive in meters)
-'''
-def shiftsteer(steer, drot, mshift):
-    maxsteer = 1 # maximum value which can be returned for steering
-    shifttosteer = 1 # ratio of steering correction to lateral shift in steers/m
-    spd = 1 / 30 # linear coefficient for angle correction in steers/degree
-
-    permsteer = steer - drot * spd - mshift*shifttosteer
-    if permsteer>0:
-        return min(maxsteer, permsteer)
-    else:
-        return max(-maxsteer, permsteer)
-
-
-#shift image function
-'''
-    img is the input image
-    drot is the number of pixels the image is rotated about zaxis
-        (rotate car left is postiive in degrees)
-    mshift is the number of meters the car is shifted along yaxis
-        (shift car left is positive in meters)
-'''
-def shiftimg(img, drot, mshift, cfovz, cfovy):
-    perm = np.zeros(np.shape(img), dtype=np.uint8)
-    phorz = horizonset(len(img), cfovy)
-    prot = zdegtopixel(drot, len(img[0]), cfovz )
-    pshift = ymetertopixel(mshift, len(img[0]), cfovz )
-
-    for z,row in enumerate(img):
+    for z, row in enumerate(img):
         
-        #Calculates the shift distance for a given row
-        shift_dist = prot + pshift*(max(0,(z+1-phorz) )/(len(img)-phorz ) )
-        shift_count = int(round(shift_dist,0) )
+        # Calculates the shift distance for a given row
+        shift_dist = (rotate_pixels +
+                      shift_pixels * (max(0, (z + 1 - horizon_pixels))
+                                      / (len(img) - horizon_pixels)))
+        shift_count = int(round(shift_dist, 0))
 
-        #Executes the called for shift accross the row
+        # Executes the called for shift accross the row
         if shift_count == 0:
-            perm[z] = row
-        elif shift_count >0:
+            out[z] = row
+        elif shift_count > 0:
             for y, pixel in enumerate(row):
-                if y+shift_count <len(row):
-                    perm[z][y+shift_count] = row[y]
-        elif shift_count <0 :
+                if y + shift_count < len(row):
+                    out[z][y + shift_count] = row[y]
+        elif shift_count < 0:
             for y, pixel in enumerate(row):
-                if y+shift_count >=0:
-                    perm[z][y+shift_count] = row[y]
-
-    return perm
-
-
-#calculates the number of pixels the image has rotated
-# for a given degree rotation of the camera
-def zdegtopixel(deg, iydim, cfovz = 100):
-    return deg * iydim/cfovz
+                if y + shift_count >= 0:
+                    out[z][y + shift_count] = row[y]
+    return out
 
 
-#converts a displacement of the car in y meters to pixels along the bottom row of the image
-def ymetertopixel(disp, iydim, cfovz = 100):
-    cheight = .38 #camera height in meters
-    minvis = .7 #FIXME minimum distance camera can see (must be measured)
+def deg2rad(val):
+    return val * np.pi / 180
 
-    botwidth = 2 * np.tan(cfovz * pi / (2 * 180) ) * (cheight**2 + minvis**2)**.5
+def rad2deg(val):
+    return val * 180 / np.pi
+    
+def ymetertopixel(shift, width, hfov, bottom_row_x, z):
+    blah = 2 * np.tan(deg2rad(hfov) / 2) * (z**2 + bottom_row_x**2) ** 0.5
+    return shift * width / blah
 
-    return disp * iydim / botwidth
+def horizonset(height, vfov, bottom_row_x, z):
+    return (height * (vfov - rad2deg(np.arctan(z / bottom_row_x))) / vfov)
 
-
-def horizonset(izdim, cfovy = 60):
-    cheight = .38 #camera height in meters
-    minvis = .7 #FIXME minimum distance camera can see (must be measured)
-
-    return izdim*( (cfovy-np.arctan(cheight/minvis)*180/pi )/cfovy )
 
 
