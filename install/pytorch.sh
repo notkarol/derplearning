@@ -1,13 +1,12 @@
 #!/bin/bash
-PYTORCH_VERSION=v0.2.0
 
-TORCH_VISION_VERSION=83263d8571c9cdd46f250a7986a5219ed29d19a1
+PYTORCH_VERSION=v0.3.0
 
 # Install latest python pip and setuptools and openblas
 sudo apt-get install libopenblas-dev
 pip3 install --user --upgrade pip setuptools
 
-# Get pytorch
+# Pytorch
 if ! [[ -e pytorch ]] ; then
     git clone --recursive https://github.com/pytorch/pytorch
     cd pytorch
@@ -18,28 +17,17 @@ else
 fi
 
 git checkout ${PYTORCH_VERSION}
-
-# Install specified requirements
 pip3 install --user -r requirements.txt
-
-# Build dependencies and install. This might need to be restarted
 python3 setup.py install --user
 
 
-#torch-vision:
-cd ..
-
+# Torch Vision
 if ! [[ -e vision ]] ; then
     git clone --recursive  https://github.com/pytorch/vision
     cd vision
 else
     cd vision
     git pull
-    git submodule --update
 fi
-
-git checkout ${TORCH_VISION_VERSION}
-
 pip3 install --user -r requirements.txt
-
 python3 setup.py install --user

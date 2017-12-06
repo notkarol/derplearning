@@ -4,18 +4,29 @@
 sudo apt update
 sudo apt upgrade -y
 sudo apt install \
-     python3-pip \
-     libusb-1.0-0-dev \
+     cmake \
+     cython \
+     libatlas-base-dev \
      libbluetooth-dev \
      libffi-dev \
-     libopenblas-dev
+     libjpeg-dev \
+     liblapack-dev \
+     libpng-dev \
+     libusb-1.0-0-dev \
+     python3-dev \
+     python3-matplotlib \
+     python3-numpy \
+     python3-pillow \
+     python3-pip \
+     python3-seaborn \
+     python3-scipy
 
 # Install Python Packages
-pip3 install --user -U pyusb
-pip3 install --user -U evdev
-pip3 install --user -U pybluez
-pip3 install --user -U pyserial
-pip3 install --user -U Adafruit-BNO055
+pip3 install --user --upgrade Adafruit-BNO055
+pip3 install --user --upgrade evdev
+pip3 install --user --upgrade pybluez
+pip3 install --user --upgrade pyserial
+pip3 install --user --upgrade pyusb
 
 # Make sure we can communicate to Micro Maestro
 sudo cp 99-pololu.rules /etc/udev/rules.d/
@@ -34,6 +45,9 @@ fi
 
 # Install v4l2capture, a python&C library for interfacing with cameras
 bash v4l2capture.sh
+
+# Compile OpenCV from source
+bash opencv.sh
 
 # Compile PyTorch from source
 bash pytorch.sh
