@@ -1,4 +1,4 @@
-name: 'keyboard'
+name: 'input'
 required: False
 class: 'Keyboard'
 exact: False

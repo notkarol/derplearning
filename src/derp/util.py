@@ -43,31 +43,23 @@ def mkdir(path):
     return
 
 
-def load_config(paths):
+def load_config(path):
 
-    # Default config has no components
-    out = { 'name': 'config', 'components': [ {'state' : {} }] }
+    # First load the car's config
+    with open(path) as f:
+        config = yaml.load(f)
 
-    # Don't load blank paths
-    if paths is None:
-        return out
+    # Then load the each component
+    for component in config['components']:
 
-    # For each path we're given
-    for path in paths:
+        # Check if we need to load more parameters from elsewhere
+        if path in component:
+            found_component = component['path']
 
-        # if we're given a folder, load it's config.yaml by default
-        config_path = os.path.join(path, 'config.yaml') if os.path.isdir(path) else path
-
-        # Open the config file 
-        with open(config_path) as f:
-            config = yaml.load(f)
-
-            if 'components' in config:
-                out['components'].extend(config['components'])
-            else:
-                if 'name' not in config:
-                    config['name'] = get_name(config_path)
-                out['components'].append(config)
+            # Load those parameters only if they don't replace existing
+            for key in found_component:
+                if key not in component:
+                    component[key] = found_component[key]
     return out
 
 

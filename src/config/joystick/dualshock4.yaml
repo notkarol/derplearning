@@ -1,4 +1,4 @@
-name: 'dualshock4'
+name: 'joystick'
 required: True
 class: 'Dualshock4'
 deadzone: 4

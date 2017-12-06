@@ -1,4 +1,4 @@
-name: 'imu_stalk'
+name: 'imu'
 required: False
 class: 'BNO055'
 busnum: 0
