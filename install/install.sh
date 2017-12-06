@@ -24,6 +24,11 @@ pip3 install --user --upgrade pybluez
 pip3 install --user --upgrade pyserial
 pip3 install --user --upgrade pyusb
 
+# Enable bluetooth
+rfkill unblock bluetooth
+systemctl enable bluetooth
+systemctl start bluetooth
+
 # Make sure we can communicate to Micro Maestro
 sudo cp 99-pololu.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
