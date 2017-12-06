@@ -3,8 +3,8 @@
 # Variables that may be changed to alter the function of this script on other platforms
 # Assumes existing disk is already partitioned to ext4
 dev=/dev/mmcblk1p1
-root=/dev/sdcard
-folders=scratch data model
+root=/mnt/sdcard
+folders="scratch data model"
 
 # Create a folder for the SD card
 sudo mkdir -p $root
