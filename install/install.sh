@@ -5,13 +5,9 @@ sudo apt update
 sudo apt upgrade -y
 sudo apt install \
      cmake \
-     cython \
      libatlas-base-dev \
      libbluetooth-dev \
      libffi-dev \
-     libjpeg-dev \
-     liblapack-dev \
-     libpng-dev \
      libusb-1.0-0-dev \
      python3-dev \
      python3-matplotlib \
