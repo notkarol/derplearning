@@ -1,7 +1,7 @@
  #!/usr/bin/env python3
 import os
 import argparse
-import PIL
+#import PIL
 import cv2
 import numpy as np
 import numpy.random as rng
@@ -12,7 +12,7 @@ from bezier import bezier_curve
 #from model import Model
 import matplotlib
 import matplotlib.pyplot as plt
-import imageio
+#import imageio
 
 '''
 Running this file generates 3 line road training data
