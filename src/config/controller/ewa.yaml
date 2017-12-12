@@ -1,0 +1,6 @@
+
+# Which script to load from derp.scripts
+script: 'ExponentialWeightedAverage'
+
+steer: [0.2, 0.8]
+speed: [0.2, 0.8]

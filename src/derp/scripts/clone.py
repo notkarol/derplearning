@@ -4,28 +4,34 @@ import cv2
 import numpy as np
 import torch
 from torch.autograd import Variable
-import derp.util 
+from derp.component import Component
+import derp.util
 import derp.imagemanip
 
-class Clone():
+class Clone(Component):
 
-    def __init__(self, hw_config, sw_config, path, nocuda):
-
-        self.hw_config = hw_config
-        self.sw_config = sw_config
-        self.nocuda = nocuda
+    def __init__(self, config, full_config):
+        super(Clone, self).__init__(config, full_config)
+        
+        self.config = config
+        self.target_config = None
+        self.no_cuda = 'no_cuda' in full_config and full_config['no_cuda']
+        
+        for component in full_config['components']:
+            if component['name'] == 'camera':
+                self.target_config = component
 
         # Which component our patch comes from
-        self.component_name = self.sw_config['thumb']['component']
-        for component in self.hw_config['components']:
+        self.component_name = self.target_config['thumb']['component']
+        for component in self.config['components']:
             if component['name'] == self.component_name:
                 self.hw_component = component
 
         # Prepare camera inputs
-        self.bbox = derp.imagemanip.get_patch_bbox(self.sw_config['thumb'],
+        self.bbox = derp.imagemanip.get_patch_bbox(self.target_config['thumb'],
                                                    self.hw_component)
-        self.size = (sw_config['thumb']['width'],
-                     sw_config['thumb']['height'])
+        self.size = (target_config['thumb']['width'],
+                     target_config['thumb']['height'])
 
         # Prepare model
         self.model = None
@@ -52,8 +58,8 @@ class Clone():
 
     # Prepare status
     def prepare_status(self, state):
-        status = np.zeros(len(self.sw_config['status']), dtype=np.float32)
-        for i, sd in enumerate(self.sw_config['status']):
+        status = np.zeros(len(self.target_config['status']), dtype=np.float32)
+        for i, sd in enumerate(self.target_config['status']):
             status[i] = state[sd['field']] * sd['scale']
         return status
     
@@ -78,7 +84,7 @@ class Clone():
         statuses_batch = torch.from_numpy(statuses).float()
 
         # Convert to cuda if we need to
-        if not self.nocuda:
+        if not self.no_cuda:
             thumbs_batch = thumbs_batch.cuda()
             statuses_batch = statuses_batch.cuda()
 
@@ -96,13 +102,10 @@ class Clone():
         out = self.model(thumb_batch, status_batch)
 
         # Prepare predictions from model output by converting them to numpy vector
-        if self.nocuda:
-            predictions = out.data.numpy()[0]
-        else:
-            predictions = out.data.cpu().numpy()[0]
+        predictions = out.data.numpy()[0] if self.no_cuda else out.data.cpu().numpy()[0]
 
         # Normalize predictions to desired range
-        for i, pd in enumerate(self.sw_config['predict']):
+        for i, pd in enumerate(self.target_config['predict']):
             predictions[i] /= pd['scale']
 
         return predictions
@@ -116,15 +119,8 @@ class Clone():
         # Get the predictions of our model
         predictions = self.predict(state)
 
-        # Prepare parameters variale for verbosity
-        params = self.sw_config['params']
-
-        # Speed is what the model says, but possibly averaged
+        # Use the given speed and steer directly from predictions
         speed = float(predictions[0])
-        speed = params['speed_curr'] * speed + params['speed_prev'] * self.prev_speed
-
-        # Steer is what the model says, but possibly averaged
         steer = float(predictions[1])
-        steer = params['steer_curr'] * steer + params['steer_prev'] * self.prev_steer
 
         return speed, steer

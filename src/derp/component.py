@@ -10,43 +10,44 @@ class Component:
 
     def __init__(self, config, full_config):
         # Common variables
-        self.__config = config
-        self.__ready = False
+        self.config = config
+        self.full_config = full_config
+        self.ready = False
 
         # Output csv variables
-        self.__folder = None
-        self.__csv_fd = None
-        self.__csv_writer = None
-        self.__csv_buffer = []
-        self.__csv_header = []
+        self.folder = None
+        self.csv_fd = None
+        self.csv_writer = None
+        self.csv_buffer = []
+        self.csv_header = []
 
 
     def __del__(self):
-        if self.__csv_fd is not None:
-            self.__csv_fd.close()
+        if self.csv_fd is not None:
+            self.csv_fd.close()
 
 
     def __repr__(self):
-        return "%s_%s_%s" % (self.__class__.__name__, self.__config['name'], self.__ready)
+        return "%s_%s" % (self.__class__.__name__.lower(), self.config['name'])
 
 
     def __str__(self):
         return repr(self)
 
 
-    def __is_recording(self, state):
-        return state['record']
+    def is_recording(self, state):
+        return 'record' in state and state['record']
 
 
-    def __is_recording_initialized(self, state):
-        return state['folder'] == self.__folder
+    def is_recording_initialized(self, state):
+        return self.folder is not None and state['folder'] == self.folder
 
 
     def ready(self):
         """
         Returns whether this component is ready to be used
         """
-        return self.__ready
+        return self.ready
 
 
     def sense(self, state):
@@ -68,35 +69,31 @@ class Component:
         """
 
         # Skip if aren't asked to record or we have nothing to record
-        if not self.__is_recording(state):
+        if not self.is_recording(state):
             return False
 
         # Create a new output csv writer since the folder name changed
-        if len(self.__csv_header):
-            if not self.__is_recording_initialized(state) and
-                self.__folder = state['folder']
-
+        if len(self.csv_header):
+            if not self.is_recording_initialized(state):
+                self.folder = state['folder']
                 # Close existing csv file descriptor if it exists
-                if self.__csv_fd is not None:
-                    self.__csv_fd.close()
-
-                # Create a new folder if we don't have one yet
-                derp.util.mkdir(self.__folder)
+                if self.csv_fd is not None:
+                    self.csv_fd.close()
 
                 # Create output csv
                 filename = "%s.csv" % (str(self).lower())
-                csv_path = os.path.join(self.__folder, filename)
-                self.__csv_fd = open(csv_path, 'w')
-                self.__csv_writer = csv.writer(self.__csv_fd, delimiter=',', quotechar='"',
+                csv_path = os.path.join(self.folder, filename)
+                self.csv_fd = open(csv_path, 'w')
+                self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
                                                quoting=csv.QUOTE_MINIMAL)
-                self.__csv_writer.write(out.csv_header)
+                self.csv_writer.writerow(self.csv_header)
 
             # Write out buffer and flush it
-            for row in self.__csv_buffer:
-                self.__csv_writer.write(row)
-            self.__csv_fd.flush()
+            for row in self.csv_buffer:
+                self.csv_writer.writerow(row)
+            self.csv_fd.flush()
 
         # Clear csv buffer in any case to prevent memory leaks
-        del self.__csv_buffer[:]
+        del self.csv_buffer[:]
 
         return True

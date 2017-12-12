@@ -1,6 +1,6 @@
 
-no_cuda: False
+no_cuda: True
 
 components:
-  - path: "input/keyboard.yaml"
+  - path: "joystick/dualshock4.yaml"
   - path: "camera/c720_60fov_1280x960.yaml"

@@ -68,7 +68,7 @@ class Dualshock4(Component):
         return 128 - self.deadzone < value <= 128 + self.deadzone
 
 
-    def __normalize_stick(self, value, deadzone):
+    def normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
@@ -76,7 +76,7 @@ class Dualshock4(Component):
 
 
     # Prepare status based on buffer
-    def __prepare(self, buf):
+    def prepare(self, buf):
         short = Struct("<h")
         dpad = buf[8] % 16
         status = {"left_analog_x" : buf[4],
@@ -118,8 +118,8 @@ class Dualshock4(Component):
         return status
 
 
-    def __process(self, buf, state, out):
-        status = self.__prepare(buf)
+    def process(self, buf, state, out):
+        status = self.prepare(buf)
 
         # Left Analog Steering
         if self.in_deadzone(status['left_analog_x']):
@@ -128,7 +128,7 @@ class Dualshock4(Component):
                 out['steer'] = 0
         else:
             self.left_analog_active = True
-            out['steer'] = self.__normalize_stick(status['left_analog_x'], self.deadzone)
+            out['steer'] = self.normalize_stick(status['left_analog_x'], self.deadzone)
 
         # Right Analog Steering
         if self.in_deadzone(status['right_analog_x']):
@@ -137,7 +137,7 @@ class Dualshock4(Component):
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            steer = self.__normalize_stick(status['right_analog_x'], self.deadzone)
+            steer = self.normalize_stick(status['right_analog_x'], self.deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -204,23 +204,23 @@ class Dualshock4(Component):
             self.left_active = True
         elif self.left_active:
             self.left_active = False
-            out['steer_offset'] = state['steer_offset'] - 1 / 128
+            out['offset_steer'] = state['offset_steer'] - 1 / 128
         if status['right']:
             self.right_active = True
         elif self.right_active:
             self.right_active = False
-            out['steer_offset'] = state['steer_offset'] + 1 / 128
+            out['offset_steer'] = state['offset_steer'] + 1 / 128
 
         # Fixed speed modifications using arrows
         if status['up']:
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['speed_offset'] = state['speed_offset'] + 0.1
+            out['offset_speed'] = state['offset_speed'] + 0.1
         if status['down']:
             self.down_active = True
         elif self.down_active:
-            out['speed_offset'] = state['speed_offset'] - 0.1
+            out['offset_speed'] = state['offset_speed'] - 0.1
 
         # Close down
         if status['button_trackpad']:
@@ -272,15 +272,15 @@ class Dualshock4(Component):
                'auto_steer' : None,
                'speed' : None,
                'steer' : None,
-               'speed_offset' : None,
-               'steer_offset' : None}
+               'offset_speed' : None,
+               'offset_steer' : None}
         
         # Fetch input messages and process them. Store it in out
         while True:
             try:
                 ret = self.intr_socket.recv_into(buf)
                 if ret == len(buf) and buf[1] == self.report_id:
-                    self.__process(buf, state, out)
+                    self.process(buf, state, out)
             except BlockingIOError as e:
                 break
 

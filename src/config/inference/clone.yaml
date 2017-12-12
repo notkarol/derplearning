@@ -1,21 +1,21 @@
 # Which script to load from derp.scripts
-script: 'CloneFixSpeed'
+script: 'Clone'
 
-# Training related parameters
-training:
-  debug: False
+# Dataset creation parameters
+create:
   data_folders: ['train']
   train_chance: 0.9
   n_perts: 1
   perts:
-    shift: 0.5
-    rotate: 5
-
-  # How to prepare input/output
+    shift: 0.2 # meters
+    rotate: 5 # degrees
+    
+# Training related parameters
+train:
   prepare:
     - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
 
-# What we expect for input from the camera
+# Where to cut out the patch
 thumb:
   component: 'camera'
   hfov: 75
@@ -30,11 +30,11 @@ thumb:
   yaw: 0
   roll: 0
 
+# The status we feed into the network
+status:
+  - {field: 'speed', scale: 1 }
+
 # States we will predict
 predict:
+  - {field: 'speed', delay: 0.33, scale: 1 }
   - {field: 'steer', delay: 0.33, scale: 1 }
-
-# Other parameters that will affect things during autonomous mode
-params:
-  steer_prev: 0.2
-  steer_curr: 0.8

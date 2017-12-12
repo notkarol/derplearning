@@ -4,8 +4,8 @@ from derp.scripts.clone import Clone
 
 class CloneFixSpeed(Clone):
 
-    def __init__(self, hw_config, sw_config, path, nocuda):
-        super(CloneFixSpeed, self).__init__(hw_config, sw_config, path, nocuda)
+    def __init__(self, config, full_config):
+        super(CloneFixSpeed, self).__init__(hw_config, sw_config)
 
 
     def plan(self, state):
@@ -16,15 +16,10 @@ class CloneFixSpeed(Clone):
         # Get the predictions of our model
         predictions = self.predict(state)
 
-        # Prepare parameters variable for verbosity
-        params = self.sw_config['params']
-        
         # Speed is fixed based on state
-        speed = state['speed_offset']
+        speed = state['offset_speed']
 
         # Steer is a simple weighted average of the previous speed and the current
         steer = float(predictions[0])
-        steer = params['steer_curr'] * steer + params['steer_prev'] * self.prev_steer
-        self.prev_steer = steer
         
         return speed, steer

@@ -85,7 +85,7 @@ class Camera(Component):
         state[self.config['name']] = frame
 
         # Append frame to out buffer if we're writing
-        if self.__is_recording(state):
+        if self.is_recording(state):
             self.out_buffer.append((state['timestamp'], image_data))
         return True
 
@@ -94,8 +94,8 @@ class Camera(Component):
 
         # Do not write if write is not desired
         # Try to encode an mp4 in the background if we're done recording
-        if not self.__is_recording(state):
-            if __is_recording_initialized():
+        if not self.is_recording(state):
+            if self.is_recording_initialized(state):
                 fps = int(self.frame_counter / (time() - self.start_time) + 0.5)
                 args = (self.folder, self.config['name'])
                 cmd = " ".join(['gst-launch-1.0',
@@ -113,14 +113,14 @@ class Camera(Component):
             return True
 
         # If we are initialized, then spit out jpg images directly to disk
-        if not __is_recording_initialized():
+        if not self.is_recording_initialized(state):
             super(Camera, self).record(state)
 
             self.folder = state['folder']
             self.recording_dir = os.path.join(self.folder, self.config['name'])
-            os.mkdir(self.recording_dir)
             self.frame_counter = 0
             self.start_time = time()
+            os.mkdir(self.recording_dir)
 
         # Write out buffered images
         for timestamp, image_data in self.out_buffer:

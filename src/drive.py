@@ -1,19 +1,17 @@
 #!/usr/bin/env/python3
-
-import argparse
 from derp.state import State
+import argparse
 import derp.util
 
 def main(args):
 
-    config = derp.util.load_config(args.config)
-    config['state']['speed_offset'] = args.speed
-    config['state']['steer_offset'] = args.steer
-
+    # Load config, state, and components
+    config = derp.util.load_config(args.car)
+    config['state']['offset_speed'] = args.speed
+    config['state']['offset_steer'] = args.steer
     state, components = derp.util.load_components(config)
+    print("%.3f Ready" % state['timestamp'])        
 
-    print("%.3f Ready" % state['timestamp'])
-        
     # Event loop
     while True:
 
@@ -29,10 +27,10 @@ def main(args):
             
         # Print to the screen for verbose mode
         if args.verbose:
-            print("%.3f %3s %sspd %.3f %sstr %.3f" %
+            print("\t%.3f %3s %1s spd %.3f %1s str %.3f" %
                   (state['timestamp'] / 1E6, 'REC' if state['record'] else 'off',
-                   'A' if state['auto_speed'] else '!', state['speed'],
-                   'A' if state['auto_steer'] else '!', state['steer']), end='\r')
+                   'A' if state['auto_speed'] else ' ', state['speed'],
+                   'A' if state['auto_steer'] else ' ', state['steer']), end='\r')
 
         # Exit
         if state.done():
@@ -43,10 +41,10 @@ def main(args):
 # Load all the arguments and feed them to the main event loader and loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--verbose', action='store_true', default=False,
-                        help="print a summarized state of the car")
+    parser.add_argument('--car', type=str, required="True", help="car we are running") 
     parser.add_argument('--speed', type=float, default=0.0, help="steer offset")
     parser.add_argument('--steer', type=float, default=0.0, help="speed offset")
-    parser.add_argument("config", nargs='+')
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help="print a summarized state of the car")
     args = parser.parse_args()
     main(args)

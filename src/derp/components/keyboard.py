@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 
+import evdev
 import os
 from time import time
 from derp.component import Component
 import derp.util
 
+
+def find_device(names):
+    for filename in sorted(evdev.list_devices()):
+        device = evdev.InputDevice(filename)
+        device_name = device.name.lower()
+        for name in names:
+            if name in device_name:
+                return device
+    return None  
+
 class Keyboard(Component):
 
-    def __init__(self, config, full_config)
+    def __init__(self, config, full_config):
         super(Keyboard, self).__init__(config, full_config)
         self.device = None
 
@@ -112,10 +123,8 @@ class Keyboard(Component):
                          125: 'super',
                      }
 
-        exact = self.config['exact'] if 'exact' in self.config else True
-        self.device = derp.util.find_device('keyboard', exact=exact)
+        self.device = find_device(['keyboard', 'kbd'])
         self.ready = self.device is not None
-
 
     def __del__(self):
         super(Keyboard, self).__del__()
@@ -124,7 +133,7 @@ class Keyboard(Component):
             self.device = None
 
 
-    def __process(self, state, out, event):
+    def process(self, state, out, event):
 
         # Skip events that I don't know what they mean, but appear all the time
         if event.code == 0 or event.code == 4:
@@ -148,42 +157,42 @@ class Keyboard(Component):
         
         # set steer offset
         if self.code_map[event.code] == '[' and event.value:
-            out['steer_offset'] = state['steer_offset'] - 0.00390625
+            out['offset_steer'] = state['offset_steer'] - 0.00390625
             return
         if self.code_map[event.code] == ']' and event.value:
-            out['steer_offset'] = state['steer_offset'] + 0.00390625
+            out['offset_steer'] = state['offset_steer'] + 0.00390625
             return
 
         # set speed offset
         if self.code_map[event.code] == '1' and event.value:
-            out['speed_offset'] = 0.10
+            out['offset_speed'] = 0.10
             return
         if self.code_map[event.code] == '2' and event.value:
-            out['speed_offset'] = 0.12
+            out['offset_speed'] = 0.12
             return
         if self.code_map[event.code] == '3' and event.value:
-            out['speed_offset'] = 0.14
+            out['offset_speed'] = 0.14
             return
         if self.code_map[event.code] == '4' and event.value:
-            out['speed_offset'] = 0.16
+            out['offset_speed'] = 0.16
             return
         if self.code_map[event.code] == '5' and event.value:
-            out['speed_offset'] = 0.18
+            out['offset_speed'] = 0.18
             return
         if self.code_map[event.code] == '6' and event.value:
-            out['speed_offset'] = 0.20
+            out['offset_speed'] = 0.20
             return
         if self.code_map[event.code] == '7' and event.value:
-            out['speed_offset'] = 0.22
+            out['offset_speed'] = 0.22
             return
         if self.code_map[event.code] == '8' and event.value:
-            out['speed_offset'] = 0.24
+            out['offset_speed'] = 0.24
             return
         if self.code_map[event.code] == '9' and event.value:
-            out['speed_offset'] = 0.26
+            out['offset_speed'] = 0.26
             return
         if self.code_map[event.code] == '0' and event.value:
-            out['speed_offset'] = 0.28
+            out['offset_speed'] = 0.28
             return
 
         # Record
@@ -228,13 +237,13 @@ class Keyboard(Component):
                'steer' : None,
                'auto_speed' : None,
                'auto_steer' : None,
-               'speed_offset' : None,
-               'steer_offset' : None}
+               'offset_speed' : None,
+               'offset_steer' : None}
 
         # Process every action we received until there are no more left
         try:
             for event in self.device.read():
-                self.__process(state, out, event)
+                self.process(state, out, event)
         except BlockingIOError:
             pass
 

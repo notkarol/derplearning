@@ -13,17 +13,17 @@ import derp.util
 import derp.inferer
 
 
-def prepare_state(sw_config, frame_id, state_headers, states, frame):
+def prepare_state(config, frame_id, state_headers, states, frame):
     state = {}
     for header, value in zip(state_headers, states[frame_id]):
         state[header] = value
-    state = {sw_config['thumb']['component']: frame}
+    state = {config['thumb']['component']: frame}
     return state
 
 
-def prepare_predict(sw_config, frame_id, state_headers, state_ts, states):
-    predict = np.zeros(len(sw_config['predict']), dtype=np.float)
-    for pos, pd in enumerate(sw_config['predict']):
+def prepare_predict(config, frame_id, state_headers, state_ts, states):
+    predict = np.zeros(len(config['predict']), dtype=np.float)
+    for pos, pd in enumerate(config['predict']):
         if pd['field'] not in state_headers:
             print("Unable to find field [%s]" % pd['field'])
             return False
@@ -35,9 +35,9 @@ def prepare_predict(sw_config, frame_id, state_headers, state_ts, states):
     return predict
 
 
-def prepare_status(sw_config, frame_id, state_headers, state_ts, states):
-    status = np.zeros(len(sw_config['status']), dtype=np.float)
-    for pos, sd in enumerate(sw_config['status']):
+def prepare_status(config, frame_id, state_headers, state_ts, states):
+    status = np.zeros(len(config['status']), dtype=np.float)
+    for pos, sd in enumerate(config['status']):
         if sd['field'] not in state_headers:
             print("Unable to find field [%s]" % sd['field'])
             return False
@@ -80,7 +80,7 @@ def write_csv(writer, array, data_dir, store_name):
 
 
 def process_recording(args):
-    sw_config, recording_path, folders = args
+    target_config, recording_path, folders = args
     print("Processing", recording_path)
     recording_name = basename(recording_path)
     
@@ -96,8 +96,8 @@ def process_recording(args):
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
     
     # Prepare  configs
-    hw_config = derp.util.load_config(recording_path)
-    inferer = derp.inferer.Inferer(hw_config, sw_config).script
+    source_config = derp.util.load_config(recording_path)
+    inferer = derp.inferer.Inferer(source_config, target_config).script
 
     # Prepare directories and writers
     predict_fds = {}
@@ -112,7 +112,7 @@ def process_recording(args):
         status_fds[part] = open(join(out_path, 'status.csv'), 'a')
     
     # load video
-    video_path = join(recording_path, '%s.mp4' % sw_config['thumb']['component'])
+    video_path = join(recording_path, '%s.mp4' % target_config['thumb']['component'])
     reader = imageio.get_reader(video_path)
 
     # Loop through video and add frames into dataset
@@ -124,18 +124,18 @@ def process_recording(args):
             continue
 
         # Prepare attributes regardless of perturbation
-        part = 'train' if rand() < sw_config['create']['train_chance'] else 'val'
+        part = 'train' if rand() < target_config['create']['train_chance'] else 'val'
         data_dir = join(folders[part], recording_name)
         frame = reader.get_data(frame_id)
 
         # Perturb our arrays
-        for pert_id in range(sw_config['create']['n_perts']):
+        for pert_id in range(target_config['create']['n_perts']):
 
             # Prepare pert names
-            state = prepare_state(sw_config, frame_id, state_headers, states, frame)
-            predict = prepare_predict(sw_config, frame_id, state_headers, state_ts, states)
-            status = prepare_status(sw_config, frame_id, state_headers, state_ts, states)
-            perts = prepare_pert_magnitudes(sw_config['create'], pert_id == 0)
+            state = prepare_state(target_config, frame_id, state_headers, states, frame)
+            predict = prepare_predict(target_config, frame_id, state_headers, state_ts, states)
+            status = prepare_status(target_config, frame_id, state_headers, state_ts, states)
+            perts = prepare_pert_magnitudes(target_config['create'], pert_id == 0)
             
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts)
@@ -153,10 +153,10 @@ def process_recording(args):
 def main(args):
     
     # Import configs that we wish to train for
-    sw_config = derp.util.load_config(args.sw)
+    config = derp.util.load_config(args.config)
     
     # Create folders
-    experiment_path = join(os.environ['DERP_SCRATCH'], sw_config['name'])
+    experiment_path = join(os.environ['DERP_SCRATCH'], config['name'])
     derp.util.mkdir(experiment_path)
 
     # Prepare folders and file descriptors
@@ -167,7 +167,7 @@ def main(args):
 
     # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in sw_config['create']['data_folders']:
+    for data_folder in config['create']['data_folders']:
 
         # If we don't have an absolute path, prepend derp_data folder
         if not isabs(data_folder):
@@ -177,7 +177,7 @@ def main(args):
         for filename in os.listdir(data_folder):
             recording_path = join(data_folder, filename)
             if isdir(recording_path):
-                process_args.append([sw_config, recording_path, folders])
+                process_args.append([config, recording_path, folders])
                 
     # Prepare pool of workers
     if args.count <= 0:
@@ -192,8 +192,10 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sw', type=str, required=True,
-                        help="software config we wish to make dataset for")
+    parser.add_argument('--config', type=str, required=True,
+                        help="config outlining experiment parameters")
+    parser.add_argument('--car', type=str, required=True,
+                        help="car components and setup we wish to train for")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')
     args = parser.parse_args()
