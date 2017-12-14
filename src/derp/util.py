@@ -52,6 +52,10 @@ def load_config(config_path):
     Loads the vehicle config and all requisite components configs
     """
 
+    # Make sure we have a path to a file
+    if os.path.isdir(config_path):
+        config_path  = os.path.join(config_path, 'config.yaml')
+    
     # First load the car's config
     with open(config_path) as f:
         config = yaml.load(f)
@@ -77,7 +81,7 @@ def load_config(config_path):
 
             # Make sure we have a name for this component
             if 'name' not in component_config:
-                component_config['name'] = os.basename(os.dirname(component_config['path']))
+                component_config['name'] = os.path.basename(os.path.dirname(component_config['path']))
 
         # Make sure we were able to find a name
         if 'name' not in component_config:
@@ -87,9 +91,6 @@ def load_config(config_path):
         if 'class' not in component_config:
             raise ValueError("load_config: all components must have a class in components/")
 
-        # Notify user that we're loaded
-        print("load_config", component_config['name'], component_config['class'])
-        
     # Prepare state from defaults if we have to
     if 'state' not in config:
         config['state'] = {}
@@ -100,6 +101,21 @@ def load_config(config_path):
             config['state'][key] = state_defaults[key]
 
     return config
+
+
+def load_component(component_config, config):
+
+    # Load the component from its module
+    module_name = "derp.components." + component_config['class'].lower()
+    class_fn = load_class(module_name, component_config['class'])
+    component = class_fn(component_config, config)
+
+    # If we're ready, add it, otherwise make sure it's required
+    if not component.ready and component_config['required']:
+        raise ValueError("load_components: missing required", component_config['name'])
+
+    print("Loaded component", module_name)
+    return component
 
 
 def load_components(config):
@@ -113,18 +129,12 @@ def load_components(config):
     # Initialize components
     for component_config in config['components']:
 
-        # Load the component from its module
-        module_name = "derp.components." + component_config['class'].lower()
-        class_fn = load_class(module_name, component_config['class'])
-        component = class_fn(component_config, config)
-
-        # If we're ready, add it, otherwise make sure it's required
-        if not component.ready and component_config['required']:
-            raise ValueError("load_components: missing required", component_config['name'])
+        # Load the component object
+        load_component(component_config, config)
 
         # if we survived the cull, add the component to 
         components.append(component)
-        
+
         # Preset all state keys
         if 'state' in component_config:
             for key in component_config['state']:
@@ -135,9 +145,20 @@ def load_components(config):
                 val = component_config['state'][key]
                 if key not in state or state[key] is None:
                     state[key] = val
-        
+
     return state, components
 
+
+def find_component_config(full_config, name, script=None):
+    """
+    Finds the matching component by name of the component and script if needed
+    """
+    for component_config in full_config['components']:
+        if (component_config['name'] == name
+            and (script is None
+                 or script == component_config['script'].lower())):
+            return component_config
+    
 
 def load_class(path, name):
     """ 

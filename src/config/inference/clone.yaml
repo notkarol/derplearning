@@ -1,5 +1,7 @@
 # Which script to load from derp.scripts
 script: 'Clone'
+required: True
+class: 'Inferer'
 
 # Dataset creation parameters
 create:
@@ -17,7 +19,7 @@ train:
 
 # Where to cut out the patch
 thumb:
-  component: 'camera'
+  component: 'camera_front'
   hfov: 75
   vfov: 37.5
   height: 64

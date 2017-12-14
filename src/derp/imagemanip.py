@@ -53,15 +53,13 @@ def perturb(frame, rotate_degrees, shift_meters, config, margin):
                                       / (len(frame) - horizon_index)))
         shift_count = int(round(shift_dist, 0))
 
+        # FIXME: modify the loop to only apply to rows needed by the bbox to keep the 
+        # margin check from being oversensitive.
         # Executes the called for shift accross the row
         if shift_count == 0:
             out[z] = row
-        '''FIXME: modify the loop to only apply to rows needed by the bbox to keep the 
-        margin check from being oversensitive.'''
-        elif np.abs(shift_count) > margin
-            print("""Error shift of %i pixels exceeded margin of %i pixels.
-             This was caused by %f degrees rotation and %f meters of shifting.""",
-            % (shift_count, margin, rotate_degrees, shift_pixels) )
+        elif np.abs(shift_count) > margin:
+            print("Error shift of %i pixels exceeded margin of %i pixels. This was caused by %f degrees rotation and %f meters of shifting." % (shift_count, margin, rotate_degrees, shift_pixels))
         elif shift_count > 0:
             for y, pixel in enumerate(row):
                 if y + shift_count < len(row):

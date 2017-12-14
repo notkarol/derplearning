@@ -1,5 +1,7 @@
 # Which script to load from derp.scripts
 script: 'CloneFixSpeed'
+required: True
+class: 'Inferer'
 
 # Training related parameters
 training:

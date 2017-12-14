@@ -7,10 +7,8 @@ import numpy as np
 import multiprocessing
 from numpy.random import rand
 import os
-from os.path import basename, exists, isabs, isdir, join
 import sys
 import derp.util
-import derp.inferer
 
 
 def prepare_state(config, frame_id, state_headers, states, frame):
@@ -65,14 +63,14 @@ def prepare_store_name(frame_id, pert_id, perts):
 
 
 def write_thumb(inferer, state, data_dir, store_name):
-    store_path = join(data_dir, store_name)
+    store_path = os.path.join(data_dir, store_name)
     thumb = inferer.prepare_thumb(state)
     imageio.imwrite(store_path, thumb)
 
 
 def write_csv(writer, array, data_dir, store_name):
-    recording_name = basename(data_dir)
-    writer.write(join(recording_name, store_name))
+    recording_name = os.path.basename(data_dir)
+    writer.write(os.path.join(recording_name, store_name))
     for val in array:
         writer.write(',%f' % val)
     writer.write("\n")
@@ -80,39 +78,39 @@ def write_csv(writer, array, data_dir, store_name):
 
 
 def process_recording(args):
-    target_config, recording_path, folders = args
+    full_config, component_config, recording_path, folders = args
     print("Processing", recording_path)
-    recording_name = basename(recording_path)
+    recording_name = os.path.basename(recording_path)
     
     # Prepare our data input
-    states_path = join(recording_path, 'state.csv')
+    states_path = os.path.join(recording_path, 'state.csv')
     state_ts, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
     # Skip if there are no labels
-    labels_path = join(recording_path, 'label.csv')
-    if not exists(labels_path):
+    labels_path = os.path.join(recording_path, 'label.csv')
+    if not os.path.exists(labels_path):
         print("Unable to open [%s]" % labels_path)
         return False
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
     
     # Prepare  configs
     source_config = derp.util.load_config(recording_path)
-    inferer = derp.inferer.Inferer(source_config, target_config).script
+    inferer = derp.util.load_component(component_config, full_config).script
 
     # Prepare directories and writers
     predict_fds = {}
     status_fds = {}
     for part in folders:
-        out_path = join(folders[part], recording_name)
-        if exists(out_path):
+        out_path = os.path.join(folders[part], recording_name)
+        if os.path.exists(out_path):
             print("unable to create this recording's dataset as it was already started")
             return False
-        derp.util.mkdir(out_path)
-        predict_fds[part] = open(join(out_path, 'predict.csv'), 'a')
-        status_fds[part] = open(join(out_path, 'status.csv'), 'a')
+        os.mkdir(out_path)
+        predict_fds[part] = open(os.path.join(out_path, 'predict.csv'), 'a')
+        status_fds[part] = open(os.path.join(out_path, 'status.csv'), 'a')
     
     # load video
-    video_path = join(recording_path, '%s.mp4' % target_config['thumb']['component'])
+    video_path = os.path.join(recording_path, '%s.mp4' % component_config['thumb']['component'])
     reader = imageio.get_reader(video_path)
 
     # Loop through video and add frames into dataset
@@ -124,18 +122,18 @@ def process_recording(args):
             continue
 
         # Prepare attributes regardless of perturbation
-        part = 'train' if rand() < target_config['create']['train_chance'] else 'val'
-        data_dir = join(folders[part], recording_name)
+        part = 'train' if rand() < component_config['create']['train_chance'] else 'val'
+        data_dir = os.path.join(folders[part], recording_name)
         frame = reader.get_data(frame_id)
 
         # Perturb our arrays
-        for pert_id in range(target_config['create']['n_perts']):
+        for pert_id in range(component_config['create']['n_perts']):
 
             # Prepare pert names
-            state = prepare_state(target_config, frame_id, state_headers, states, frame)
-            predict = prepare_predict(target_config, frame_id, state_headers, state_ts, states)
-            status = prepare_status(target_config, frame_id, state_headers, state_ts, states)
-            perts = prepare_pert_magnitudes(target_config['create'], pert_id == 0)
+            state = prepare_state(component_config, frame_id, state_headers, states, frame)
+            predict = prepare_predict(component_config, frame_id, state_headers, state_ts, states)
+            status = prepare_status(component_config, frame_id, state_headers, state_ts, states)
+            perts = prepare_pert_magnitudes(component_config['create'], pert_id == 0)
             
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts)
@@ -153,31 +151,39 @@ def process_recording(args):
 def main(args):
     
     # Import configs that we wish to train for
-    config = derp.util.load_config(args.config)
+    full_config = derp.util.load_config(args.car)
+    component_config = derp.util.find_component_config(full_config, 'inference', args.script)
     
     # Create folders
-    experiment_path = join(os.environ['DERP_SCRATCH'], config['name'])
-    derp.util.mkdir(experiment_path)
+    print(component_config)
+    name = "%s-%s" % (full_config['name'], component_config['name'])
+    experiment_path = os.path.join(os.environ['DERP_SCRATCH'], name)
+    if not os.path.exists(experiment_path):
+        print("Created", experiment_path)
+        os.mkdir(experiment_path)
 
     # Prepare folders and file descriptors
+    parts = ['train', 'val']
     folders = {}
-    for part in ['train', 'val']:
-        folders[part] = join(experiment_path, part)
-        derp.util.mkdir(folders[part])
+    for part in parts:
+        folders[part] = os.path.join(experiment_path, part)
+        if not os.path.exists(folders[part]):
+            print("Created", folders[part])
+            os.mkdir(folders[part])
 
     # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in config['create']['data_folders']:
+    for data_folder in component_config['create']['data_folders']:
 
         # If we don't have an absolute path, prepend derp_data folder
-        if not isabs(data_folder):
-            data_folder = join(os.environ['DERP_DATA'], data_folder)
+        if not os.path.isabs(data_folder):
+            data_folder = os.path.join(os.environ['DERP_DATA'], data_folder)
 
         # If we have the recording path, process what's in it
         for filename in os.listdir(data_folder):
-            recording_path = join(data_folder, filename)
-            if isdir(recording_path):
-                process_args.append([config, recording_path, folders])
+            recording_path = os.path.join(data_folder, filename)
+            if os.path.isdir(recording_path):
+                process_args.append([full_config, component_config, recording_path, folders])
                 
     # Prepare pool of workers
     if args.count <= 0:
@@ -192,10 +198,10 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True,
-                        help="config outlining experiment parameters")
     parser.add_argument('--car', type=str, required=True,
                         help="car components and setup we wish to train for")
+    parser.add_argument('--script', type=str, required=True,
+                        help="name of script we wish to target in car's config")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')
     args = parser.parse_args()

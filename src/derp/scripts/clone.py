@@ -14,29 +14,20 @@ class Clone(Component):
         super(Clone, self).__init__(config, full_config)
         
         self.config = config
-        self.target_config = None
         self.no_cuda = 'no_cuda' in full_config and full_config['no_cuda']
         
-        for component in full_config['components']:
-            if component['name'] == 'camera':
-                self.target_config = component
-
-        # Which component our patch comes from
-        self.component_name = self.target_config['thumb']['component']
-        for component in self.config['components']:
-            if component['name'] == self.component_name:
-                self.hw_component = component
+        # Which config is our settings coming from
+        self.source_config = derp.util.find_component_config(full_config, config['camera_name'])
 
         # Prepare camera inputs
-        self.bbox = derp.imagemanip.get_patch_bbox(self.target_config['thumb'],
-                                                   self.hw_component)
-        self.size = (target_config['thumb']['width'],
-                     target_config['thumb']['height'])
+        self.bbox = derp.imagemanip.get_patch_bbox(self.config['thumb'],
+                                                   self.source_config)
+        self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
         self.model = None
-        if path is not None:
-            model_path = derp.util.find_matching_file(path, '\.pt$')
+        if 'model_path' in config and config['model_path'] is not None:
+            model_path = derp.util.find_matching_file(config['model_path'], '\.pt$')
             if model_path is not None:
                 self.model = torch.load(model_path)
                 self.model.eval()
@@ -49,7 +40,7 @@ class Clone(Component):
     # Prepare input image
     def prepare_thumb(self, state):
         import cv2
-        frame = state[self.component_name]
+        frame = state[self.config['camera_name']]
         patch = frame[self.bbox.y : self.bbox.y + self.bbox.h,
                       self.bbox.x : self.bbox.x + self.bbox.w]
         thumb = cv2.resize(patch, self.size, interpolation=cv2.INTER_AREA)
@@ -58,8 +49,8 @@ class Clone(Component):
 
     # Prepare status
     def prepare_status(self, state):
-        status = np.zeros(len(self.target_config['status']), dtype=np.float32)
-        for i, sd in enumerate(self.target_config['status']):
+        status = np.zeros(len(self.config['status']), dtype=np.float32)
+        for i, sd in enumerate(self.config['status']):
             status[i] = state[sd['field']] * sd['scale']
         return status
     
