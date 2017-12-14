@@ -1,6 +1,6 @@
 import csv
 import numpy as np
-from os.path import expanduser, exists, join, basename, splitext
+import os
 import torch.utils.data
 import derp.util
 
@@ -16,7 +16,7 @@ class Fetcher(torch.utils.data.Dataset):
         """
 
         # Store constructor arguments
-        self.root = expanduser(root)
+        self.root = os.path.expanduser(root)
         self.transform = transform
 
         # Pepare variables to store each item
@@ -24,28 +24,35 @@ class Fetcher(torch.utils.data.Dataset):
         self.status = []
         self.predict = []
 
-        # Make sure we can find the path
-        status_path = join(self.root, 'status.csv')
-        if not exists(status_path):
-            raise(RuntimeError("Fetcher: Unable to find status path"))
-
-        predict_path = join(self.root, 'predict.csv')
-        if not exists(predict_path):
-            raise(RuntimeError("Fetcher: Unable to find predict path"))
-
         # Read in states and paths
         # Each video has a certain fixed number of state variables which we will encode as a dict
-        with open(status_path) as sp, open(predict_path) as pp:
-            sp_reader, pp_reader = csv.reader(sp), csv.reader(pp)
-            for status_row, predict_row in zip(sp_reader, pp_reader):
-                if status_row[0] != predict_row[0]:
-                    raise(ValueError("Fetcher: discrepancy between status and predict"))
-                path = join(self.root, status_row[0])
-                status = np.array([float(x) for x in status_row[1:]], dtype=np.float32)
-                predict = np.array([float(x) for x in predict_row[1:]], dtype=np.float32)
-                self.paths.append(path)
-                self.status.append(status)
-                self.predict.append(predict)
+        for recording_name in sorted(os.listdir(self.root)):
+
+            # Skip any non-subpath
+            path = os.path.join(self.root, recording_name)
+            if not os.path.isdir(path):
+                continue
+            
+            # Make sure we can find the path
+            status_path = os.path.join(path, 'status.csv')
+            if not os.path.exists(status_path):
+                raise(RuntimeError("Fetcher: Unable to find status path"))
+
+            predict_path = os.path.join(path, 'predict.csv')
+            if not os.path.exists(predict_path):
+                raise(RuntimeError("Fetcher: Unable to find predict path"))
+
+            with open(status_path) as sp, open(predict_path) as pp:
+                sp_reader, pp_reader = csv.reader(sp), csv.reader(pp)
+                for status_row, predict_row in zip(sp_reader, pp_reader):
+                    if status_row[0] != predict_row[0]:
+                        raise(ValueError("Fetcher: discrepancy between status and predict"))
+                    path = os.path.join(self.root, status_row[0])
+                    status = np.array([float(x) for x in status_row[1:]], dtype=np.float32)
+                    predict = np.array([float(x) for x in predict_row[1:]], dtype=np.float32)
+                    self.paths.append(path)
+                    self.status.append(status)
+                    self.predict.append(predict)
 
 
     def __getitem__(self, index):

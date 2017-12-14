@@ -7,11 +7,11 @@ class BasicModel(nn.Module):
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         super(BasicModel, self).__init__()
         dim = in_dim.copy()
-        self.c1 = ConvBlock(dim, 24, 5, stride=2, verbose=verbose)
-        self.c2 = ConvBlock(dim, 24, 3, pool='max', verbose=verbose)
-        self.c3 = ConvBlock(dim, 32, 3, pool='max', verbose=verbose)
-        self.c4 = ConvBlock(dim, 40, 3, pool='max', verbose=verbose)
-        self.c5 = ConvBlock(dim, 48, 3, pool='max', verbose=verbose)
+        self.c1 = ConvBlock(dim, 16, 5, stride=2, verbose=verbose)
+        self.c2 = ConvBlock(dim, 24, 3, stride=2, verbose=verbose)
+        self.c3 = ConvBlock(dim, 32, 3, stride=2, verbose=verbose)
+        self.c4 = ConvBlock(dim, 40, 3, stride=2, verbose=verbose)
+        self.c5 = ConvBlock(dim, 48, 3, stride=2, verbose=verbose)
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
         self.fc1 = LinearBlock(dim, 32, verbose=verbose)

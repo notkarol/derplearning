@@ -78,7 +78,7 @@ def write_csv(writer, array, data_dir, store_name):
 
 
 def process_recording(args):
-    full_config, component_config, recording_path, folders = args
+    component_config, recording_path, folders = args
     print("Processing", recording_path)
     recording_name = os.path.basename(recording_path)
     
@@ -93,9 +93,9 @@ def process_recording(args):
         return False
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
     
-    # Prepare  configs
+    # Prepare configs
     source_config = derp.util.load_config(recording_path)
-    inferer = derp.util.load_component(component_config, full_config).script
+    inferer = derp.util.load_component(component_config, source_config).script
 
     # Prepare directories and writers
     predict_fds = {}
@@ -155,7 +155,6 @@ def main(args):
     component_config = derp.util.find_component_config(full_config, 'inference', args.script)
     
     # Create folders
-    print(component_config)
     name = "%s-%s" % (full_config['name'], component_config['name'])
     experiment_path = os.path.join(os.environ['DERP_SCRATCH'], name)
     if not os.path.exists(experiment_path):
@@ -183,7 +182,7 @@ def main(args):
         for filename in os.listdir(data_folder):
             recording_path = os.path.join(data_folder, filename)
             if os.path.isdir(recording_path):
-                process_args.append([full_config, component_config, recording_path, folders])
+                process_args.append([component_config, recording_path, folders])
                 
     # Prepare pool of workers
     if args.count <= 0:

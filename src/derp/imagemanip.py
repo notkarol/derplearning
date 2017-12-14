@@ -13,19 +13,26 @@ class Bbox:
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
 
-def get_patch_bbox(sw_config, hw_config):
+def get_patch_bbox(target_config, source_config):
     """
     Currently we assume that orientations and positions are identical
     """
-    hfov_ratio = sw_config['hfov'] / hw_config['hfov']
-    vfov_ratio = sw_config['vfov'] / hw_config['vfov']
+    hfov_ratio = target_config['hfov'] / source_config['hfov']
+    vfov_ratio = target_config['vfov'] / source_config['vfov']
 
-    width = hw_config['width'] * hfov_ratio
-    height = hw_config['height'] * vfov_ratio
-    x = (hw_config['width'] - width) // 2 #use floor division("//")
-    y = hw_config['height'] - height
+    print('h', target_config['hfov'], source_config['hfov'])
+    print('v', target_config['vfov'], source_config['vfov'])
+    
+    width = source_config['width'] * hfov_ratio
+    height = source_config['height'] * vfov_ratio
+    x = (source_config['width'] - width) // 2 #use floor division("//")
+    y = source_config['height'] - height
+    print(source_config['width'], source_config['height'])
+    print(x, y, width, height)
     #y assumes that the crop will always include the lowest row of pixels
-
+    #print(target_config)
+    #print(source_config)
+    #print(x, y, width, height)
     return Bbox(x, y, width, height)
 
 
