@@ -135,7 +135,8 @@ if __name__ == "__main__":
                         help="Car components and setup we wish to train form")
     parser.add_argument('--script', type=str, required=True,
                         help="Name of script we wish to target in car's config")
-    parser.add_argument('--model', type=str, default="BasicModel", help="Model to run")
+    parser.add_argument('--model', type=str, default="BModel",
+                        help="Model to run. Default to Medium Sized")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
     parser.add_argument('--bs', type=int, default=64, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")

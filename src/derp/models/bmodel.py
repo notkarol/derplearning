@@ -2,23 +2,24 @@ import torch
 import torch.nn as nn
 from derp.models.blocks import ConvBlock, LinearBlock, ViewBlock
 
-class PyramidModel(nn.Module):
+class BModel(nn.Module):
 
     def __init__(self, in_dim, n_status, n_out, verbose=True):
-        super(PyramidModel, self).__init__()
+        super(BModel, self).__init__()
         dim = in_dim.copy()
-        self.c1 = ConvBlock(dim, 32, 5, stride=2, verbose=verbose)
-        self.c2 = ConvBlock(dim, 40, 3, pool='max', verbose=verbose)
-        self.c3a = ConvBlock(dim, 48, 3, verbose=verbose)
-        self.c3b = ConvBlock(dim, 56, 3, pool='max', verbose=verbose)
-        self.c4a = ConvBlock(dim, 64, 3, verbose=verbose)
-        self.c4b = ConvBlock(dim, 72, 3, pool='max', verbose=verbose)
-        self.c5a = ConvBlock(dim, 80, 3, verbose=verbose)
-        self.c5b = ConvBlock(dim, 96, 3, pool='max', verbose=verbose)
+        self.c1 = ConvBlock(dim, 48, 5, stride=2, verbose=verbose)
+        self.c2 = ConvBlock(dim, 32, 3, pool='max', verbose=verbose)
+        self.c3a = ConvBlock(dim, 40, 3, verbose=verbose)
+        self.c3b = ConvBlock(dim, 40, 3, pool='max', verbose=verbose)
+        self.c4a = ConvBlock(dim, 48, 3, verbose=verbose)
+        self.c4b = ConvBlock(dim, 48, 3, pool='max', verbose=verbose)
+        self.c5a = ConvBlock(dim, 56, 3, verbose=verbose)
+        self.c5b = ConvBlock(dim, 56, 3, pool='max', verbose=verbose)
+        self.c6 = ConvBlock(dim, 64, 2, padding=0, verbose=verbose)
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
         self.fc1 = LinearBlock(dim, 64, verbose=verbose)
-        self.fc2 = LinearBlock(dim, 32, verbose=verbose)
+        self.fc2 = LinearBlock(dim, 64, verbose=verbose)
         self.fc3 = LinearBlock(dim, n_out, activation=False, verbose=verbose)
 
     def forward(self, x, status):
@@ -30,6 +31,7 @@ class PyramidModel(nn.Module):
         out = self.c4b(out)
         out = self.c5a(out)
         out = self.c5b(out)
+        out = self.c6(out)
         out = self.view(out)
         out = torch.cat((out, status), 1)
         out = self.fc1(out)
