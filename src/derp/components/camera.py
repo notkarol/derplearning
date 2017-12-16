@@ -75,18 +75,19 @@ class Camera(Component):
             counter -= 1
             select.select((self.cap,), (), ())
             try:
-                image_data = self.cap.read_and_queue()
-                frame = np.array(PIL.Image.open(io.BytesIO(image_data)))
+                image_bytes = self.cap.read_and_queue()
+                image_io = io.BytesIO(image_bytes)
+                pil_frame = PIL.Image.open(image_io)
+                frame = np.array(pil_frame)
             except:
                 print("Camera: Unable to get frame. Retrying")
-            
-            
+        
         # Update the state and our out buffer
         state[self.config['name']] = frame
 
         # Append frame to out buffer if we're writing
         if self.is_recording(state):
-            self.out_buffer.append((state['timestamp'], image_data))
+            self.out_buffer.append((state['timestamp'], image_bytes))
         return True
 
 

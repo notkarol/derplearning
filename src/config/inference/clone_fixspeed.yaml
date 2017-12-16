@@ -2,6 +2,7 @@
 script: 'CloneFixSpeed'
 required: True
 class: 'Inferer'
+name: 'clonefixspeed'
 
 # Training related parameters
 training:

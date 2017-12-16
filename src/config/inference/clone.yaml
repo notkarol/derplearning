@@ -2,6 +2,7 @@
 script: 'Clone'
 required: True
 class: 'Inferer'
+name: 'clone'
 
 # Dataset creation parameters
 create:

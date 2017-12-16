@@ -91,15 +91,10 @@ def load_config(config_path):
         if 'class' not in component_config:
             raise ValueError("load_config: all components must have a class in components/")
 
-    # Prepare state from defaults if we have to
+    # Make sure we also have a state
     if 'state' not in config:
         config['state'] = {}
-    state_defaults = {'offset_speed': 0.0,
-                      'offset_steer': 0.0}
-    for key in state_defaults:
-        if key not in config['state']:
-            config['state'][key] = state_defaults[key]
-
+        
     return config
 
 
@@ -130,7 +125,7 @@ def load_components(config):
     for component_config in config['components']:
 
         # Load the component object
-        load_component(component_config, config)
+        component = load_component(component_config, config)
 
         # if we survived the cull, add the component to 
         components.append(component)

@@ -23,8 +23,8 @@ class State(Component, Mapping):
         self['auto_steer'] = False
         self['speed'] = 0
         self['steer'] = 0
-        self['offset_speed'] = config['offset_speed'] if 'offset_speed' in config else 0
-        self['offset_steer'] = config['offset_steer'] if 'offset_steer' in config else 0
+        self['offset_speed'] = 0
+        self['offset_steer'] = 0
 
 
     def __getitem__(self, key):

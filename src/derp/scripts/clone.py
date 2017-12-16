@@ -2,6 +2,8 @@
 
 import cv2
 import numpy as np
+import os
+import PIL
 import torch
 from torch.autograd import Variable
 from derp.component import Component
@@ -26,8 +28,8 @@ class Clone(Component):
 
         # Prepare model
         self.model = None
-        if 'model_path' in config and config['model_path'] is not None:
-            model_path = derp.util.find_matching_file(config['model_path'], '\.pt$')
+        if 'model_dir' in full_config and full_config['model_dir'] is not None:
+            model_path = derp.util.find_matching_file(full_config['model_dir'], 'clone.pt$')
             if model_path is not None:
                 self.model = torch.load(model_path)
                 self.model.eval()
@@ -36,10 +38,13 @@ class Clone(Component):
         self.prev_steer = 0
         self.prev_speed = 0
 
+        # Data saving
+        self.out_buffer = []
+        self.frame_counter = 0  
+
 
     # Prepare input image
     def prepare_thumb(self, state):
-        import cv2
         frame = state[self.config['camera_name']]
         patch = frame[self.bbox.y : self.bbox.y + self.bbox.h,
                       self.bbox.x : self.bbox.x + self.bbox.w]
@@ -96,8 +101,12 @@ class Clone(Component):
         predictions = out.data.numpy()[0] if self.no_cuda else out.data.cpu().numpy()[0]
 
         # Normalize predictions to desired range
-        for i, pd in enumerate(self.target_config['predict']):
+        for i, pd in enumerate(self.config['predict']):
             predictions[i] /= pd['scale']
+
+        # Append frame to out buffer if we're writing
+        if self.is_recording(state):
+            self.out_buffer.append((state['timestamp'], thumb, predictions))
 
         return predictions
 
@@ -115,3 +124,22 @@ class Clone(Component):
         steer = float(predictions[1])
 
         return speed, steer
+
+    def record(self, state):
+        # If we are initialized, then spit out jpg images directly to disk
+        if not self.is_recording_initialized(state):
+            super(Clone, self).record(state)
+            self.folder = state['folder']
+            self.recording_dir = os.path.join(self.folder, self.config['name'])
+            self.frame_counter = 0
+            os.mkdir(self.recording_dir)
+
+        # Write out buffered images
+        for timestamp, thumb, predictions in self.out_buffer:
+            path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
+            img = PIL.Image.fromarray(thumb)
+            img.save(path)
+            self.frame_counter += 1            
+        del self.out_buffer[:]
+
+        return True                         

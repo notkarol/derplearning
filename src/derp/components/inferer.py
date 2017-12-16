@@ -22,6 +22,13 @@ class Inferer(Component):
         self.script = script_class(config, full_config)
         self.ready = True
 
+
+    def sense(self, state):
+        if self.script is None or not (state['auto_speed'] or state['auto_steer']):
+            return True
+        return self.script.sense(state)
+
+
     def plan(self, state):
         """
         Runs the loaded python inferer script's plan
@@ -41,3 +48,16 @@ class Inferer(Component):
             state['steer'] = steer
 
         return True
+
+
+    def act(self, state):
+        if self.script is None or not (state['auto_speed'] or state['auto_steer']):
+            return True
+        return self.script.act(state)
+
+
+    def record(self, state):
+        if self.script is None or not (state['auto_speed'] or state['auto_steer']):
+            return True
+        return self.script.record(state)
+    

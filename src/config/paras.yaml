@@ -1,5 +1,6 @@
 
 no_cuda: False
+model_dir: Null
 
 components:
   - path: "joystick/dualshock4.yaml"
@@ -18,6 +19,10 @@ components:
   - path: "imu/bno055.yaml"
     name: "imu_stalk"
   - path: "servo/micromaestro_speed_3785.yaml"
+    state:
+      offset_speed: 0.2 # start at a reasonable high speed
   - path: "servo/micromaestro_steer_2075.yaml"
+    state:
+      offset_steer: 0.0 # assume no steering bias
   - path: "inference/clone.yaml"
     camera_name: "camera_front"

@@ -2,6 +2,7 @@
 script: 'CloneAdaSpeed'
 required: True
 class: 'Inferer'
+name: 'cloneadaspeed'
 
 # Training related parameters
 training:

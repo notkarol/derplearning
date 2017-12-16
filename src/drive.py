@@ -5,10 +5,9 @@ import derp.util
 
 def main(args):
 
-    # Load config, state, and components
+    # Prepare configuration and some supplied arguments
     config = derp.util.load_config(args.car)
-    config['state']['offset_speed'] = args.speed
-    config['state']['offset_steer'] = args.steer
+    if args.model_dir is not None: config['model_dir'] = args.model_dir
     state, components = derp.util.load_components(config)
     print("%.3f Ready" % state['timestamp'])        
 
@@ -41,9 +40,10 @@ def main(args):
 # Load all the arguments and feed them to the main event loader and loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--car', type=str, required="True", help="car we are running") 
-    parser.add_argument('--speed', type=float, default=0.0, help="steer offset")
-    parser.add_argument('--steer', type=float, default=0.0, help="speed offset")
+    parser.add_argument('--car', type=str, required="True",
+                        help="car we are running") 
+    parser.add_argument('--model_dir', type=str, default=None,
+                        help="directory to models we wish to run")
     parser.add_argument('--verbose', action='store_true', default=False,
                         help="print a summarized state of the car")
     args = parser.parse_args()

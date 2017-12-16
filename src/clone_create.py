@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import cv2
 import argparse
 import imageio
 import numpy as np
@@ -9,7 +8,6 @@ from numpy.random import rand
 import os
 import sys
 import derp.util
-
 
 def prepare_state(config, frame_id, state_headers, states, frame):
     state = {}

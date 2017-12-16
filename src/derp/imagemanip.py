@@ -20,19 +20,15 @@ def get_patch_bbox(target_config, source_config):
     hfov_ratio = target_config['hfov'] / source_config['hfov']
     vfov_ratio = target_config['vfov'] / source_config['vfov']
 
-    print('h', target_config['hfov'], source_config['hfov'])
-    print('v', target_config['vfov'], source_config['vfov'])
+    if hfov_ratio > 1 or vfov_ratio > 1:
+        raise ValueError("get_patch_bbox: hfov_ratio [%.3f] or vhov_ratio [%.3f] greater than 1" %
+                         (hfov_ratio, vfov_ratio))
     
     width = source_config['width'] * hfov_ratio
     height = source_config['height'] * vfov_ratio
-    x = (source_config['width'] - width) // 2 #use floor division("//")
+    x = (source_config['width'] - width) // 2
     y = source_config['height'] - height
-    print(source_config['width'], source_config['height'])
-    print(x, y, width, height)
-    #y assumes that the crop will always include the lowest row of pixels
-    #print(target_config)
-    #print(source_config)
-    #print(x, y, width, height)
+
     return Bbox(x, y, width, height)
 
 

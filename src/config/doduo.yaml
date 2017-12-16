@@ -1,6 +1,23 @@
 
 no_cuda: False
+model_dir: Null
 
 components:
   - path: "input/keyboard.yaml"
   - path: "camera/c720_60fov_1280x960.yaml"
+    name: "camera_front"
+  - path: "inference/clone.yaml"
+    camera_name: "camera_front"
+    thumb:
+      component: 'camera_front'
+      hfov: 60
+      vfov: 37.5
+      height: 64
+      width: 128
+      depth: 3
+      x: 0
+      y: 0.36
+      z: -0.23
+      pitch: -8.5
+      yaw: 0
+      roll: 0
