@@ -1,8 +1,10 @@
 import csv
+from datetime import datetime
 import numpy as np
 import os
 import PIL.Image
 import re
+import socket
 import time
 import yaml
 
@@ -32,13 +34,16 @@ def get_name(path):
     name, ext = os.path.splitext(bn)
     return name
 
+def get_default_config_path():
+    hn = socket.gethostname()
+    path = os.path.join("config/%s.yaml" % (hn))
+    return path
+
 
 def create_record_folder():
     """
     Generate the name of the record folder and created it
     """
-    from datetime import datetime
-    import socket
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
     path = os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
