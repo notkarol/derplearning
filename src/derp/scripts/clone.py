@@ -126,6 +126,11 @@ class Clone(Component):
         return speed, steer
 
     def record(self, state):
+
+        # If we can not record, return false
+        if not self.is_recording(state):
+            return False
+
         # If we are initialized, then spit out jpg images directly to disk
         if not self.is_recording_initialized(state):
             super(Clone, self).record(state)

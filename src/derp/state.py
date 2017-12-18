@@ -94,10 +94,10 @@ class State(Component, Mapping):
         return self.exit
 
 
-    def update_multipart(basename, subnames, values):
+    def update_multipart(self, basename, subnames, values):
         """ 
         Sometimes we want to update multiple similarly named variables
         """
-        for subname, value in zip(subname, values):
+        for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value

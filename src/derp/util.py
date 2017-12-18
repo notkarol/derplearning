@@ -127,6 +127,14 @@ def load_components(config):
         # Load the component object
         component = load_component(component_config, config)
 
+        # Skip a non-ready component. Raise an error if it's required as we can't continue
+        if not component.ready:
+            if component_config['required']:
+                raise ValueError("load_components: required component [%s] not available"
+                                 % component_config['name'])
+            print("load_components: skipping", component_config['name'])
+            continue
+        
         # if we survived the cull, add the component to 
         components.append(component)
 
