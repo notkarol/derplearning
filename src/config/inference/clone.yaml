@@ -34,8 +34,7 @@ thumb:
   roll: 0
 
 # The status we feed into the network
-status:
-  - {field: 'speed', scale: 1 }
+status: []
 
 # States we will predict
 predict:

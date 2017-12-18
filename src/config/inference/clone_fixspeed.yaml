@@ -33,6 +33,9 @@ thumb:
   yaw: 0
   roll: 0
 
+# The status we feed into the network
+status: []
+
 # States we will predict
 predict:
   - {field: 'steer', delay: 0.33, scale: 1 }

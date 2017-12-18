@@ -6,6 +6,7 @@ class BModel(nn.Module):
 
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         super(BModel, self).__init__()
+        self.n_status = n_status
         dim = in_dim.copy()
         self.c1 = ConvBlock(dim, 48, 5, stride=2, verbose=verbose)
         self.c2 = ConvBlock(dim, 32, 3, pool='max', verbose=verbose)
@@ -33,7 +34,8 @@ class BModel(nn.Module):
         out = self.c5b(out)
         out = self.c6(out)
         out = self.view(out)
-        out = torch.cat((out, status), 1)
+        if self.n_status:
+            out = torch.cat((out, status), 1)
         out = self.fc1(out)
         out = self.fc2(out)
         out = self.fc3(out)

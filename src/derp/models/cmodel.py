@@ -5,6 +5,7 @@ from derp.models.blocks import *
 class CModel(nn.Module):
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         super(CModel, self).__init__()
+        self.n_status = n_status
         dim = in_dim.copy()
         self.c1 = ConvBlock(dim, 96, kernel_size=5, stride=2, verbose=verbose)
         self.c2a = ResnetBlock(dim, 32, verbose=verbose)
@@ -49,7 +50,8 @@ class CModel(nn.Module):
         out = self.c4f(out)
         out = self.c5(out)
         out = self.view(out)
-        out = torch.cat((out, status), 1)
+        if self.n_status:
+            out = torch.cat((out, status), 1)
         out = self.fc1(out)
         out = self.fc2(out)
         out = self.fc3(out)

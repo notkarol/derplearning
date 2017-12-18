@@ -15,7 +15,7 @@ class ConvBlock(nn.Module):
         self.conv2d = nn.Conv2d(n_in, n_out, kernel_size=kernel_size,
                                 stride=stride, padding=padding)
         self.batchnorm = nn.BatchNorm2d(n_out) if batchnorm else None
-        self.activation = nn.ELU(inplace=True) if activation else None
+        self.activation = nn.ReLU(inplace=True) if activation else None
         self.dropout = nn.Dropout2d(dropout) if dropout > 0.0 else None
 
         # Output dimensions just from convolution
@@ -35,12 +35,12 @@ class ConvBlock(nn.Module):
 
     def forward(self, x):
         out = self.conv2d(x)
-        if self.batchnorm is not None:
-            out = self.batchnorm(out)
         if self.dropout:
             out = self.dropout(out)
         if self.activation is not None:
             out = self.activation(out)
+        if self.batchnorm is not None:
+            out = self.batchnorm(out)
         if self.pool is not None:
             out = self.pool(out)
         return out
@@ -92,7 +92,7 @@ class LinearBlock(nn.Module):
         dim[0] = n_out if type(n_out) in (int, float) else n_out[0]
         self.batchnorm = nn.BatchNorm(dim[0]) if bn else None
         self.dropout = nn.Dropout(dropout) if dropout > 0.0 else None
-        self.activation = nn.ELU(inplace=True) if activation else None
+        self.activation = nn.ReLU(inplace=True) if activation else None
 
         # Number of params, add 3 becuase of conv bias and mean/std for batchnorm
         self.n_params = n_out * (n_in + (3 if bn else 2))

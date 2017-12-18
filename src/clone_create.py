@@ -150,7 +150,7 @@ def main(args):
     
     # Import configs that we wish to train for
     full_config = derp.util.load_config(args.car)
-    component_config = derp.util.find_component_config(full_config, 'inference', args.script)
+    component_config = derp.util.find_component_config(full_config, 'clone', args.script)
     
     # Create folders
     name = "%s-%s" % (full_config['name'], component_config['name'])

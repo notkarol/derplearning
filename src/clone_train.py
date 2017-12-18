@@ -37,8 +37,12 @@ def step(epoch, config, model, loader, optimizer, criterion,
 
         # Run training or evaluation to get loss, and then use loss if in training
         if not nocuda:
-            example, status, label = example.cuda(), status.cuda(), label.cuda()
-        example, status, label = Variable(example), Variable(status), Variable(label)
+            example = example.cuda()
+            status = status.cuda()
+            label = label.cuda()
+        example = Variable(example)
+        status = Variable(status)
+        label = Variable(label)
         
         if is_train:
             optimizer.zero_grad()
@@ -58,7 +62,7 @@ def main(args):
 
     # Make sure we have somewhere to run the experiment
     full_config = derp.util.load_config(args.car)
-    target_config = derp.util.find_component_config(full_config, 'inference', args.script)
+    target_config = derp.util.find_component_config(full_config, 'clone', args.script)
     name = "%s-%s" % (full_config['name'], target_config['name'])
     experiment_path = join(environ["DERP_SCRATCH"], name)
 

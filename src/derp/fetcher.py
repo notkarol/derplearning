@@ -50,6 +50,8 @@ class Fetcher(torch.utils.data.Dataset):
                     path = os.path.join(self.root, status_row[0])
                     status = np.array([float(x) for x in status_row[1:]], dtype=np.float32)
                     predict = np.array([float(x) for x in predict_row[1:]], dtype=np.float32)
+
+                    status = status if len(status) else np.zeros(1, dtype=np.float32)
                     self.paths.append(path)
                     self.status.append(status)
                     self.predict.append(predict)
@@ -62,7 +64,7 @@ class Fetcher(torch.utils.data.Dataset):
         thumb = derp.util.load_image(self.paths[index])
         status = self.status[index]
         predict = self.predict[index]
-        
+
         # Transform x
         if self.transform is not None:
             thumb = self.transform(thumb)

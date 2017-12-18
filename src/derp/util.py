@@ -162,7 +162,7 @@ def find_component_config(full_config, name, script=None):
     Finds the matching component by name of the component and script if needed
     """
     for component_config in full_config['components']:
-        if (component_config['name'] == name
+        if (name in component_config['name']
             and (script is None
                  or script == component_config['script'].lower())):
             return component_config
