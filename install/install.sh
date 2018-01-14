@@ -50,5 +50,10 @@ bash v4l2capture.sh
 # Compile OpenCV from source
 bash opencv.sh
 
+# Compile PyCuda from source
+bash pycuda.sh
+
 # Compile PyTorch from source
 bash pytorch.sh
+
+# TODO Install TensorRT from source
