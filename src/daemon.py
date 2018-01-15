@@ -1,28 +1,33 @@
 #!/usr/bin/env python3
 
-import numpy as np
 import os
-import socket
-import subprocess
-import select
-import sys
-from time import time, sleep
+import zmq
+from socket import socket, AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP
+from subprocess import check_output, STDOUT
+from time import sleep
 from struct import Struct
 from collections import deque
 
-class DS4Daemon:
+class Daemon:
 
-    def __init__(self, send_buffer=True, pid_path="/tmp/ds4daemon.pid"):
+    def __init__(self,
+                 send_raw_buffer=False, # do not convert to dict before sending
+                 pid_path="/tmp/ds4daemon.pid", # default place to look for pid files
+                 port=2455, # the derpiest port
+                 buffer_max=100): # about 1 second
         """ Initializes the daemon when we connect """
 
         # Prepare buffers and status variables
+        self.__port = port
         self.__report_id = 0x11
         self.__report_size = 79
-        self.__ready = False
-        self.__error = False
-        self.__send_buffer = send_buffer
+        self.__paired = False
+        self.__claimed = False
+        self.__buffer_max = buffer_max
+        self.__send_raw_buffer = send_raw_buffer
         self.__pid_path = pid_path
-        self.__deque = deque()
+        self.__device_queue = deque()
+        self.__client_queue = deque()
         self.__packet = bytearray(self.__report_size)
         self.__packet[0] = 0x52
         self.__packet[1] = self.__report_id
@@ -30,23 +35,32 @@ class DS4Daemon:
         self.__packet[4] = 0xFF
 
         # bluetooth control socket
-        self.__ctrl_socket = socket.socket(socket.AF_BLUETOOTH,
-                                         socket.SOCK_SEQPACKET,
-                                         socket.BTPROTO_L2CAP)
-        self.__intr_socket = socket.socket(socket.AF_BLUETOOTH,
-                                         socket.SOCK_SEQPACKET,
-                                         socket.BTPROTO_L2CAP)
+        self.__ctrl_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
+        self.__intr_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
 
-        # Create file to note that we exist
-        if self.verifyUnique():
-            with open(self.__pid_path, 'w') as f:
-                pid = str(os.getpid())
-                f.write(pid)
+        # Create file to note that we exist only if we are the only process
+        if not self.verifyUnique():
+            print("Other daemon already exists")
+            return
+        with open(self.__pid_path, 'w') as f:
+            pid = str(os.getpid())
+            f.write(pid)
+        self.__claimed = True
 
+        # Create ZMQ server
+        self.__context = zmq.Context()
+        self.__server_socket = self.__context.socket(zmq.PAIR)
+        self.__server_socket.bind("tcp://*:%s" % self.__port)
 
+        # Pair and send messages
+        if not self.pair():
+            print("Count not pair")
+            return
+        
+            
     def verifyUnique(self):
         """ If we're not the only ones running """
-        
+
         # If the PID path doesn't exist then we're unique
         if not os.path.exists(self.__pid_path):
             return True
@@ -54,9 +68,11 @@ class DS4Daemon:
         # Otherwise check if pid in path exists. If not, delete the file
         with open(self.__pid_path) as f:
             pid = int(f.read())
+        print("Checking if pid [%i] exists" % pid)
         try:
             os.kill(pid, 0)
         except OSError:
+            print("Deleting [%s]" % self.__pid_path)
             os.unlink(self.__pid_path)
             return True
 
@@ -64,25 +80,33 @@ class DS4Daemon:
         return False
 
 
-    def connect(self):
-        """ Try connecting to the controller until we do """
-        while True:
+    def pair(self, max_attempts=5):
+        """ Try pairing with the controller """
+        if not self.__claimed:
+            return False
+
+        # Try conn
+        for attempt in range(max_attempts):
+            print("Attempt [%i] of [%i] to pair controller" % (attempt + 1, max_attempts))
             cmd = ["hcitool", "scan", "--flush"]
-            res = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf8")
+            res = check_output(cmd, stderr=STDOUT).decode("utf8")
             for _, address, name in [l.split("\t") for l in res.splitlines()[1:]]:
                 if name == "Wireless Controller":
+                    print("Found controller at [%s]" % address)
                     self.__ctrl_socket.connect((address, 0x11))
                     self.__intr_socket.connect((address, 0x13))
                     self.__intr_socket.setblocking(False)
-                    self.__ready = True
-                    return
+                    self.__paired = True
+                    # Does not receive packets properly until we send it at least one command
+                    return True
+        return False
 
 
     def __del__(self):
         """ Close all of our sockets and file descriptors """
         self.__ctrl_socket.close()
         self.__intr_socket.close()
-        if os.path.exists(self.__pid_path):
+        if self.__claimed and os.path.exists(self.__pid_path):
             os.unlink(self.__pid_path)
 
 
@@ -132,45 +156,71 @@ class DS4Daemon:
 
     
     def encodeController(self, val):
-        return int(abs(val) * 255) % 256
-    
-    
-    def sendController(self, red=0, green=0, blue=0,
-                       light_on=0, light_off=0,
-                       rumble_high=0, rumble_low=0):
-        self.__packet[7] = self.encodeController(rumble_high)
-        self.__packet[8] = self.encodeController(rumble_low)
-        self.__packet[9] = self.encodeController(red)
-        self.__packet[10] = self.encodeController(green)
-        self.__packet[11] = self.encodeController(blue)
-        self.__packet[12] = self.encodeController(light_on)
-        self.__packet[13] = self.encodeController(light_off)
+        val = float(val) * 255 # normalize from 0->1 to 0->255
+        val = int(val + 0.5) # round it to nearest int
+        if val < 0: val = 0 # bound it
+        if val > 255: val = 255 # bound it
+        return val
+
+
+    def sendClient(self):
+        if not self.__paired:
+            return False
+        out = []
+        for d in self.__client_queue:
+            out.append(self.decodeController(d))
+        self.__server_socket.send_json(out)
+        self.__client_queue.clear()
+        return True
+
+
+    def recvClient(self):
+        if not self.__paired:
+            return False
+        msg = self.__server_socket.recv_json()
+        self.sendController(msg)
+        return True
+
+
+    def sendController(self, msg):
+        if not self.__paired:
+            return False
+        self.__packet[7] = self.encodeController(msg['rumble_high'])
+        self.__packet[8] = self.encodeController(msg['rumble_low'])
+        self.__packet[9] = self.encodeController(msg['red'])
+        self.__packet[10] = self.encodeController(msg['green'])
+        self.__packet[11] = self.encodeController(msg['blue'])
+        self.__packet[12] = self.encodeController(msg['light_on'])
+        self.__packet[13] = self.encodeController(msg['light_off'])
         self.__ctrl_socket.sendall(self.__packet)
         return True
 
 
     def recvController(self):
-        ret = -1
+        if not self.__paired:
+            return False
+        
         while True:
             buf = bytearray(self.__report_size - 2)
             try:
                 ret = self.__intr_socket.recv_into(buf)
                 if ret == len(buf) and buf[1] == self.__report_id:
-                    self.process(buf, state, out)
+                    self.__client_queue.append(buf)
+                    if len(self.__client_queue) > self.__buffer_max:
+                        self.__client_queue.popleft()
             except BlockingIOError as e:
                 break
-
-        # Process 'out' into 'state'
-        for field in out:
-            if out[field] is not None:
-                state[field] = out[field]
-
+        self.sendClient()
         return True
 
+            
 def main():
-    d = DS4Daemon()
-    d.connect()
-    print("Connected")
+    d = Daemon()
+    while True:
+        sleep(0.01)
+        d.recvController()
+        d.recvClient()
+
 
 if __name__ == "__main__":
     main()
