@@ -14,7 +14,7 @@ class Daemon:
                  send_raw_buffer=False, # do not convert to dict before sending
                  pid_path="/tmp/ds4daemon.pid", # default place to look for pid files
                  port=2455, # the derpiest port
-                 buffer_max=100): # about 1 second
+                 buffer_max=100): # about a second of history
         """ Initializes the daemon when we connect """
 
         # Prepare buffers and status variables
@@ -49,14 +49,18 @@ class Daemon:
 
         # Create ZMQ server
         self.__context = zmq.Context()
-        self.__server_socket = self.__context.socket(zmq.PAIR)
-        self.__server_socket.bind("tcp://*:%s" % self.__port)
+        self.__client_socket = self.__context.socket(zmq.PAIR)
+        self.__client_socket.bind("tcp://*:%s" % self.__port)
 
         # Pair and send messages
         if not self.pair():
             print("Count not pair")
             return
-        
+        self.sendController(None)
+
+
+    def paired(self):
+        return self.__paired
             
     def verifyUnique(self):
         """ If we're not the only ones running """
@@ -165,26 +169,46 @@ class Daemon:
 
     def sendClient(self):
         if not self.__paired:
+            print("sendClient FAILED BECAUSE OF PAIRED")
             return False
         out = []
         for d in self.__client_queue:
             out.append(self.decodeController(d))
-        self.__server_socket.send_json(out)
+        self.__client_socket.send_json(out)
         self.__client_queue.clear()
         return True
 
 
     def recvClient(self):
         if not self.__paired:
+            print("recvClient FAILED BECAUSE OF PAIRED")
             return False
-        msg = self.__server_socket.recv_json()
+        msg = self.__client_socket.recv_json()
+
+        # If we receive a null message, clear out the controllers messages
+        if type(msg) is not dict:
+            self.recvController()
+            self.__client_queue.clear()
         self.sendController(msg)
         return True
 
 
-    def sendController(self, msg):
+    def sendController(self, msg=None):
         if not self.__paired:
+            print("sendController FAILED BECAUSE OF PAIRED")
             return False
+        if type(msg) is not dict:
+            red = 0.5 if msg is False else 0.0
+            green = 0.5 if msg is True else 0.0
+            blue = 0.5 if msg is None else 0.0
+            msg = {'rumble_high': 0,
+                   'rumble_low': 0,
+                   'red': red,
+                   'green': green,
+                   'blue': blue,
+                   'light_on': 0.3,
+                   'light_off': 0.3}
+
         self.__packet[7] = self.encodeController(msg['rumble_high'])
         self.__packet[8] = self.encodeController(msg['rumble_low'])
         self.__packet[9] = self.encodeController(msg['red'])
@@ -198,6 +222,7 @@ class Daemon:
 
     def recvController(self):
         if not self.__paired:
+            print("recvController FAILED BECAUSE OF PAIRED")
             return False
         
         while True:
@@ -207,7 +232,7 @@ class Daemon:
                 if ret == len(buf) and buf[1] == self.__report_id:
                     self.__client_queue.append(buf)
                     if len(self.__client_queue) > self.__buffer_max:
-                        self.__client_queue.popleft()
+                        self.__client_queue.popleft()                    
             except BlockingIOError as e:
                 break
         self.sendClient()
@@ -216,9 +241,9 @@ class Daemon:
             
 def main():
     d = Daemon()
-    while True:
-        sleep(0.01)
+    while d.paired():
         d.recvController()
+        sleep(0.01)
         d.recvClient()
 
 

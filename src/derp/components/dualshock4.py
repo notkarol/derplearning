@@ -33,11 +33,17 @@ class Dualshock4(Component):
         self.__server_socket = self.__context.socket(zmq.PAIR)
         self.__server_socket.connect(self.__server_addr)
         self.ready = True
-        self.act({})
+
+        # Reset the message queue
+        self.__server_socket.send_json(True)
 
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
+        print("SENDING MESSAGE TO SLEEP")
+        self.__server_socket.recv_json()
+        self.__server_socket.send_json(False)
+        sleep(0.1)
         self.__server_socket.disconnect(self.__server_addr)
         super(Dualshock4, self).__del__()
 
@@ -180,19 +186,17 @@ class Dualshock4(Component):
         if (('record' in state and not state['record']) and
             ('auto_speed' in state and not state['auto_speed']) and
             ('auto_steer' in state and not state['auto_steer'])):
-            out['red'] = 0.1
-            out['green'] = 0.1
-            out['blue'] = 0.1
+            out['red'] = 0.032
+            out['green'] = 0.071
+            out['blue'] = 0.047
             
         # Update based on state
         if 'record' in state and state['record']:
-            out['flash_on'] = 0.3
-            out['flash_off'] = 0.3
             out['green'] = 1
         if 'auto_steer' in state and state['auto_steer']:
-            out['red'] = 0.3
+            out['red'] = 1
         if 'auto_steer' in state and state['auto_speed']:
-            out['blue'] = 0.3
+            out['blue'] = 1
 
         self.__server_socket.send_json(out)
         return True
