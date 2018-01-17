@@ -219,9 +219,11 @@ class Daemon:
                 byte8 = self.__client_queue[0][8]
                 if byte8 >= 16:
                     self.__creation_time = time()
-                    cmd = ["python3", "drive.py"]
+                    cmd = ["python3", "drive.py", "--quiet"]
                     if byte8 & 16: # square
                         cmd.extend(["--model", "/mnt/sdcard/square"])
+                    elif byte8 & 32: # cross
+                        cmd.extend(["--model", "/mnt/sdcard/cross"])
                     elif byte8 & 64: # circle
                         cmd.extend(["--model", "/mnt/sdcard/circle"])
                     elif byte8 & 128: # triangle
