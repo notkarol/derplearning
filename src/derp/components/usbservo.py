@@ -31,6 +31,20 @@ class UsbServo(Component):
         self.ready = True
 
 
+    def __del__(self):
+        """ Upon close make sure to kill the car """
+        self.send(0)
+
+        
+    def send(self, value):
+        """ Actually send the message through USB to set the servo to the desired value """
+        # Limit command to known limits and convert to command
+        value = min(value, self.config['max_value'])
+        value = max(value, self.config['min_value'])
+        command = int((1500 + 500 * value) * 4)
+        return self.device.ctrl_transfer(0x40, 0x85, command, self.config['index'])
+           
+
     def act(self, state):
 
         if self.device is None:
@@ -44,10 +58,5 @@ class UsbServo(Component):
         # If we're done then just set the value to zero
         if state.done():
             value = 0
-            
-        # Limit command to known limits and convert to command
-        value = min(value, self.config['max_value'])
-        value = max(value, self.config['min_value'])
-        command = int((1500 + 500 * value) * 4)
         
-        return self.device.ctrl_transfer(0x40, 0x85, command, self.config['index'])
+        return self.send(value)

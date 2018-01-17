@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
-
+import argparse
 import os
 import zmq
 from socket import socket, AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP
-from subprocess import check_output, STDOUT
+from subprocess import check_output, STDOUT, Popen
 from time import sleep, time
 from struct import Struct
 from collections import deque
 import threading
+import derp.util
 
 class Daemon:
 
-    def __init__(self,
-                 send_raw_buffer=False, # do not convert to dict before sending
-                 pid_path="/tmp/ds4daemon.pid", # default place to look for pid files
-                 port=2455, # the derpiest port
-                 buffer_max=100): # about a second of history
+    def __init__(self, pid_path, port, buffer_max):
 
         # Prepare buffers and status variables
         self.__port = port
+        self.__pid_path = pid_path
+        self.__buffer_max = buffer_max
         self.__report_id = 0x11
         self.__report_size = 79
         self.__paired = False
         self.__claimed = False
-        self.__buffer_max = buffer_max
-        self.__send_raw_buffer = send_raw_buffer
-        self.__pid_path = pid_path
         self.__device_queue = deque()
         self.__client_queue = deque()
         self.__packet = bytearray(self.__report_size)
@@ -57,6 +53,9 @@ class Daemon:
         if not self.pair():
             print("Count not pair")
             return
+
+        self.__last_msg = None
+        self.__creation_time = 0
         self.sendController(None)
 
         
@@ -179,8 +178,8 @@ class Daemon:
 
 
     def recvClient(self):
-        msg = self.__client_socket.recv_json()
-        return msg
+        self.__last_msg = self.__client_socket.recv_json()
+        return self.__last_msg
 
 
     def sendController(self, msg=None):
@@ -213,6 +212,22 @@ class Daemon:
                             self.__client_queue.popleft()                    
                 except BlockingIOError as e:
                     break
+
+            # Check to see what the last message was and what the user typed
+            elapsed = time() - self.__creation_time
+            if len(self.__client_queue) and not self.__last_msg and elapsed > 5:
+                byte8 = self.__client_queue[0][8]
+                if byte8 >= 16:
+                    self.__creation_time = time()
+                    cmd = ["python3", "drive.py"]
+                    if byte8 & 16: # square
+                        cmd.extend(["--model", "/mnt/sdcard/square"])
+                    elif byte8 & 64: # circle
+                        cmd.extend(["--model", "/mnt/sdcard/circle"])
+                    elif byte8 & 128: # triangle
+                        cmd.extend(["--model", "/mnt/sdcard/triangle"])
+                    print(cmd)
+                    Popen(cmd)
         return True
 
 
@@ -235,10 +250,19 @@ class Daemon:
             self.sendController(msg)
 
 
-def main():
-    d = Daemon()
+def main(args):
+    d = Daemon(pid_path=args.pid_path, port=args.port, buffer_max=args.buffer_max)
     if d.paired():
         d.loop()
 
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pid_path', type=str, default="/tmp/ds4daemon.pid",
+                        help="location of pid path to verify that other daemons are not running")
+    parser.add_argument('--port', type=int, default=2455,
+                        help="port number that the client will be connecting to")
+    parser.add_argument('--buffer_max', type=int, default=100,
+                        help="max number of messages from the controller to store at any one time")
+    args = parser.parse_args()
+    main(args)

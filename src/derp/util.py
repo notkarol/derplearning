@@ -225,7 +225,8 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
-    for filename in os.listdir(path):
-        if pattern.search(filename) is not None:
-            return os.path.join(path, filename)
+    if os.path.exists(path):        
+        for filename in os.listdir(path):
+            if pattern.search(filename) is not None:
+                return os.path.join(path, filename)
     return None

@@ -15,7 +15,8 @@ sudo apt install \
      python3-pillow \
      python3-pip \
      python3-seaborn \
-     python3-scipy
+     python3-scipy \
+     python3-zmq
 
 # Install Python Packages
 pip3 install --user --upgrade Adafruit-BNO055
