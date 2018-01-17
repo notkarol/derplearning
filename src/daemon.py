@@ -4,9 +4,10 @@ import os
 import zmq
 from socket import socket, AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP
 from subprocess import check_output, STDOUT
-from time import sleep
+from time import sleep, time
 from struct import Struct
 from collections import deque
+import threading
 
 class Daemon:
 
@@ -15,7 +16,6 @@ class Daemon:
                  pid_path="/tmp/ds4daemon.pid", # default place to look for pid files
                  port=2455, # the derpiest port
                  buffer_max=100): # about a second of history
-        """ Initializes the daemon when we connect """
 
         # Prepare buffers and status variables
         self.__port = port
@@ -33,7 +33,8 @@ class Daemon:
         self.__packet[1] = self.__report_id
         self.__packet[2] = 0x80
         self.__packet[4] = 0xFF
-
+        self.__mutex = threading.Lock()
+        
         # bluetooth control socket
         self.__ctrl_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
         self.__intr_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
@@ -58,10 +59,11 @@ class Daemon:
             return
         self.sendController(None)
 
-
+        
     def paired(self):
-        return self.__paired
-            
+        return self.__paired            
+    
+
     def verifyUnique(self):
         """ If we're not the only ones running """
 
@@ -168,47 +170,26 @@ class Daemon:
 
 
     def sendClient(self):
-        if not self.__paired:
-            print("sendClient FAILED BECAUSE OF PAIRED")
-            return False
-        out = []
-        for d in self.__client_queue:
-            out.append(self.decodeController(d))
+        with self.__mutex:
+            out = [self.decodeController(d) for d in self.__client_queue]
         self.__client_socket.send_json(out)
-        self.__client_queue.clear()
+        with self.__mutex:
+            self.__client_queue.clear()
         return True
 
 
     def recvClient(self):
-        if not self.__paired:
-            print("recvClient FAILED BECAUSE OF PAIRED")
-            return False
         msg = self.__client_socket.recv_json()
-
-        # If we receive a null message, clear out the controllers messages
-        if type(msg) is not dict:
-            self.recvController()
-            self.__client_queue.clear()
-        self.sendController(msg)
-        return True
+        return msg
 
 
     def sendController(self, msg=None):
-        if not self.__paired:
-            print("sendController FAILED BECAUSE OF PAIRED")
-            return False
         if type(msg) is not dict:
-            red = 0.5 if msg is False else 0.0
-            green = 0.5 if msg is True else 0.0
-            blue = 0.5 if msg is None else 0.0
-            msg = {'rumble_high': 0,
-                   'rumble_low': 0,
-                   'red': red,
-                   'green': green,
-                   'blue': blue,
-                   'light_on': 0.3,
-                   'light_off': 0.3}
-
+            msg = {'rumble_high': 0, 'rumble_low': 0,
+                   'red': 0.5 if msg is False else 0.05,
+                   'green': 0.5 if msg is True else 0.05,
+                   'blue': 0.5 if msg is None else 0.05,
+                   'light_on': 0.3, 'light_off': 0.3}
         self.__packet[7] = self.encodeController(msg['rumble_high'])
         self.__packet[8] = self.encodeController(msg['rumble_low'])
         self.__packet[9] = self.encodeController(msg['red'])
@@ -221,31 +202,43 @@ class Daemon:
 
 
     def recvController(self):
-        if not self.__paired:
-            print("recvController FAILED BECAUSE OF PAIRED")
-            return False
-        
-        while True:
-            buf = bytearray(self.__report_size - 2)
-            try:
-                ret = self.__intr_socket.recv_into(buf)
-                if ret == len(buf) and buf[1] == self.__report_id:
-                    self.__client_queue.append(buf)
-                    if len(self.__client_queue) > self.__buffer_max:
-                        self.__client_queue.popleft()                    
-            except BlockingIOError as e:
-                break
-        self.sendClient()
+        buf = bytearray(self.__report_size - 2)
+        with self.__mutex:
+            while True:
+                try:
+                    ret = self.__intr_socket.recv_into(buf)
+                    if ret == len(buf) and buf[1] == self.__report_id:
+                        self.__client_queue.append(buf)
+                        if len(self.__client_queue) > self.__buffer_max:
+                            self.__client_queue.popleft()                    
+                except BlockingIOError as e:
+                    break
         return True
 
-            
+
+    def loop(self):
+        threading.Thread(target=self.loopController).start()
+        threading.Thread(target=self.loopClient).start()
+        
+    
+    def loopController(self):
+        while True:
+            sleep(0.01)
+            self.recvController()      
+
+
+    def loopClient(self):
+        while True:
+            sleep(0.01)
+            self.sendClient()
+            msg = self.recvClient()
+            self.sendController(msg)
+
+
 def main():
     d = Daemon()
-    while d.paired():
-        d.recvController()
-        sleep(0.01)
-        d.recvClient()
-
+    if d.paired():
+        d.loop()
 
 if __name__ == "__main__":
     main()

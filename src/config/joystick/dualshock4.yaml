@@ -2,7 +2,7 @@ name: 'joystick'
 required: True
 class: 'Dualshock4'
 deadzone: 4
+timeout: 1
 speed_elbow: [0.1, 0.8, 0.3]
 steer_normalizer: [0, 1, 2]
-state:
-  timeout: 1.0
+state: {}

@@ -17,7 +17,8 @@ class Dualshock4(Component):
         super(Dualshock4, self).__init__(config, full_config)
         
         # The deadzone of the analog sticks to ignore them
-        self.deadzone = self.config['deadzone']        
+        self.__timeout = self.config['timeout']
+        self.__deadzone = self.config['deadzone']
         self.left_analog_active = False
         self.right_analog_active = False
         self.left_trigger_active = False
@@ -33,6 +34,7 @@ class Dualshock4(Component):
         self.__server_socket = self.__context.socket(zmq.PAIR)
         self.__server_socket.connect(self.__server_addr)
         self.ready = True
+        self.__last_recv_time = 0
 
         # Reset the message queue
         self.__server_socket.send_json(True)
@@ -50,7 +52,7 @@ class Dualshock4(Component):
 
     def in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
-        return 128 - self.deadzone < value <= 128 + self.deadzone
+        return 128 - self.__deadzone < value <= 128 + self.__deadzone
 
 
     def normalize_stick(self, value, deadzone):
@@ -69,7 +71,7 @@ class Dualshock4(Component):
                 out['steer'] = 0
         else:
             self.left_analog_active = True
-            out['steer'] = self.normalize_stick(status['left_analog_x'], self.deadzone)
+            out['steer'] = self.normalize_stick(status['left_analog_x'], self.__deadzone)
 
         # Right Analog Steering
         if self.in_deadzone(status['right_analog_x']):
@@ -78,7 +80,7 @@ class Dualshock4(Component):
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            steer = self.normalize_stick(status['right_analog_x'], self.deadzone)
+            steer = self.normalize_stick(status['right_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -186,9 +188,9 @@ class Dualshock4(Component):
         if (('record' in state and not state['record']) and
             ('auto_speed' in state and not state['auto_speed']) and
             ('auto_steer' in state and not state['auto_steer'])):
-            out['red'] = 0.032
-            out['green'] = 0.071
-            out['blue'] = 0.047
+            out['red'] = 0.130
+            out['green'] = 0.085
+            out['blue'] = 0.034
             
         # Update based on state
         if 'record' in state and state['record']:
@@ -212,12 +214,23 @@ class Dualshock4(Component):
                'offset_steer' : None}
 
         # Ask the controller for messages
-        msgs = self.__server_socket.recv_json()
+        poller = zmq.Poller()
+        poller.register(self.__server_socket, zmq.POLLIN)
+        msg = dict(poller.poll(10))
+        if len(msg) > 0:
+            msgs = self.__server_socket.recv_json()
+            self.__last_recv_time = time()
+        else:
+            msgs = []
 
         # For each message, process the fields we want to set a new desired value
         for msg in msgs:
             self.process(msg, state, out)
 
+        # Kill car if we're out of range
+        if (time() - self.__last_recv_time) > self.__timeout:
+            state.close()
+            
         # After all messages have been processed, update the state
         for field in out:
             if out[field] is not None:

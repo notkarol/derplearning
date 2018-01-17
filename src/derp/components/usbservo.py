@@ -41,6 +41,10 @@ class UsbServo(Component):
         if self.state_offset_name in state:
             value += state[self.state_offset_name]
 
+        # If we're done then just set the value to zero
+        if state.done():
+            value = 0
+            
         # Limit command to known limits and convert to command
         value = min(value, self.config['max_value'])
         value = max(value, self.config['min_value'])
