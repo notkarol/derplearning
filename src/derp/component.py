@@ -40,7 +40,7 @@ class Component:
 
 
     def is_recording_initialized(self, state):
-        return self.folder is not None and state['folder'] == self.folder
+        return self.folder is not None
 
 
     def ready(self):

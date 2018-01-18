@@ -34,9 +34,10 @@ def get_name(path):
     name, ext = os.path.splitext(bn)
     return name
 
+
 def get_default_config_path():
-    hn = socket.gethostname()
-    path = os.path.join("config/%s.yaml" % (hn))
+    hostname = socket.gethostname()
+    path = os.path.join(os.environ['DERP_CODE'], "config", "%s.yaml" % (hostname))
     return path
 
 
