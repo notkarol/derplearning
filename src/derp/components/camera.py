@@ -75,6 +75,7 @@ class Camera(Component):
             counter -= 1
             select.select((self.cap,), (), ())
             try:
+                state['timestamp'] = time()
                 image_bytes = self.cap.read_and_queue()
                 image_io = io.BytesIO(image_bytes)
                 pil_frame = PIL.Image.open(image_io)

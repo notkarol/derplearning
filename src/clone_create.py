@@ -26,8 +26,9 @@ def prepare_predict(config, frame_id, state_headers, state_ts, states):
 
         state_pos = state_headers.index(pd['field'])
         timestamp = state_ts[frame_id] + int(pd['delay'] * 1E6)
-        predict[pos] = derp.util.find_value(state_ts, timestamp,
-                                            states[:, state_pos]) * pd['scale']
+            
+        predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
+        predict[pos] *= pd['scale']
     return predict
 
 
@@ -55,7 +56,7 @@ def prepare_pert_magnitudes(config, zero):
 def prepare_store_name(frame_id, pert_id, perts):
     store_name = "%06i_%02i" % (frame_id, pert_id)
     for pert in sorted(perts):
-        store_name += "_%s-%06.2f" % (pert, perts[pert])
+        store_name += "_%s%3i" % (pert[0], perts[pert] * 100)
     store_name += ".png"
     return store_name
 

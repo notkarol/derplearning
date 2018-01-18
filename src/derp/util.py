@@ -193,16 +193,15 @@ def read_csv(path, floats=True):
             if not len(line):
                 continue
             state = []
-            timestamps.append(int(re.sub('\D', '', line[0] ) ) )
-            #regex to remove any non-decimal characters from the timestamp so that 
-            #it can be read as an int
+            timestamps.append(float(line[0]))
             for value in line[1:]:
-                if value == 'False' or not value: value = 0
-                elif value == 'True': value = 1
-                value = float(value) if floats else value
+                try:
+                    value = float(value) if floats else value
+                except:
+                    value = 0
                 state.append(value)
             states.append(state)
-    timestamps = np.array(timestamps, dtype=np.uint64)
+    timestamps = np.array(timestamps, dtype=np.double)
     if floats:
         states = np.array(states, dtype=np.float)
     return timestamps, headers, states

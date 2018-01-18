@@ -70,10 +70,14 @@ class Component:
 
         # Skip if aren't asked to record or we have nothing to record
         if not self.is_recording(state):
+            if self.is_recording_initialized(state):
+                self.folder = None
             return False
 
-        # Create a new output csv writer since the folder name changed
+        # As long as we have a csv header to write out, write out data
         if len(self.csv_header):
+
+            # Create a new output csv writer since the folder name changed
             if not self.is_recording_initialized(state):
                 self.folder = state['folder']
                 # Close existing csv file descriptor if it exists

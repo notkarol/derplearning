@@ -47,7 +47,7 @@ class Labeler(object):
         self.frame_id = frame_id - 1
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
         print("%i %5i %6.3f %6.3f" % (self.frame_id, self.timestamps[self.frame_id],
-                                    self.speeds[frame_id], self.steers[frame_id]))
+                                      self.speeds[frame_id], self.steers[frame_id]))
         self.read()
         self.show = True
         return True
@@ -135,7 +135,7 @@ class Labeler(object):
         with open(self.labels_path, 'w') as f:
             f.write("timestamp,status\n")
             for timestamp, label in zip(self.timestamps, self.labels):
-                f.write("%i,%s\n" % (timestamp, label))
+                f.write("%.6f,%s\n" % (timestamp, label))
         print("Saved labels at ", self.labels_path)
 
     #Handles keyboard inputs during data labeling process.
