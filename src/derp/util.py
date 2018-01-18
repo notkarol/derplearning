@@ -76,7 +76,7 @@ def load_config(config_path):
 
         # Check if we need to load more parameters from elsewhere
         if 'path' in component_config:
-            component_path = os.path.join(dirname, component_config['path'])
+            component_path = os.path.join(os.environ['DERP_CONFIG'], component_config['path'])
             with open(component_path) as f:
                 default_component_config = yaml.load(f)
 
