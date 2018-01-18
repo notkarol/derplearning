@@ -221,13 +221,13 @@ class Daemon:
                     self.__creation_time = time()
                     cmd = ["python3", "%s/drive.py" % os.environ['DERP_CODE'], "--quiet"]
                     if byte8 & 16: # square
-                        cmd.extend(["--model", "/mnt/sdcard/square"])
+                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "square")])
                     elif byte8 & 32: # cross
-                        pass #cmd.extend(["--model", "/mnt/sdcard/cross"])
+                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "cross")])
                     elif byte8 & 64: # circle
-                        cmd.extend(["--model", "/mnt/sdcard/circle"])
+                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "circle")])
                     elif byte8 & 128: # triangle
-                        cmd.extend(["--model", "/mnt/sdcard/triangle"])
+                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "triangle")])
                     print(cmd)
                     Popen(cmd)
         return True
