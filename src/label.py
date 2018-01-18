@@ -9,7 +9,6 @@ import derp.util
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from skimage.draw import line_aa
-from derp.inferer import Inferer
 import derp.util as util
 
 '''

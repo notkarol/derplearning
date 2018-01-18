@@ -197,6 +197,8 @@ def read_csv(path, floats=True):
             #regex to remove any non-decimal characters from the timestamp so that 
             #it can be read as an int
             for value in line[1:]:
+                if value == 'False' or not value: value = 0
+                elif value == 'True': value = 1
                 value = float(value) if floats else value
                 state.append(value)
             states.append(state)
