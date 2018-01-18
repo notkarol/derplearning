@@ -54,6 +54,8 @@ class Clone(Component):
 
     # Prepare status
     def prepare_status(self, state):
+        if len(self.config['status']) == 0:
+            return None
         status = np.zeros(len(self.config['status']), dtype=np.float32)
         for i, sd in enumerate(self.config['status']):
             status[i] = state[sd['field']] * sd['scale']
@@ -61,34 +63,28 @@ class Clone(Component):
     
 
     # Prepare input batch
-    def prepare_batch(self, thumbs, statuses):
+    def prepare_batch(self, thumbs, status):
 
-        # If we're given a single image make it a 4d batch
+        # Prepare thumbs
         if len(thumbs.shape) == 3:
-            new_shape = [1] + list(thumbs.shape)
-            thumbs = np.reshape(thumbs, new_shape)
-
-        if len(statuses.shape) == 1:
-            new_shape = [1] + list(statuses.shape)
-            statuses = np.reshape(statuses, new_shape)
-            
-        # Change from HWD to DHW
+            thumbs = np.reshape(thumbs, [1] + list(thumbs.shape))
         thumbs = thumbs.transpose((0, 3, 1, 2))
-
-        # Convert to torch batch
-        thumbs_batch = torch.from_numpy(thumbs).float()
-        statuses_batch = torch.from_numpy(statuses).float()
-
-        # Convert to cuda if we need to
+        thumbs = torch.from_numpy(thumbs).float()
         if not self.no_cuda:
-            thumbs_batch = thumbs_batch.cuda()
-            statuses_batch = statuses_batch.cuda()
+            thumbs = thumbs.cuda()
+        thumbs /= 255 # normalize
+        thumbs = Variable(thumbs)
 
-        # Normalize batch
-        thumbs_batch /= 255
-
-        # Return as variable
-        return Variable(thumbs_batch), Variable(statuses_batch)
+        # Prepare status variable
+        if status is not None:
+            if len(status.shape) == 1:
+                status = np.reshape(status, [1] + list(status.shape))
+            status = torch.from_numpy(status).float()
+            if not self.no_cuda:
+                status = status.cuda()
+            status = Variable(status)
+            
+        return thumbs, status
 
 
     def predict(self, state):

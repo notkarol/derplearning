@@ -56,7 +56,7 @@ def prepare_pert_magnitudes(config, zero):
 def prepare_store_name(frame_id, pert_id, perts):
     store_name = "%06i_%02i" % (frame_id, pert_id)
     for pert in sorted(perts):
-        store_name += "_%s%3i" % (pert[0], perts[pert] * 100)
+        store_name += "_%s%03i" % (pert[0], perts[pert] * 100)
     store_name += ".png"
     return store_name
 
