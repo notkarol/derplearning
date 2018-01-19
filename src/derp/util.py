@@ -158,14 +158,12 @@ def load_components(config):
     return state, components
 
 
-def find_component_config(full_config, name, script=None):
+def find_component_config(full_config, name):
     """
     Finds the matching component by name of the component and script if needed
     """
     for component_config in full_config['components']:
-        if (name in component_config['name']
-            and (script is None
-                 or script == component_config['script'].lower())):
+        if name in component_config['name']:
             return component_config
     
 

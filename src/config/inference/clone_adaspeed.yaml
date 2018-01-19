@@ -5,16 +5,22 @@ class: 'Inferer'
 name: 'cloneadaspeed'
 
 # Training related parameters
-training:
-  debug: False
+create:
   data_folders: ['train']
   train_chance: 0.9
-  n_perts: 1
+  n_perts: 3
   perts:
-    shift: 0.5
-    rotate: 5
+    shift:
+      max: 0.1 # meters
+      fudge: 1.0
+      timedecay: 1.0
+    rotate:
+      max: 10 # degrees
+      fudge: 0.05
+      timedecay: 1.0
 
-  # How to prepare input/output
+# Training related parameters  
+training:
   prepare:
     - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
 
@@ -38,8 +44,8 @@ status: []
 
 # States we will predict
 predict:
-  - {field: 'steer', delay: 0.33, scale: 1 }
-  - {field: 'steer', delay: 2.33, scale: 1 }
+  - {field: 'steer', delay: 0.4, scale: 1 }
+  - {field: 'steer', delay: 2.4, scale: 1 }
 
 # Other parameters that will affect things during autonomous mode
 scale: 0.5

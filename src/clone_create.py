@@ -4,10 +4,10 @@ import argparse
 import imageio
 import numpy as np
 import multiprocessing
-from numpy.random import rand
 import os
 import sys
 import derp.util
+
 
 def prepare_state(config, frame_id, state_headers, states, frame):
     state = {}
@@ -17,17 +17,21 @@ def prepare_state(config, frame_id, state_headers, states, frame):
     return state
 
 
-def prepare_predict(config, frame_id, state_headers, state_ts, states):
+def prepare_predict(config, frame_id, state_headers, state_ts, states, perts):
     predict = np.zeros(len(config['predict']), dtype=np.float)
     for pos, pd in enumerate(config['predict']):
-        if pd['field'] not in state_headers:
-            print("Unable to find field [%s]" % pd['field'])
+        if pd['field'] in state_headers:
+            state_pos = state_headers.index(pd['field'])
+            timestamp = state_ts[frame_id] + int(pd['delay'] * 1E6)
+            predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
+        elif pd['field'] in perts:
+            predict[pos] = perts[pd['field']]
+            if 'delay' in pd:
+                print("Delay is not implemented for fields in perts")
+                return False
+        else:
+            print("Unable to find field [%s] in perts or states" % pd['field'])
             return False
-
-        state_pos = state_headers.index(pd['field'])
-        timestamp = state_ts[frame_id] + int(pd['delay'] * 1E6)
-            
-        predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
         predict[pos] *= pd['scale']
     return predict
 
@@ -41,22 +45,27 @@ def prepare_status(config, frame_id, state_headers, state_ts, states):
 
         state_pos = state_headers.index(sd['field'])
         timestamp = state_ts[frame_id]
-        status[pos] = derp.util.find_value(state_ts, timestamp,
-                                           states[:, state_pos]) * sd['scale']
+        status[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
+        status[pos] *= sd['scale']
     return status
 
 
 def prepare_pert_magnitudes(config, zero):
     perts = {}
-    for pert in sorted(config['perts']):
-        perts[pert] = 0.0 if zero else rand(-pert_config[pert], pert_config[pert])
+    for pert in sorted(config):
+        if zero:
+            perts[pert] = 0.0
+        else:
+            perts[pert] = np.random.uniform(-config[pert]['max'], config[pert]['max'])
     return perts
 
 
-def prepare_store_name(frame_id, pert_id, perts):
+def prepare_store_name(frame_id, pert_id, perts, predict):
     store_name = "%06i_%02i" % (frame_id, pert_id)
     for pert in sorted(perts):
-        store_name += "_%s%03i" % (pert[0], perts[pert] * 100)
+        store_name += "_%s%05.2f" % (pert[0], perts[pert])
+    for pred in predict:
+        store_name += "_%06.3f" % (pred)
     store_name += ".png"
     return store_name
 
@@ -76,9 +85,38 @@ def write_csv(writer, array, data_dir, store_name):
     writer.flush()
 
 
+def perturb(component_config, frame_config, frame, predict, status, perts):
+
+    # figure out steer correction based on perturbations
+    steer_correction = 0
+    for pert in perts:
+        pd = component_config['create']['perts'][pert]
+        steer_correction += pd['fudge'] * perts[pert]
+
+    # skip if we have nothing to correct
+    if steer_correction == 0:
+        return
+        
+    # apply steer corrections
+    for i, d in enumerate(component_config['status']):
+        if d['field'] == 'steer':
+            status[i] += steer_correction * (1 - min(d['delay'], 1))
+            status[i] = min(1, status[i])
+            status[i] = max(-1, status[i])
+    for i, d in enumerate(component_config['predict']):
+        if d['field'] == 'steer':
+            predict[i] += steer_correction * (1 - min(d['delay'], 1))
+            predict[i] = min(1, predict[i])
+            predict[i] = max(-1, predict[i])
+
+    # Manipulate image
+    derp.imagemanip.perturb(frame, frame_config, perts)
+    
+    
+
 def process_recording(args):
     component_config, recording_path, folders = args
-    print("Processing", recording_path)
+    component_name = component_config['thumb']['component']
     recording_name = os.path.basename(recording_path)
     
     # Prepare our data input
@@ -91,11 +129,21 @@ def process_recording(args):
         print("Unable to open [%s]" % labels_path)
         return False
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
-    
+
     # Prepare configs
     source_config = derp.util.load_config(recording_path)
+    frame_config = derp.util.find_component_config(source_config, component_name)
     inferer = derp.util.load_component(component_config, source_config).script
 
+    # Perturb our arrays
+    if frame_config['hfov'] > component_config['thumb']['hfov']:
+        n_perts = component_config['create']['n_perts']
+    else:
+        n_perts = 1
+
+    print("Processing", recording_path, n_perts)
+
+        
     # Prepare directories and writers
     predict_fds = {}
     status_fds = {}
@@ -121,26 +169,32 @@ def process_recording(args):
             continue
 
         # Prepare attributes regardless of perturbation
-        part = 'train' if rand() < component_config['create']['train_chance'] else 'val'
+        if np.random.rand() < component_config['create']['train_chance']:
+            part = 'train'
+        else:
+            part = 'val'
         data_dir = os.path.join(folders[part], recording_name)
         frame = reader.get_data(frame_id)
 
-        # Perturb our arrays
-        for pert_id in range(component_config['create']['n_perts']):
+        # Create each perturbation for dataset
+        for pert_id in range(n_perts):
 
-            # Prepare pert names
+            # Prepare variables to store for this example
             state = prepare_state(component_config, frame_id, state_headers, states, frame)
-            predict = prepare_predict(component_config, frame_id, state_headers, state_ts, states)
+            perts = prepare_pert_magnitudes(component_config['create']['perts'], pert_id == 0)
+            predict = prepare_predict(component_config, frame_id, state_headers, state_ts, states,
+                                      perts)
             status = prepare_status(component_config, frame_id, state_headers, state_ts, states)
-            perts = prepare_pert_magnitudes(component_config['create'], pert_id == 0)
+
+            # Perturb the image and status/predictions
+            frame = state[component_name]            
+            perturb(component_config, frame_config, frame, predict, status, perts)
             
             # Prepare store name
-            store_name = prepare_store_name(frame_id, pert_id, perts)
-
+            store_name = prepare_store_name(frame_id, pert_id, perts, predict)
             write_thumb(inferer, state, data_dir, store_name)
             write_csv(predict_fds[part], predict, data_dir, store_name)
             write_csv(status_fds[part], status, data_dir, store_name)
-            frame_id += 1
 
     # Cleanup and return
     reader.close()
@@ -151,8 +205,8 @@ def main(args):
     
     # Import configs that we wish to train for
     full_config = derp.util.load_config(args.car)
-    component_config = derp.util.find_component_config(full_config, 'clone', args.script)
-    
+    component_config = derp.util.find_component_config(full_config, 'clone')
+
     # Create folders
     name = "%s-%s" % (full_config['name'], component_config['name'])
     experiment_path = os.path.join(os.environ['DERP_SCRATCH'], name)
@@ -198,8 +252,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--car', type=str, required=True,
                         help="car components and setup we wish to train for")
-    parser.add_argument('--script', type=str, required=True,
-                        help="name of script we wish to target in car's config")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')
     args = parser.parse_args()

@@ -8,10 +8,16 @@ name: 'clone'
 create:
   data_folders: ['train']
   train_chance: 0.9
-  n_perts: 1
+  n_perts: 3
   perts:
-    shift: 0.2 # meters
-    rotate: 5 # degrees
+    shift:
+      max: 0.1 # meters
+      fudge: 1.0
+      timedecay: 1.0
+    rotate:
+      max: 10 # degrees
+      fudge: 0.05
+      timedecay: 1.0
     
 # Training related parameters
 train:
@@ -38,5 +44,7 @@ status: []
 
 # States we will predict
 predict:
-  - {field: 'speed', delay: 0.33, scale: 1 }
-  - {field: 'steer', delay: 0.33, scale: 1 }
+  - {field: 'speed', delay: 0.4, scale: 1 }
+  - {field: 'steer', delay: 0.4, scale: 1 }
+#  - {field: 'shift', scale: 10 }
+#  - {field: 'rotate', scale: 0.1 }
