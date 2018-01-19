@@ -26,7 +26,7 @@ training:
 
 # What we expect for input from the camera
 thumb:
-  component: 'camera'
+  component: 'camera_front'
   hfov: 75
   vfov: 37.5
   height: 64
@@ -46,6 +46,8 @@ status: []
 predict:
   - {field: 'steer', delay: 0.4, scale: 1 }
   - {field: 'steer', delay: 2.4, scale: 1 }
+#  - {field: 'shift', scale: 10 }
+#  - {field: 'rotate', scale: 0.1 }
 
 # Other parameters that will affect things during autonomous mode
 scale: 0.5

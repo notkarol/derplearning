@@ -62,7 +62,7 @@ def main(args):
 
     # Make sure we have somewhere to run the experiment
     full_config = derp.util.load_config(args.car)
-    target_config = derp.util.find_component_config(full_config, 'clone', args.script)
+    target_config = derp.util.find_component_config(full_config, 'clone')
     name = "%s-%s" % (full_config['name'], target_config['name'])
     experiment_path = join(environ["DERP_SCRATCH"], name)
 
@@ -137,8 +137,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--car', type=str, required=True,
                         help="Car components and setup we wish to train form")
-    parser.add_argument('--script', type=str, required=True,
-                        help="Name of script we wish to target in car's config")
     parser.add_argument('--model', type=str, default="BModel",
                         help="Model to run. Default to Medium Sized")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
