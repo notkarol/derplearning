@@ -66,9 +66,11 @@ def load_config(config_path):
     with open(config_path) as f:
         config = yaml.load(f)
 
-    # Make sure we set the name of the config
+    # Make sure we set the name and path of the config stored
     if 'name' not in config:
         config['name'] = get_name(config_path)
+    if 'path' not in config:
+        config['path'] = config_path
 
     # Then load the each component
     dirname = os.path.dirname(config_path)

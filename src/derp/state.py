@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 import os
+import shutil
 import time
 from derp.component import Component
 import derp.util
@@ -56,6 +57,7 @@ class State(Component, Mapping):
             if item:
                 if not self[key]:
                     self['folder'] = derp.util.create_record_folder()
+                    shutil.copy(self.full_config['path'], os.path.join(self['folder'], 'config.yaml'))
             else:
                 self['folder'] = None
                 
