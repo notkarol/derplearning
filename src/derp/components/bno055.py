@@ -34,7 +34,7 @@ class BNO055(Component):
 
         #IMU calibration status and checks
         print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.cal_report())
-        self.sys_cal = self.cal_report()[0]
+        self.sys_cal = self.cal_report()
     
     def sense(self, state):
 
@@ -57,8 +57,9 @@ class BNO055(Component):
         state.update_multipart('accel', 'xyz', accel)
         state['temp'] = temp
 
-        if not self.sys_cal == 3:
-            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.cal_report(), end="/r")
+        if not self.sys_cal == (3, 3, 3, 3):
+            self.sys_cal = self.cal_report()
+            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.sys_cal, end="\r")
 
 
         return True
