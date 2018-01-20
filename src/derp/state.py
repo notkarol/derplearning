@@ -22,12 +22,13 @@ class State(Component, Mapping):
         self['folder'] = None
         self['warn'] = False
         self['error'] = False
-        self['auto_speed'] = False
-        self['auto_steer'] = False
+        self['auto'] = False
         self['speed'] = 0
         self['steer'] = 0
-        self['offset_speed'] = 0
-        self['offset_steer'] = 0
+        self['offset_speed'] = None
+        self['offset_steer'] = None
+        self['use_offset_speed'] = False
+        self['use_offset_steer'] = True
 
 
     def __getitem__(self, key):

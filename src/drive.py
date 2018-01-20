@@ -33,12 +33,13 @@ def main(args):
         if not args.quiet:
             fps = fps * 0.8 + (1. / (time() - loop_time)) * 0.2
             loop_time = time()
-            print("%.3f %2i | speed %6.3f + %6.3f | steer %6.3f + %6.3f" %
+            print("%.3f %2i %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
                   (state['timestamp'], fps + 0.5,
-                   state['speed'], state['offset_speed'],
-                   state['steer'], state['offset_steer']))
+                   'R' if state['record'] else '_',
+                   'A' if state['auto'] else '_',
+                   state['speed'], state['offset_speed'], state['use_offset_speed'],
+                   state['steer'], state['offset_steer'], state['use_offset_steer']))
                                               
-
 
 # Load all the arguments and feed them to the main event loader and loop
 if __name__ == "__main__":

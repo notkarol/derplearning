@@ -42,7 +42,6 @@ class Dualshock4(Component):
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
-        print("SENDING MESSAGE TO SLEEP")
         self.__server_socket.recv_json()
         self.__server_socket.send_json(False)
         sleep(0.1)
@@ -64,23 +63,23 @@ class Dualshock4(Component):
 
     def process(self, status, state, out):
 
-        # Left Analog Steering
-        if self.in_deadzone(status['left_analog_x']):
-            if self.left_analog_active:
-                self.left_analog_active = False
-                out['steer'] = 0
-        else:
-            self.left_analog_active = True
-            out['steer'] = self.normalize_stick(status['left_analog_x'], self.__deadzone)
-
-        # Right Analog Steering
+        # Insensitive steering
         if self.in_deadzone(status['right_analog_x']):
             if self.right_analog_active:
                 self.right_analog_active = False
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            steer = self.normalize_stick(status['right_analog_x'], self.__deadzone)
+            out['steer'] = self.normalize_stick(status['right_analog_x'], self.__deadzone)
+
+        # Sensitive steering
+        if self.in_deadzone(status['left_analog_x']):
+            if self.left_analog_active:
+                self.left_analog_active = False
+                out['steer'] = 0
+        else:
+            self.left_analog_active = True
+            steer = self.normalize_stick(status['left_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -91,7 +90,7 @@ class Dualshock4(Component):
             steer = float(steer)
             out['steer'] = steer
 
-        # Speed
+        # Forward
         if status['left_trigger']:
             self.left_trigger_active = True
             z, x, y = self.config['speed_elbow']
@@ -100,12 +99,12 @@ class Dualshock4(Component):
                 speed = z + speed * (y - z) / x
             else:
                 speed = (y + (speed - x) * (1 - y) / (1 - x))
-            out['speed'] = speed
+            out['speed'] = -speed
         elif self.left_trigger_active:
             self.left_trigger_active = False
             out['speed'] = 0
 
-        # Handle speed reverse
+        # Reverse
         if status['right_trigger']:
             self.right_trigger_active = True
             z, x, y = self.config['speed_elbow']
@@ -114,7 +113,7 @@ class Dualshock4(Component):
                 speed = z + speed * (y - z) / x
             else:
                 speed = (y + (speed - x) * (1 - y) / (1 - x))
-            out['speed'] = -speed
+            out['speed'] = speed
         elif self.right_trigger_active:
             self.right_trigger_active = False
             out['speed'] = 0
@@ -124,18 +123,13 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
-        if status['button_share']:
-            out['auto_speed'] = True
-        if status['button_options']:
-            out['auto_steer'] = True
+            out['auto'] = False
+            out['use_offset_speed'] = False
         if status['button_ps']:
-            out['auto_speed'] = True
-            out['auto_steer'] = True
+            out['auto'] = True
+            out['use_offset_speed'] = True
         if status['button_cross']:
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['use_offset_speed'] = True
         if status['button_square']:
             out['record'] = False
         if status['button_circle']:
@@ -159,19 +153,19 @@ class Dualshock4(Component):
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['offset_speed'] = state['offset_speed'] + 0.1
+            out['offset_speed'] = state['offset_speed'] + 0.01
         if status['down']:
             self.down_active = True
         elif self.down_active:
-            out['offset_speed'] = state['offset_speed'] - 0.1
+            self.down_active = False
+            out['offset_speed'] = state['offset_speed'] - 0.01
 
         # Close down
-        if status['button_trackpad']:
+        if status['button_trackpad'] or status['button_share'] or status['button_options']:
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['auto'] = False
             state.close()
 
 
@@ -185,7 +179,7 @@ class Dualshock4(Component):
                'rumble_low': 0}
                
         # Base color
-        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
+        if not state['record'] and not state['auto']:
             out['red'] = 0.130
             out['green'] = 0.085
             out['blue'] = 0.034
@@ -193,14 +187,14 @@ class Dualshock4(Component):
         # Update based on state
         if state['record']:
             out['green'] = 1
-        if state['auto_steer']:
-            out['red'] = 1
-        if and state['auto_speed']:
+        if state['use_offset_speed']:
             out['blue'] = 1
+        if state['auto']:
+            out['red'] = 1
 
         if state['warn']:
-            out['light_on'] = 0.1
-            out['light_off'] = 0.1
+            out['light_on'] = 0.5
+            out['light_off'] = 0.05
             
         self.__server_socket.send_json(out)
         return True
@@ -208,10 +202,10 @@ class Dualshock4(Component):
 
     def sense(self, state):
         out = {'record' : None,
-               'auto_speed' : None,
-               'auto_steer' : None,
+               'auto' : None,
                'speed' : None,
                'steer' : None,
+               'use_offset_speed' : None,
                'offset_speed' : None,
                'offset_steer' : None}
 

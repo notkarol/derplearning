@@ -201,32 +201,29 @@ class Keyboard(Component):
             return
 
         # Autonomous
-        if self.code_map[event.code] == 'e' and event.value:
-            out['auto_steer'] = True
-            out['auto_speed'] = True
+        if self.code_map[event.code] == 'a' and event.value:
+            out['auto'] = True
             return
-        if self.code_map[event.code] == 'q' and event.value:
-            out['auto_speed'] = True
-            return
-        if self.code_map[event.code] == 'w' and event.value:
-            out['auto_steer'] = True
+        if self.code_map[event.code] == 's' and event.value:
+            out['use_offset_speed'] = True
             return
 
+
         # Stop car and recording, but keep running program
-        if self.code_map[event.code] == 's' and event.value:
+        if self.code_map[event.code] == 'q' and event.value:
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['auto'] = False
+            out['use_offset_speed'] = False
 
         # Exit
         if self.code_map[event.code] == 'escape' and event.value:
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['auto'] = False
+            out['use_offset_speed'] = False
             state.close()
             return
 
@@ -235,8 +232,8 @@ class Keyboard(Component):
         out = {'record' : None,
                'speed' : None,
                'steer' : None,
-               'auto_speed' : None,
-               'auto_steer' : None,
+               'auto' : None,
+               'use_offset_speed' : None,
                'offset_speed' : None,
                'offset_steer' : None}
 
