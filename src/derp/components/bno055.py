@@ -29,7 +29,8 @@ class BNO055(Component):
 
         # Collect some nice status data that we can print as we do
         print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status())
-        print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())        
+        print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
+        self.calibration_flag = ((3, 3, 3, 3) == self.bno.get_calibration_status() )
         self.ready = True
     
     def sense(self, state):
@@ -42,7 +43,7 @@ class BNO055(Component):
         gyro = self.bno.read_gyroscope()
         accel = self.bno.read_linear_acceleration()
         temp = self.bno.read_temp()
-        calibration = self.bno.get_calibration_status()
+        calibration_status = self.bno.get_calibration_status()
         timestamp = state['timestamp']
 
         # Update state
@@ -53,7 +54,11 @@ class BNO055(Component):
         state.update_multipart('gyro', 'xyz', gyro)
         state.update_multipart('accel', 'xyz', accel)
         state['temp'] = temp
-        state['warn'] = state['warn'] or calibration != (3, 3, 3, 3)
+        state['warn'] = state['warn'] or not self.calibration_flag
+        if not self.calibration_flag:
+            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % calibration_status, end="\r")
+        self.calibration_flag = (calibration_status == (3, 3, 3, 3))
+    
         return True
 
 
