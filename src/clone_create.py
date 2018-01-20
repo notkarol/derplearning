@@ -8,7 +8,6 @@ import os
 import sys
 import derp.util
 
-
 def prepare_state(config, frame_id, state_headers, states, frame):
     state = {}
     for header, value in zip(state_headers, states[frame_id]):
@@ -70,9 +69,8 @@ def prepare_store_name(frame_id, pert_id, perts, predict):
     return store_name
 
 
-def write_thumb(inferer, state, data_dir, store_name):
+def write_thumb(thumb, data_dir, store_name):
     store_path = os.path.join(data_dir, store_name)
-    thumb = inferer.prepare_thumb(state)
     imageio.imwrite(store_path, thumb)
 
 
@@ -133,14 +131,16 @@ def process_recording(args):
     # Prepare configs
     source_config = derp.util.load_config(recording_path)
     frame_config = derp.util.find_component_config(source_config, component_name)
-    inferer = derp.util.load_component(component_config, source_config).script
-
+    try:
+        inferer = derp.util.load_component(component_config, source_config).script
+    except AssertionError:
+        print("Unable to process [%s] because of AssertionError" % recording_path)
+        return
+    
     # Perturb our arrays
+    n_perts = 1
     if frame_config['hfov'] > component_config['thumb']['hfov']:
         n_perts = component_config['create']['n_perts']
-    else:
-        n_perts = 1
-
     print("Processing", recording_path, n_perts)
 
         
@@ -189,10 +189,13 @@ def process_recording(args):
             # Perturb the image and status/predictions
             frame = state[component_name]            
             perturb(component_config, frame_config, frame, predict, status, perts)
+
+            # Get thumbnail
+            thumb = inferer.prepare_thumb(state)
             
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts, predict)
-            write_thumb(inferer, state, data_dir, store_name)
+            write_thumb(thumb, data_dir, store_name)
             write_csv(predict_fds[part], predict, data_dir, store_name)
             write_csv(status_fds[part], status, data_dir, store_name)
 

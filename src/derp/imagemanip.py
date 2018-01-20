@@ -20,15 +20,23 @@ def get_patch_bbox(target_config, source_config):
     """
     hfov_ratio = target_config['hfov'] / source_config['hfov']
     vfov_ratio = target_config['vfov'] / source_config['vfov']
+    hfov_offset = source_config['yaw'] - target_config['yaw'] - target_config['hcenter']
+    vfov_offset = source_config['pitch'] - target_config['pitch'] - target_config['vcenter']
 
-    if hfov_ratio > 1 or vfov_ratio > 1:
-        raise ValueError("get_patch_bbox: hfov_ratio [%.3f] or vhov_ratio [%.3f] greater than 1" %
-                         (hfov_ratio, vfov_ratio))
-    
+    assert hfov_ratio <= 1 and vfov_ratio <= 1
+
     width = source_config['width'] * hfov_ratio
     height = source_config['height'] * vfov_ratio
-    x = (source_config['width'] - width) // 2
-    y = source_config['height'] - height
+    x_center = (source_config['width'] - width) // 2
+    y_center = (source_config['height'] - height) // 2
+    x_offset = (hfov_offset / source_config['hfov']) * source_config['width']
+    y_offset = (vfov_offset / source_config['vfov']) * source_config['height']
+    x = x_center + x_offset
+    y = y_center + y_offset
+
+    assert (x >= 0 and y >= 0 and
+            x + width <= source_config['width'] and
+            y + height <= source_config['height'])
 
     return Bbox(x, y, width, height)
 
