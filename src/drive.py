@@ -1,6 +1,7 @@
 #!/usr/bin/env/python3
 import argparse
 import os
+from time import time
 from derp.state import State
 import derp.util
 
@@ -14,8 +15,10 @@ def main(args):
     print("%.3f Ready" % state['timestamp'])        
 
     # Event loop that runs until state is done
+    loop_time = time()
+    fps = 0
     while not state.done():
-
+        
         # Sense Plan Act Record loop
         for component in components:
             component.sense(state)
@@ -28,7 +31,10 @@ def main(args):
             
         # Print to the screen for verbose mode
         if not args.quiet:
-            print("%.3f %.3f %.3f" % (state['timestamp'], state['speed'], state['steer']))
+            fps = fps * 0.8 + (1. / (time() - loop_time)) * 0.2
+            loop_time = time()
+            print("%.3f | %.3f %.3f | %2i" % (state['timestamp'], state['speed'],
+                                              state['steer'], fps + 0.5))
 
 
 # Load all the arguments and feed them to the main event loader and loop
