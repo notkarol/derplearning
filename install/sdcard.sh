@@ -9,7 +9,7 @@ root=/mnt/sdcard
 sudo mkdir -p $root
 
 # Make sure that it's in fstab so it auto loads
-echo "$dev $root ext4 errots=remount-ro 0 2" | sudo tee -a /etc/fstab
+echo "$dev $root ext4 errors=remount-ro 0 2" | sudo tee -a /etc/fstab
 
 # Mount it so we can create base folders
 sudo mount $root
