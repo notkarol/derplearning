@@ -14,7 +14,7 @@ class BNO055(Component):
     def __init__(self, config, full_config):
         super(BNO055, self).__init__(config, full_config)
 
-        # Connect to the imu and then initialize it
+        # Connect to the imu and then initialize it using adafruit class
         self.bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.config['busnum'])
         if not self.bno.begin():
             return
@@ -32,6 +32,9 @@ class BNO055(Component):
         print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())        
         self.ready = True
 
+        #IMU calibration status and checks
+        print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.cal_report())
+        self.sys_cal = self.cal_report()[0]
     
     def sense(self, state):
 
@@ -53,5 +56,29 @@ class BNO055(Component):
         state.update_multipart('gyro', 'xyz', gyro)
         state.update_multipart('accel', 'xyz', accel)
         state['temp'] = temp
+
+        if not self.sys_cal == 3:
+            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.cal_report(), end="/r")
+
+
+        return True
+
+
+    #reports the calibration status as a tuple: (sys, gyro, accel, mag)
+    def cal_report(self):
+        return self.bno.get_calibration_status()
+
+
+    """Return the sensor's calibration data and return it as an array of
+    22 bytes. Can be saved and then reloaded with the set_calibration function
+    to quickly calibrate from a previously calculated set of calibration data.
+    """
+    def read_calibration(self):
+        return self.bno.get_calibration()
+
+
+    def load_saved_calibration(self, cal_data):
+
+        self.set_calibration(cal_data)
 
         return True
