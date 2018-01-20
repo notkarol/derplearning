@@ -31,10 +31,6 @@ class BNO055(Component):
         print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status())
         print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())        
         self.ready = True
-
-        #IMU calibration status and checks
-        print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.cal_report())
-        self.sys_cal = self.cal_report()
     
     def sense(self, state):
 
@@ -46,6 +42,7 @@ class BNO055(Component):
         gyro = self.bno.read_gyroscope()
         accel = self.bno.read_linear_acceleration()
         temp = self.bno.read_temp()
+        calibration = self.bno.get_calibration_status()
         timestamp = state['timestamp']
 
         # Update state
@@ -56,25 +53,23 @@ class BNO055(Component):
         state.update_multipart('gyro', 'xyz', gyro)
         state.update_multipart('accel', 'xyz', accel)
         state['temp'] = temp
-
-        if not self.sys_cal == (3, 3, 3, 3):
-            self.sys_cal = self.cal_report()
-            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.sys_cal, end="\r")
-
-
+        state['warn'] = state['warn'] or calibration != (3, 3, 3, 3)
         return True
 
 
-    #reports the calibration status as a tuple: (sys, gyro, accel, mag)
     def cal_report(self):
-        return self.bno.get_calibration_status()
+        """
+        Reports the calibration status as a tuple: (sys, gyro, accel, mag)
+        """
+        return 
 
 
-    """Return the sensor's calibration data and return it as an array of
-    22 bytes. Can be saved and then reloaded with the set_calibration function
-    to quickly calibrate from a previously calculated set of calibration data.
-    """
     def read_calibration(self):
+        """
+        Return the sensor's calibration data and return it as an array of
+        22 bytes. Can be saved and then reloaded with the set_calibration function
+        to quickly calibrate from a previously calculated set of calibration data.
+        """
         return self.bno.get_calibration()
 
 

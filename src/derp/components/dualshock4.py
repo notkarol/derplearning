@@ -185,21 +185,23 @@ class Dualshock4(Component):
                'rumble_low': 0}
                
         # Base color
-        if (('record' in state and not state['record']) and
-            ('auto_speed' in state and not state['auto_speed']) and
-            ('auto_steer' in state and not state['auto_steer'])):
+        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
             out['red'] = 0.130
             out['green'] = 0.085
             out['blue'] = 0.034
             
         # Update based on state
-        if 'record' in state and state['record']:
+        if state['record']:
             out['green'] = 1
-        if 'auto_steer' in state and state['auto_steer']:
+        if state['auto_steer']:
             out['red'] = 1
-        if 'auto_steer' in state and state['auto_speed']:
+        if and state['auto_speed']:
             out['blue'] = 1
 
+        if state['warn']:
+            out['light_on'] = 0.1
+            out['light_off'] = 0.1
+            
         self.__server_socket.send_json(out)
         return True
 

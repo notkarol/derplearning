@@ -20,6 +20,8 @@ class State(Component, Mapping):
         self['timestamp'] = time.time()
         self['record'] = False
         self['folder'] = None
+        self['warn'] = False
+        self['error'] = False
         self['auto_speed'] = False
         self['auto_steer'] = False
         self['speed'] = 0
