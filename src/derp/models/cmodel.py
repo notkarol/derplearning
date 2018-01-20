@@ -23,7 +23,6 @@ class CModel(nn.Module):
         self.c4d = ResnetBlock(dim, 64, verbose=verbose)
         self.c4e = ResnetBlock(dim, 64, verbose=verbose)
         self.c4f = ResnetBlock(dim, 96, pool='max', verbose=verbose)
-        self.c5 = ConvBlock(dim, 128, kernel_size=4, padding=0, verbose=verbose)
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
         self.fc1 = LinearBlock(dim, 128, verbose=verbose)
@@ -48,7 +47,6 @@ class CModel(nn.Module):
         out = self.c4d(out)
         out = self.c4e(out)
         out = self.c4f(out)
-        out = self.c5(out)
         out = self.view(out)
         if self.n_status:
             out = torch.cat((out, status), 1)

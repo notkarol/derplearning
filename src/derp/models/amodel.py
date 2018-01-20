@@ -8,17 +8,15 @@ class AModel(nn.Module):
         super(AModel, self).__init__()
         self.n_status = n_status
         dim = in_dim.copy()
-        self.c1a = ConvBlock(dim, 12, 5, stride=2, padding=2,
+        self.c1a = ConvBlock(dim, 16, 5, stride=2, padding=2,
                              batchnorm=False, verbose=verbose)
-        self.c2a = ConvBlock(dim, 16, 3, pool='max', padding=1,
+        self.c2a = ConvBlock(dim, 20, 3, pool='max', padding=1,
                              batchnorm=False, verbose=verbose)
-        self.c3a = ConvBlock(dim, 20, 3, pool='max', padding=1,
+        self.c3a = ConvBlock(dim, 24, 3, pool='max', padding=1,
                              batchnorm=False, verbose=verbose)
-        self.c4a = ConvBlock(dim, 24, 3, pool='max', padding=1,
+        self.c4a = ConvBlock(dim, 28, 3, pool='max', padding=1,
                              batchnorm=False, verbose=verbose)
-        self.c5a = ConvBlock(dim, 28, 3, pool='max', padding=1,
-                             batchnorm=False, verbose=verbose)
-        self.c6a = ConvBlock(dim, 32, 2, padding=0,
+        self.c5a = ConvBlock(dim, 32, 3, pool='max', padding=1,
                              batchnorm=False, verbose=verbose)
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
@@ -32,7 +30,6 @@ class AModel(nn.Module):
         out = self.c3a(out)
         out = self.c4a(out)
         out = self.c5a(out)
-        out = self.c6a(out)
         out = self.view(out)
         if self.n_status:
             out = torch.cat((out, status), 1)
