@@ -19,7 +19,7 @@ class UsbServo(Component):
         self.usb_product_id = 0x0089  # maestro 6
         
         self.state_name = self.config['act_state']
-        self.state_offset_name = self.state_name + '_offset'
+        self.state_offset_name = 'offset_' + self.state_name
 
         self.configuration = None
         self.device = usb.core.find(idVendor=self.usb_vendor_id,
