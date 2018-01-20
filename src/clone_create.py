@@ -204,7 +204,7 @@ def process_recording(args):
 def main(args):
     
     # Import configs that we wish to train for
-    full_config = derp.util.load_config(args.car)
+    full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
     component_config = derp.util.find_component_config(full_config, 'clone')
 
     # Create folders
@@ -250,7 +250,7 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--car', type=str, required=True,
+    parser.add_argument('--config', type=str, required=True,
                         help="car components and setup we wish to train for")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')

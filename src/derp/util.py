@@ -35,10 +35,8 @@ def get_name(path):
     return name
 
 
-def get_default_config_path():
-    hostname = socket.gethostname()
-    path = os.path.join(os.environ['DERP_CODE'], "config", "%s.yaml" % (hostname))
-    return path
+def get_hostname():
+    return socket.gethostname()
 
 
 def create_record_folder():

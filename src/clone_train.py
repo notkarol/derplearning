@@ -2,8 +2,7 @@
 
 import argparse
 import numpy as np
-from os.path import join
-from os import environ
+import os
 import sys
 import time
 import torch
@@ -57,14 +56,14 @@ def step(epoch, config, model, loader, optimizer, criterion,
         
     return np.mean(step_loss), batch_idx
 
-
 def main(args):
 
     # Make sure we have somewhere to run the experiment
-    full_config = derp.util.load_config(args.car)
+    full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
     target_config = derp.util.find_component_config(full_config, 'clone')
+
     name = "%s-%s" % (full_config['name'], target_config['name'])
-    experiment_path = join(environ["DERP_SCRATCH"], name)
+    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], name)
 
     # Prepare model
     tc = target_config['thumb']
@@ -75,7 +74,7 @@ def main(args):
     model = model_class(dim_in, n_status, n_out)
     criterion = nn.MSELoss()
     if not args.nocuda:
-        environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
         model = model.cuda()
         criterion = criterion.cuda()
     optimizer = optim.Adam(model.parameters(), args.lr)
@@ -96,7 +95,7 @@ def main(args):
     parts = ['train', 'val']
     loaders = {}
     for part in parts:
-        path = join(experiment_path, part)
+        path = os.path.join(experiment_path, part)
         fetcher = Fetcher(path, transform)
         loaders[part] = DataLoader(fetcher, batch_size=args.bs,
                                    num_workers=args.threads, shuffle=True)
@@ -122,7 +121,7 @@ def main(args):
         if losses[parts[-1]] < min_loss:
             min_loss = losses[parts[-1]]
             name = "%s_%03i_%.6f.pt" % (args.model, epoch, min_loss)
-            torch.save(model, join(experiment_path, name))
+            torch.save(model, os.path.join(experiment_path, name))
             note = '*'
 
         # Prepare
@@ -135,12 +134,12 @@ def main(args):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--car', type=str, required=True,
+    parser.add_argument('--config', type=str, required=True,
                         help="Car components and setup we wish to train form")
     parser.add_argument('--model', type=str, default="BModel",
                         help="Model to run. Default to Medium Sized")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
-    parser.add_argument('--bs', type=int, default=64, help="Batch Size")
+    parser.add_argument('--bs', type=int, default=32, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
     parser.add_argument('--threads', type=int, default=4, help="Number of threads to fetch data")
     parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")

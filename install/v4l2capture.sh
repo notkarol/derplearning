@@ -8,5 +8,8 @@ fi
 
 cd python-v4l2capture
 python3 setup.py install --user
-cd ..
+cd -
+
+# Cleanup after ourselves
 rm -rf python-v4l2capture
+

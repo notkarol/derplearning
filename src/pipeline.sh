@@ -1,8 +1,9 @@
 #!/bin/bash -x
 
 # SET THESE VARIABLES. car should be an entry in ~/.ssh/config too
-car=paras
-button=triangle
+name=$1
+button=$2
+car=${name%%-*}
 
 # Copy over training data from car and label it
 rsync -rvP ${car}:/mnt/sdcard/data/* ${DERP_DATA}/train
@@ -14,14 +15,16 @@ do
     fi
 done
 
-# Delete existing trained model and train a new one
-rm -rf ${DERP_SCRATCH}/${car}-*
-python3 clone_create.py --car ${DERP_CONFIG}/${car}.yaml
-python3 clone_train.py --car ${DERP_CONFIG}/${car}.yaml
+# Delete existing trained name and train a new one
+rm -rf ${DERP_SCRATCH}/${name}
+python3 clone_create.py --car $name
+python3 clone_train.py --car $name
 
-# Copy over best trained model to car
-path=$(ls ${DERP_SCRATCH} | grep ${car}-)
-model=$(ls $path/*pt | tail -n 1)
-rsync -rvP $model ${car}:/mnt/sdcard/${button}
-
-echo "DONE"
+# Deploy Model
+if [[ -n $button ]] ; then
+    model=$(ls ${DERP_SCRATCH}/${name}/*pt | tail -n 1)
+    rsync -rvP $model ${car}:${DERP_MODEL}/${button}/clone.pt
+    if [[ $? --eq "0" ]] ; then
+	echo "SUCCESS"
+    fi
+fi

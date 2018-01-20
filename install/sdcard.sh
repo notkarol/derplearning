@@ -4,7 +4,6 @@
 # Assumes existing disk is already partitioned to ext4
 dev=/dev/mmcblk1p1
 root=/mnt/sdcard
-folders="scratch data model"
 
 # Create a folder for the SD card
 sudo mkdir -p $root
@@ -15,14 +14,19 @@ echo "$dev $root ext4 errots=remount-ro 0 2" | sudo tee -a /etc/fstab
 # Mount it so we can create base folders
 sudo mount $root
 
-# Create each folder that we wish to store on the sdcard
-# Also add an entry in bashrc for an environment variable pointing to it
-for folder in $folders
-do
-    sudo mkdir -p ${root}/${folder}
-    upper=$(echo $folder | awk '{print toupper($0)}')
-    echo "export DERP_${upper}=${root}/${folder}" >> $HOME/.bashrc
-done
-
-# Finally make sure that this sd card is owned by the user who ran this
+# Make sure that this sd card is owned by the user who ran this
 sudo chown -R ${USER}:${USER} $root
+
+# Prepare derprc
+cat > ~/.derprc <<EOF
+export DERP_CODE=${root}/derplearning/src
+export DERP_CONFIG=${root}/derplearning/src/config
+export DERP_DATA=${root}/data
+export DERP_MODEL=${root}/models
+export DERP_SCRATCH=${root}/scratch
+EOF
+echo "source ~/.derprc" >> ~/.bashrc
+
+# Prepare folders and code on sdcard
+mkdir ${root}/data ${root}/models ${root}/scratch
+ln -s $(dirname $PWD) ${root}/derplearning

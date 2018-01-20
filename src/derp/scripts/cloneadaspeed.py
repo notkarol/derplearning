@@ -2,10 +2,10 @@
 
 from derp.scripts.clone import Clone
 
-class CloneFixSpeed(Clone):
+class CloneAdaSpeed(Clone):
 
     def __init__(self, config, full_config):
-        super(CloneFixSpeed, self).__init__(config, full_config)
+        super(CloneAdaSpeed, self).__init__(config, full_config)
 
 
     def plan(self, state):
