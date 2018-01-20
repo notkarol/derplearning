@@ -86,6 +86,10 @@ class Labeler(object):
     def draw_bar_zeroline(self):
         self.window[self.fh + self.bhh, self.fwi, :] = self.gray75
 
+    def draw_horizon_bar(self):
+        percent = self.component_config['pitch'] / self.component_config['vfov'] + 0.5
+        self.window[int(self.fh * percent), :, :] = self.magenta
+        
     
     def draw_graph(self, data_vector, color):
         #interpolate the data vector to fill in gaps
@@ -116,6 +120,7 @@ class Labeler(object):
         # Update the pixels of the frame
         self.window[:self.frame.shape[0], :, :] = self.frame
 
+        self.draw_horizon_bar()
         self.draw_bar_blank()
         self.draw_bar_timemarker()
         self.draw_bar_zeroline()
@@ -136,12 +141,13 @@ class Labeler(object):
             f.write("timestamp,status\n")
             for timestamp, label in zip(self.timestamps, self.labels):
                 f.write("%.6f,%s\n" % (timestamp, label))
+        with open(self.config_path, 'w') as f:
+            f.write(yaml.dump(self.config))
         print("Saved labels at ", self.labels_path)
 
     #Handles keyboard inputs during data labeling process.
     def handle_input(self):
         key = cv2.waitKey(10) & 0xFF
-
         if key == ord('q') or key == 27: # escape
             return False
         elif key == ord('p') or key == ord(' '):
@@ -168,6 +174,12 @@ class Labeler(object):
             self.seek(self.frame_id - 1)
         elif key == 83: # right
             self.seek(self.frame_id + 1)
+        elif key == 85: # page up
+            self.component_config['pitch'] -= 0.1
+            self.show = True
+        elif key == 86: # page down
+            self.component_config['pitch'] += 0.1
+            self.show = True
         elif key == ord('`'):
             self.seek(0)
         elif ord('1') <= key <= ord('9'):
@@ -299,12 +311,14 @@ class Labeler(object):
 
         
     def __init__(self, recording_path, scale=1):
+        self.cap = None
         
         self.scale = scale #Image Scale Factor
         self.recording_path = recording_path
-
-        # Variables useful for later
-        self.cap = None
+        self.config_path = os.path.join(self.recording_path, 'config.yaml')
+        self.config = util.load_config(self.config_path)
+        self.component_config = util.find_component_config(self.config, 'camera')
+        
         # Useful color variables:
         self.red = np.array([0, 0, 255], dtype=np.uint8)
         self.green = np.array([32, 192, 32], dtype=np.uint8)
