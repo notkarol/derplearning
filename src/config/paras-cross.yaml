@@ -23,16 +23,16 @@ components:
       offset_steer: 0.0 # assume no steering bias
   - path: "inference/clone_adaspeed.yaml"
     camera_name: "camera_front"
-    create:	 
+    create:
       data_folders: ['train']
       train_chance: 0.9
-  n_perts: 1
-  perts:
-    shift:
-      max: 0 # meters
-      fudge: 0.0
-      timedecay: 1.0
-    rotate:
-      max: 0 # degrees
-      fudge: 0.0
-      timedecay: 1.0    
+      n_perts: 1
+      perts:
+        shift:
+          max: 0 # meters
+          fudge: 0.0
+          timedecay: 1.0
+        rotate:
+          max: 0 # degrees
+          fudge: 0.0
+          timedecay: 1.0

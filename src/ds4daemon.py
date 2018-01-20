@@ -185,10 +185,10 @@ class Daemon:
     def sendController(self, msg=None):
         if type(msg) is not dict:
             msg = {'rumble_high': 0, 'rumble_low': 0,
-                   'red': 0.5 if msg is False else 0.05,
-                   'green': 0.5 if msg is True else 0.05,
-                   'blue': 0.5 if msg is None else 0.05,
-                   'light_on': 0.3, 'light_off': 0.3}
+                   'red': 0.2 if msg is False else 0.05,
+                   'green': 0.2 if msg is True else 0.05,
+                   'blue': 0.2 if msg is None else 0.05,
+                   'light_on': 1, 'light_off': 1}
         self.__packet[7] = self.encodeController(msg['rumble_high'])
         self.__packet[8] = self.encodeController(msg['rumble_low'])
         self.__packet[9] = self.encodeController(msg['red'])
@@ -220,14 +220,22 @@ class Daemon:
                 if byte8 >= 16:
                     self.__creation_time = time()
                     cmd = ["python3", "%s/drive.py" % os.environ['DERP_CODE'], "--quiet"]
-                    if byte8 & 16: # square
-                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "square")])
-                    elif byte8 & 32: # cross
-                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "cross")])
-                    elif byte8 & 64: # circle
-                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "circle")])
-                    elif byte8 & 128: # triangle
-                        cmd.extend(["--model", os.path.join(os.environ['DERP_MODEL'], "triangle")])
+                    if byte8 & 16:
+                        config = derp.util.get_hostname() + '-square'
+                        model_path = os.path.join(os.environ['DERP_MODEL'], "square")
+                        cmd.extend(["--model_dir", model_path, '--config', config])
+                    elif byte8 & 32:
+                        config = derp.util.get_hostname() + '-cross'
+                        model_path = os.path.join(os.environ['DERP_MODEL'], "cross")
+                        cmd.extend(["--model_dir", model_path, '--config', config])
+                    elif byte8 & 64:
+                        config = derp.util.get_hostname() + '-circle'
+                        model_path = os.path.join(os.environ['DERP_MODEL'], "circle")
+                        cmd.extend(["--model_dir", model_path, '--config', config])
+                    elif byte8 & 128:
+                        config = derp.util.get_hostname() + '-triangle'
+                        model_path = os.path.join(os.environ['DERP_MODEL'], "triangle")
+                        cmd.extend(["--model_dir", model_path, '--config', config])
                     print(cmd)
                     Popen(cmd)
         return True

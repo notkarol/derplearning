@@ -19,7 +19,7 @@ create:
       fudge: 0.02
       timedecay: 1.0
 
-# Training related parameters  
+# Training related parameters
 train:
   prepare:
     - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
@@ -28,10 +28,10 @@ train:
 thumb:
   component: 'camera_front'
   hfov: 75
-  vfov: 18.5
+  vfov: 18.75
   hcenter: 0
   vcenter: 0
-  height: 64
+  height: 32
   width: 128
   depth: 3
   x: 0

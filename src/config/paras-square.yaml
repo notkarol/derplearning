@@ -23,16 +23,16 @@ components:
       offset_steer: 0.0 # assume no steering bias
   - path: "inference/clone_fixspeed.yaml"
     camera_name: "camera_front"
-    create:	 
+    create:
       data_folders: ['train']
       train_chance: 0.9
-  n_perts: 3
-  perts:
-    shift:
-      max: 0.1 # meters
-      fudge: 0.5
-      timedecay: 1.0
-    rotate:
-      max: 5 # degrees
-      fudge: 0.02
-      timedecay: 1.0    
+      n_perts: 3
+      perts:
+        shift:
+          max: 0.1 # meters
+          fudge: 0.5
+          timedecay: 1.0
+        rotate:
+          max: 5 # degrees
+          fudge: 0.02
+          timedecay: 1.0
