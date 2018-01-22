@@ -48,6 +48,8 @@ fi
 # Setup SD card if we're a car otherwise just the derp variables
 if [[ $(uname -m) -eq "aarch64" ]] ; then
     bash sdcard.sh
+    echo "Please add the following line to 'crontab -e'"
+    echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/src/ds4daemon.sh'
 else
     cat > ~/.derprc <<EOF
 export DERP_CODE=$(dirname $PWD)/src
