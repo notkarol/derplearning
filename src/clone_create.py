@@ -21,7 +21,7 @@ def prepare_predict(config, frame_id, state_headers, state_ts, states, perts):
     for pos, pd in enumerate(config['predict']):
         if pd['field'] in state_headers:
             state_pos = state_headers.index(pd['field'])
-            timestamp = state_ts[frame_id] + int(pd['delay'] * 1E6)
+            timestamp = state_ts[frame_id] + pd['delay']
             predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
         elif pd['field'] in perts:
             predict[pos] = perts[pd['field']]
@@ -109,8 +109,7 @@ def perturb(component_config, frame_config, frame, predict, status, perts):
 
     # Manipulate image
     derp.imagemanip.perturb(frame, frame_config, perts)
-    
-    
+
 
 def process_recording(args):
     component_config, recording_path, folders = args
@@ -136,14 +135,13 @@ def process_recording(args):
     except AssertionError:
         print("Unable to process [%s] because of AssertionError" % recording_path)
         return
-    
+
     # Perturb our arrays
     n_perts = 1
     if frame_config['hfov'] > component_config['thumb']['hfov']:
         n_perts = component_config['create']['n_perts']
     print("Processing", recording_path, n_perts)
 
-        
     # Prepare directories and writers
     predict_fds = {}
     status_fds = {}
