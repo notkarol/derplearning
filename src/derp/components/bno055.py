@@ -36,9 +36,9 @@ class BNO055(Component):
         #check calibration level and attempt to load calibration data from file
         with open(self.config['calibration_path']) as f:
             self.cal_config = yaml.load(f)
-        if ( (not (3, 3, 3, 3) == self.calibration_status) and not self.cal_config['cal']['level'] == (0,0,0,0)) :
-            self.bno.set_calibration(self.cal_config['cal']['data'])
-            calibration_status = self.bno.get_calibration_status()
+        #if ( (not (3, 3, 3, 3) == self.calibration_status) and not self.cal_config['status'] == (0,0,0,0)) :
+            #self.bno.set_calibration(self.cal_config['cal']['data'])
+            #self.calibration_status = self.bno.get_calibration_status()
         print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.calibration_status, end="\r")
         self.calibration_flag = (self.calibration_status == (3, 3, 3, 3) )
         self.ready = True
@@ -67,8 +67,8 @@ class BNO055(Component):
         state['warn'] = state['warn'] or not self.calibration_flag
         if not self.calibration_flag:
             print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % calibration_status, end="\r")
-        else:
-            self.save_calibration()
+        
+        self.save_calibration()
         self.calibration_flag = (calibration_status == (3, 3, 3, 3) )
     
         return True
@@ -88,12 +88,12 @@ class BNO055(Component):
         22 bytes. Can be saved and then reloaded with the set_calibration function
         to quickly calibrate from a previously calculated set of calibration data.
         """
+        calibration = {
+            'status' : list(self.bno.get_calibration_status()),
+            'calibrations' : self.bno.get_calibration() }
 
-        self.cal_config['cal']['level'] = self.bno.get_calibration_status()
-        self.cal_config['cal']['data'] = self.bno.get_calibration()
-
-        with open(cal_path, 'w') as yaml_file:
-            yaml.dump(cal_config, yaml_file, default_flow_style=False)
+        with open(self.config['calibration_path'], 'w') as yaml_file:
+            yaml.dump(calibration, yaml_file, default_flow_style=False)
 
 
     def load_saved_calibration(self, calibration_data):
