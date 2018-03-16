@@ -30,12 +30,14 @@ class BNO055(Component):
                                 z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
 
         # Collect some nice status data that we can print as we do
-        print("BNO055 status: %s self_test: %s error: %s" % self.calibration_status)
+        print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status() )
         print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
         
         #check calibration level and attempt to load calibration data from file
-        if not ((3, 3, 3, 3) == self.calibration_status )
-            self.bno.set_calibration(self.cal_config['calibration']['data'])
+        with open(self.config['calibration_path']) as f:
+            self.cal_config = yaml.load(f)
+        if ( (not (3, 3, 3, 3) == self.calibration_status) and not self.cal_config['cal']['level'] == (0,0,0,0)) :
+            self.bno.set_calibration(self.cal_config['cal']['data'])
             calibration_status = self.bno.get_calibration_status()
         print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.calibration_status, end="\r")
         self.calibration_flag = (self.calibration_status == (3, 3, 3, 3) )
@@ -65,8 +67,8 @@ class BNO055(Component):
         state['warn'] = state['warn'] or not self.calibration_flag
         if not self.calibration_flag:
             print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % calibration_status, end="\r")
-        else 
-            self.save_calibration(config['calibration'])
+        else:
+            self.save_calibration()
         self.calibration_flag = (calibration_status == (3, 3, 3, 3) )
     
         return True
@@ -80,15 +82,15 @@ class BNO055(Component):
 
 
     #stores good calibrations settings for future use.
-    def save_calibration(self, cal_path):
+    def save_calibration(self):
         """
         Return the sensor's calibration data and return it as an array of
         22 bytes. Can be saved and then reloaded with the set_calibration function
         to quickly calibrate from a previously calculated set of calibration data.
         """
 
-         self.cal_config['calibration']['level'] = self.bno.get_calibration_status()
-         self.cal_config['calibration']['data'] = self.bno.get_calibration()
+        self.cal_config['cal']['level'] = self.bno.get_calibration_status()
+        self.cal_config['cal']['data'] = self.bno.get_calibration()
 
         with open(cal_path, 'w') as yaml_file:
             yaml.dump(cal_config, yaml_file, default_flow_style=False)
