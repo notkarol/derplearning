@@ -35,4 +35,4 @@ components:
           max: 0 # degrees
           fudge: 0.00
           timedecay: 1.0
-          camera_name: "camera_front"       
+    camera_name: "camera_front"       
