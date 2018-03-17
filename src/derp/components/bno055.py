@@ -36,9 +36,11 @@ class BNO055(Component):
         #check calibration level and attempt to load calibration data from file
         with open(self.config['calibration_path']) as f:
             self.cal_config = yaml.load(f)
-        #if ( (not (3, 3, 3, 3) == self.calibration_status) and not self.cal_config['status'] == (0,0,0,0)) :
-            #self.bno.set_calibration(self.cal_config['cal']['data'])
-            #self.calibration_status = self.bno.get_calibration_status()
+        if ( not (3, 3, 3, 3) == self.calibration_status ) :
+            if self.load_saved_calibration(self.cal_config['calibrations']):
+                print("Loaded calibrations with status: %s" % self.cal_config['status'])
+            else: print("Failed to load saved calibrations.")
+            self.calibration_status = self.bno.get_calibration_status()
         print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.calibration_status, end="\r")
         self.calibration_flag = (self.calibration_status == (3, 3, 3, 3) )
         self.ready = True
@@ -67,8 +69,7 @@ class BNO055(Component):
         state['warn'] = state['warn'] or not self.calibration_flag
         if not self.calibration_flag:
             print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % calibration_status, end="\r")
-        
-        self.save_calibration()
+        elif not self.save_calibration(): print("Failed to Save IMU Calibration Settings.")
         self.calibration_flag = (calibration_status == (3, 3, 3, 3) )
     
         return True
@@ -95,9 +96,11 @@ class BNO055(Component):
         with open(self.config['calibration_path'], 'w') as yaml_file:
             yaml.dump(calibration, yaml_file, default_flow_style=False)
 
+        return True
+
 
     def load_saved_calibration(self, calibration_data):
 
-        self.set_calibration(calibration_data)
+        self.bno.set_calibration(calibration_data)
 
         return True
