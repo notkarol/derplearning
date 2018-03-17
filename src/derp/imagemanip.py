@@ -63,7 +63,7 @@ def perturb(frame, config, perts):
         # based on the distance adjust for shift
         if 'shift' in perts and vertical_frac > horizon_frac:
             ground_angle = (vertical_frac - horizon_frac) * config['vfov']
-            ground_distance = config['y'] / np.tan(deg2rad(ground_angle))
+            ground_distance = config['z'] / np.tan(deg2rad(ground_angle))
             ground_width = 2 * ground_distance * np.tan(deg2rad(config['hfov']) / 2)
             shift_pixels = (perts['shift'] / ground_width) * config['width']
             magnitude += shift_pixels
