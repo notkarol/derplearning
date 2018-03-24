@@ -175,7 +175,7 @@ def process_recording(args):
         frame = reader.get_data(frame_id)
 
         # Create each perturbation for dataset
-        for pert_id in range(n_perts):
+        for pert_id in range(n_perts if part == 'train' else 1):
 
             # Prepare variables to store for this example
             state = prepare_state(component_config, frame_id, state_headers, states, frame)
@@ -207,10 +207,9 @@ def main(args):
     # Import configs that we wish to train for
     full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
     component_config = derp.util.find_component_config(full_config, 'clone')
+    experiment_path = os.path.join(os.environ['DERP_SCRATCH'], full_config['name'])
 
     # Create folders
-    name = "%s-%s" % (full_config['name'], component_config['name'])
-    experiment_path = os.path.join(os.environ['DERP_SCRATCH'], name)
     if not os.path.exists(experiment_path):
         print("Created", experiment_path)
         os.mkdir(experiment_path)

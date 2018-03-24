@@ -61,9 +61,7 @@ def main(args):
     # Make sure we have somewhere to run the experiment
     full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
     target_config = derp.util.find_component_config(full_config, 'clone')
-
-    name = "%s-%s" % (full_config['name'], target_config['name'])
-    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], name)
+    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], full_config['name'])
 
     # Prepare model
     tc = target_config['thumb']
