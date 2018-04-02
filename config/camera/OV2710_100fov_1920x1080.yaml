@@ -2,17 +2,17 @@ name: 'camera'
 required: True
 class: 'Camera'
 index: 0
-hfov: 75
+hfov: 100
 vfov: 56.25
-fps: 60
-height: 480
-width: 640
+fps: 30
+height: 1080
+width: 1920
 depth: 3
-x: -0.23 # meters forward from front axle
+x: -0.21 # meters forward from front axle
 y:  0.00 # meters left from center of vehicle. Assume zero for now
-z:  0.36 # meters up from floor
+z:  0.43 # meters up from floor
 roll:   0.0 # degrees left tilt. Assume zero for now
-pitch: -8.5 # degrees incline
+pitch: -28.0 # degrees incline
 yaw:    0.0 # degrees left turn. Assume zero for now
 bottom_row_width: 1.07 # width in meters of bottom pixel row
 bottom_row_x:     0.49 # distance in meters of bottom pixel row from camera

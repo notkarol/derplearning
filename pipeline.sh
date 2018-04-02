@@ -27,8 +27,11 @@ do
     fi
 done
 
-# Delete existing trained name and train a new one
+# Delete existing trained name
 rm -rf ${DERP_SCRATCH}/${name}
+
+# Train a new model
+cd derp
 python3 clone_create.py --config $name
 python3 clone_train.py --config $name
 
