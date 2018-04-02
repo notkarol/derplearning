@@ -92,3 +92,6 @@ cmake \
 make -j$(nproc)
 sudo make install
 cd -
+
+# Cleanup after ourselves
+rm -rf opencv opencv_extra

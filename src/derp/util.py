@@ -1,8 +1,10 @@
 import csv
+from datetime import datetime
 import numpy as np
 import os
 import PIL.Image
 import re
+import socket
 import time
 import yaml
 
@@ -33,12 +35,14 @@ def get_name(path):
     return name
 
 
+def get_hostname():
+    return socket.gethostname()
+
+
 def create_record_folder():
     """
     Generate the name of the record folder and created it
     """
-    from datetime import datetime
-    import socket
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
     path = os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
@@ -60,9 +64,11 @@ def load_config(config_path):
     with open(config_path) as f:
         config = yaml.load(f)
 
-    # Make sure we set the name of the config
+    # Make sure we set the name and path of the config stored
     if 'name' not in config:
         config['name'] = get_name(config_path)
+    if 'path' not in config:
+        config['path'] = config_path
 
     # Then load the each component
     dirname = os.path.dirname(config_path)
@@ -70,7 +76,7 @@ def load_config(config_path):
 
         # Check if we need to load more parameters from elsewhere
         if 'path' in component_config:
-            component_path = os.path.join(dirname, component_config['path'])
+            component_path = os.path.join(os.environ['DERP_CONFIG'], component_config['path'])
             with open(component_path) as f:
                 default_component_config = yaml.load(f)
 
@@ -91,15 +97,10 @@ def load_config(config_path):
         if 'class' not in component_config:
             raise ValueError("load_config: all components must have a class in components/")
 
-    # Prepare state from defaults if we have to
+    # Make sure we also have a state
     if 'state' not in config:
         config['state'] = {}
-    state_defaults = {'offset_speed': 0.0,
-                      'offset_steer': 0.0}
-    for key in state_defaults:
-        if key not in config['state']:
-            config['state'][key] = state_defaults[key]
-
+        
     return config
 
 
@@ -130,8 +131,16 @@ def load_components(config):
     for component_config in config['components']:
 
         # Load the component object
-        load_component(component_config, config)
+        component = load_component(component_config, config)
 
+        # Skip a non-ready component. Raise an error if it's required as we can't continue
+        if not component.ready:
+            if component_config['required']:
+                raise ValueError("load_components: required component [%s] not available"
+                                 % component_config['name'])
+            print("load_components: skipping", component_config['name'])
+            continue
+        
         # if we survived the cull, add the component to 
         components.append(component)
 
@@ -149,14 +158,12 @@ def load_components(config):
     return state, components
 
 
-def find_component_config(full_config, name, script=None):
+def find_component_config(full_config, name):
     """
     Finds the matching component by name of the component and script if needed
     """
     for component_config in full_config['components']:
-        if (component_config['name'] == name
-            and (script is None
-                 or script == component_config['script'].lower())):
+        if name in component_config['name']:
             return component_config
     
 
@@ -184,14 +191,15 @@ def read_csv(path, floats=True):
             if not len(line):
                 continue
             state = []
-            timestamps.append(int(re.sub('\D', '', line[0] ) ) )
-            #regex to remove any non-decimal characters from the timestamp so that 
-            #it can be read as an int
+            timestamps.append(float(line[0]))
             for value in line[1:]:
-                value = float(value) if floats else value
+                try:
+                    value = float(value) if floats else value
+                except:
+                    value = 0
                 state.append(value)
             states.append(state)
-    timestamps = np.array(timestamps, dtype=np.uint64)
+    timestamps = np.array(timestamps, dtype=np.double)
     if floats:
         states = np.array(states, dtype=np.float)
     return timestamps, headers, states
@@ -217,7 +225,8 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
-    for filename in os.listdir(path):
-        if pattern.search(filename) is not None:
-            return os.path.join(path, filename)
+    if os.path.exists(path):        
+        for filename in os.listdir(path):
+            if pattern.search(filename) is not None:
+                return os.path.join(path, filename)
     return None

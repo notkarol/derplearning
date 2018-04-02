@@ -6,33 +6,19 @@ import socket
 import subprocess
 import select
 import sys
+import zmq
 from time import time, sleep
 from derp.component import Component
-from struct import Struct
 import derp.util as util
 
 class Dualshock4(Component):
 
     def __init__(self, config, full_config):
         super(Dualshock4, self).__init__(config, full_config)
-
-        # bluetooth control socket
-        self.report_id = 0x11
-        self.report_size = 79
-        self.ctrl_socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
-                                         socket.BTPROTO_L2CAP)
-        self.intr_socket = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET,
-                                         socket.BTPROTO_L2CAP)
-
-        # Prepare packet
-        self.packet = bytearray(79)
-        self.packet[0] = 0x52
-        self.packet[1] = self.report_id
-        self.packet[2] = 0x80
-        self.packet[4] = 0xFF
-
+        
         # The deadzone of the analog sticks to ignore them
-        self.deadzone = self.config['deadzone']        
+        self.__timeout = self.config['timeout']
+        self.__deadzone = self.config['deadzone']
         self.left_analog_active = False
         self.right_analog_active = False
         self.left_trigger_active = False
@@ -42,30 +28,30 @@ class Dualshock4(Component):
         self.left_active = False
         self.right_active = False
 
-        n_attemps = 5
-        for attempt in range(n_attemps):
-            print("Attempt %i of %i" % (attempt + 1, n_attemps), end='\r')
-            cmd = ["hcitool", "scan", "--flush"]
-            res = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf8")
-            for _, address, name in [l.split("\t") for l in res.splitlines()[1:]]:
-                if name == "Wireless Controller":
-                    self.ctrl_socket.connect((address, 0x11))
-                    self.intr_socket.connect((address, 0x13))
-                    self.intr_socket.setblocking(False)
-                    self.ready = True
-                    return
+        self.__port = 2455
+        self.__server_addr = "tcp://localhost:%s" % self.__port
+        self.__context = zmq.Context()
+        self.__server_socket = self.__context.socket(zmq.PAIR)
+        self.__server_socket.connect(self.__server_addr)
+        self.ready = True
+        self.__last_recv_time = 0
 
+        # Reset the message queue
+        self.__server_socket.send_json(True)
 
+        
     def __del__(self):
         """ Close all of our sockets and file descriptors """
+        self.__server_socket.recv_json()
+        self.__server_socket.send_json(False)
+        sleep(0.1)
+        self.__server_socket.disconnect(self.__server_addr)
         super(Dualshock4, self).__del__()
-        self.ctrl_socket.close()
-        self.intr_socket.close()
 
 
     def in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
-        return 128 - self.deadzone < value <= 128 + self.deadzone
+        return 128 - self.__deadzone < value <= 128 + self.__deadzone
 
 
     def normalize_stick(self, value, deadzone):
@@ -75,69 +61,25 @@ class Dualshock4(Component):
         return value
 
 
-    # Prepare status based on buffer
-    def prepare(self, buf):
-        short = Struct("<h")
-        dpad = buf[8] % 16
-        status = {"left_analog_x" : buf[4],
-                  "left_analog_y" : buf[5],
-                  "right_analog_x" : buf[6],
-                  "right_analog_y" : buf[7],
-                  "up" :  (dpad in (0, 1, 7)),
-                  "down" : (dpad in (3, 4, 5)),
-                  "left" : (dpad in (5, 6, 7)),
-                  "right" : (dpad in (1, 2, 3)),
-                  "button_square" : (buf[8] & 16) != 0,
-                  "button_cross" : (buf[8] & 32) != 0,
-                  "button_circle" : (buf[8] & 64) != 0,
-                  "button_triangle" : (buf[8] & 128) != 0,
-                  "button_l1" : (buf[9] & 1) != 0,
-                  "button_l2" : (buf[9] & 4) != 0,
-                  "button_l3" : (buf[9] & 64) != 0,
-                  "button_r1" : (buf[9] & 2) != 0,
-                  "button_r2" : (buf[9] & 8) != 0,
-                  "button_r3" : (buf[9] & 128) != 0,
-                  "button_share" : (buf[9] & 16) != 0,
-                  "button_options" : (buf[9] & 32) != 0,
-                  "button_trackpad" :  (buf[10] & 2) != 0,
-                  "button_ps" : (buf[10] & 1) != 0,
-                  "timestamp" : buf[10] >> 2,
-                  "left_trigger" : buf[11],
-                  "right_trigger" : buf[12],
-                  "battery" : buf[15] % 16,
-                  "accel_y" : short.unpack_from(buf, 16)[0], 
-                  "accel_x" : short.unpack_from(buf, 18)[0], 
-                  "accel_z" : short.unpack_from(buf, 20)[0], 
-                  "roll" : -(short.unpack_from(buf, 22)[0]),
-                  "yaw" : short.unpack_from(buf, 24)[0],
-                  "pitch" : short.unpack_from(buf, 26)[0],
-                  "battery_level" : buf[33] % 16,
-                  "usb" : (buf[33] & 16) != 0,
-                  "audio" : (buf[33] & 32) != 0,
-                  "mic" : (buf[33] & 64) != 0}
-        return status
+    def process(self, status, state, out):
 
-
-    def process(self, buf, state, out):
-        status = self.prepare(buf)
-
-        # Left Analog Steering
-        if self.in_deadzone(status['left_analog_x']):
-            if self.left_analog_active:
-                self.left_analog_active = False
-                out['steer'] = 0
-        else:
-            self.left_analog_active = True
-            out['steer'] = self.normalize_stick(status['left_analog_x'], self.deadzone)
-
-        # Right Analog Steering
+        # Insensitive steering
         if self.in_deadzone(status['right_analog_x']):
             if self.right_analog_active:
                 self.right_analog_active = False
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            steer = self.normalize_stick(status['right_analog_x'], self.deadzone)
+            out['steer'] = self.normalize_stick(status['right_analog_x'], self.__deadzone)
+
+        # Sensitive steering
+        if self.in_deadzone(status['left_analog_x']):
+            if self.left_analog_active:
+                self.left_analog_active = False
+                out['steer'] = 0
+        else:
+            self.left_analog_active = True
+            steer = self.normalize_stick(status['left_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -148,7 +90,7 @@ class Dualshock4(Component):
             steer = float(steer)
             out['steer'] = steer
 
-        # Speed
+        # Forward
         if status['left_trigger']:
             self.left_trigger_active = True
             z, x, y = self.config['speed_elbow']
@@ -157,12 +99,12 @@ class Dualshock4(Component):
                 speed = z + speed * (y - z) / x
             else:
                 speed = (y + (speed - x) * (1 - y) / (1 - x))
-            out['speed'] = speed
+            out['speed'] = -speed
         elif self.left_trigger_active:
             self.left_trigger_active = False
             out['speed'] = 0
 
-        # Handle speed reverse
+        # Reverse
         if status['right_trigger']:
             self.right_trigger_active = True
             z, x, y = self.config['speed_elbow']
@@ -171,7 +113,7 @@ class Dualshock4(Component):
                 speed = z + speed * (y - z) / x
             else:
                 speed = (y + (speed - x) * (1 - y) / (1 - x))
-            out['speed'] = -speed
+            out['speed'] = speed
         elif self.right_trigger_active:
             self.right_trigger_active = False
             out['speed'] = 0
@@ -181,18 +123,13 @@ class Dualshock4(Component):
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
-        if status['button_share']:
-            out['auto_speed'] = True
-        if status['button_options']:
-            out['auto_steer'] = True
+            out['auto'] = False
+            out['use_offset_speed'] = False
         if status['button_ps']:
-            out['auto_speed'] = True
-            out['auto_steer'] = True
+            out['auto'] = True
+            out['use_offset_speed'] = True
         if status['button_cross']:
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['use_offset_speed'] = True
         if status['button_square']:
             out['record'] = False
         if status['button_circle']:
@@ -216,77 +153,82 @@ class Dualshock4(Component):
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['offset_speed'] = state['offset_speed'] + 0.1
+            out['offset_speed'] = state['offset_speed'] + 0.01
         if status['down']:
             self.down_active = True
         elif self.down_active:
-            out['offset_speed'] = state['offset_speed'] - 0.1
+            self.down_active = False
+            out['offset_speed'] = state['offset_speed'] - 0.01
 
         # Close down
-        if status['button_trackpad']:
+        if status['button_trackpad'] or status['button_share'] or status['button_options']:
             out['speed'] = 0
             out['steer'] = 0
             out['record'] = False
-            out['auto_speed'] = False
-            out['auto_steer'] = False
+            out['auto'] = False
             state.close()
 
+
     def act(self, state):
-        # Prepare command
-        rumble = [0, 0]
-        flash = [0, 0]
-        
+        out = {'red': 0,
+               'green': 0,
+               'blue': 0,
+               'light_on': 0,
+               'light_off': 0,
+               'rumble_high': 0,
+               'rumble_low': 0}
+               
         # Base color
-        if not state['record'] and not state['auto_speed'] and not state['auto_steer']:
-            rgb = [0.1, 0.1, 0.1]
-        else:
-            rgb = [0, 0, 0]
+        if not state['record'] and not state['auto']:
+            out['red'] = 0.130
+            out['green'] = 0.085
+            out['blue'] = 0.034
             
         # Update based on state
         if state['record']:
-            flash[0] = 0.3
-            flash[1] = 0.1
-            rgb[1] = 1
-        if state['auto_steer']:
-            rgb[0] = 0.5
-        if state['auto_speed']:
-            rgb[2] = 0.5
+            out['green'] = 1
+        if state['use_offset_speed']:
+            out['blue'] = 1
+        if state['auto']:
+            out['red'] = 1
+
+        if state['warn']:
+            out['light_on'] = 0.5
+            out['light_off'] = 0.05
             
-        # Prepare and sendpacket
-        self.packet[7] = int(rumble[0] * 255)
-        self.packet[8] = int(rumble[1] * 255)
-        self.packet[9] = int(rgb[0] * 255)
-        self.packet[10] = int(rgb[1] * 255)
-        self.packet[11] = int(rgb[2] * 255)
-        self.packet[12] = int(flash[0] * 255)
-        self.packet[13] = int(flash[1] * 255)
-        self.ctrl_socket.sendall(self.packet)
+        self.__server_socket.send_json(out)
         return True
 
 
     def sense(self, state):
-        ret = -1
-        buf = bytearray(77)
         out = {'record' : None,
-               'auto_speed' : None,
-               'auto_steer' : None,
+               'auto' : None,
                'speed' : None,
                'steer' : None,
+               'use_offset_speed' : None,
                'offset_speed' : None,
                'offset_steer' : None}
-        
-        # Fetch input messages and process them. Store it in out
-        while True:
-            try:
-                ret = self.intr_socket.recv_into(buf)
-                if ret == len(buf) and buf[1] == self.report_id:
-                    self.process(buf, state, out)
-            except BlockingIOError as e:
-                break
 
-        # Process 'out' into 'state'
+        # Ask the controller for messages
+        poller = zmq.Poller()
+        poller.register(self.__server_socket, zmq.POLLIN)
+        msg = dict(poller.poll(10))
+        if len(msg) > 0:
+            msgs = self.__server_socket.recv_json()
+            self.__last_recv_time = time()
+        else:
+            msgs = []
+
+        # For each message, process the fields we want to set a new desired value
+        for msg in msgs:
+            self.process(msg, state, out)
+
+        # Kill car if we're out of range
+        if (time() - self.__last_recv_time) > self.__timeout:
+            state.close()
+            
+        # After all messages have been processed, update the state
         for field in out:
             if out[field] is not None:
                 state[field] = out[field]
-
         return True

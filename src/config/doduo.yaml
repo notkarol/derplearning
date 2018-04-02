@@ -1,6 +1,10 @@
 
 no_cuda: False
+model_dir: Null
 
 components:
   - path: "input/keyboard.yaml"
-  - path: "camera/c720_60fov_1280x960.yaml"
+  - path: "camera/c922_30fov_1920x1080.yaml"
+    name: "camera_front"
+  - path: "inference/clone.yaml"
+    camera_name: "camera_front"

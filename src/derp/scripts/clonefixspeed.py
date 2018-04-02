@@ -5,7 +5,7 @@ from derp.scripts.clone import Clone
 class CloneFixSpeed(Clone):
 
     def __init__(self, config, full_config):
-        super(CloneFixSpeed, self).__init__(hw_config, sw_config)
+        super(CloneFixSpeed, self).__init__(config, full_config)
 
 
     def plan(self, state):

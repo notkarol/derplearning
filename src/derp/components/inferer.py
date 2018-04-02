@@ -22,22 +22,41 @@ class Inferer(Component):
         self.script = script_class(config, full_config)
         self.ready = True
 
+
+    def sense(self, state):
+        if self.script is None or not state['auto']:
+            return True
+        return self.script.sense(state)
+
+
     def plan(self, state):
         """
         Runs the loaded python inferer script's plan
         """
 
         # Skip if we have no script to run or we're not asked to control the cor
-        if self.script is None or not (state['auto_speed'] or state['auto_steer']):
+        if self.script is None or not state['auto']:
             return True
 
         # Get the proposed list of changes
         speed, steer = self.script.plan(state)
 
         # Make sure we have the permissions to update these fields
-        if state['auto_speed']:
+        if state['auto']:
             state['speed'] = speed
-        if state['auto_steer']:
             state['steer'] = steer
 
         return True
+
+
+    def act(self, state):
+        if self.script is None or not state['auto']:
+            return True
+        return self.script.act(state)
+
+
+    def record(self, state):
+        if self.script is None or not state['auto']:
+            return True
+        return self.script.record(state)
+    

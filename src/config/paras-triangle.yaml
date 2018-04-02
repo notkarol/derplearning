@@ -7,11 +7,11 @@ components:
   - path: "input/keyboard.yaml"
   - path: "camera/OV2710_100fov_1920x1080.yaml"
     name: "camera_front"
-    x: -0.21 # meters forward from front axle
+    x: -0.23 # meters forward from front axle
     y:  0.00 # meters left from center of vehicle. Assume zero for now
-    z:  0.43 # meters up from floor
+    z:  0.36 # meters up from floor
     roll:   0.0 # degrees left tilt. Assume zero for now
-    pitch: -28. # degrees incline
+    pitch: -8.5 # degrees incline
     yaw:    0.0 # degrees left turn. Assume zero for now
   - path: "imu/bno055.yaml"
     name: "imu_stalk"
@@ -22,6 +22,7 @@ components:
     state:
       offset_steer: 0.0 # assume no steering bias
   - path: "inference/clone_fixspeed.yaml"
+    camera_name: "camera_front"
     create:
       data_folders: ['train']
       train_chance: 0.9
@@ -29,10 +30,9 @@ components:
       perts:
         shift:
           max: 0 # meters
-          fudge: 0.00
+          fudge: 0.0
           timedecay: 1.0
         rotate:
           max: 0 # degrees
-          fudge: 0.00
+          fudge: 0.0
           timedecay: 1.0
-    camera_name: "camera_front"       

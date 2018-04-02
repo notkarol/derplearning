@@ -6,5 +6,4 @@ act_state: 'steer'
 min_value: -0.95
 max_value: 0.95
 state:
-  steer: 0.0
   offset_steer: 0.0

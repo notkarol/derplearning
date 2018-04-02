@@ -31,3 +31,7 @@ else
 fi
 pip3 install --user -r requirements.txt
 python3 setup.py install --user
+cd -
+
+# Cleanup after ourselves
+rm -rf pytorch vision

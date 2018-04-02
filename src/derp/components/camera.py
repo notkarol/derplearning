@@ -75,25 +75,27 @@ class Camera(Component):
             counter -= 1
             select.select((self.cap,), (), ())
             try:
-                image_data = self.cap.read_and_queue()
-                frame = np.array(PIL.Image.open(io.BytesIO(image_data)))
+                state['timestamp'] = time()
+                image_bytes = self.cap.read_and_queue()
+                image_io = io.BytesIO(image_bytes)
+                pil_frame = PIL.Image.open(image_io)
+                frame = np.array(pil_frame)
             except:
                 print("Camera: Unable to get frame. Retrying")
-            
-            
+        
         # Update the state and our out buffer
         state[self.config['name']] = frame
 
         # Append frame to out buffer if we're writing
         if self.is_recording(state):
-            self.out_buffer.append((state['timestamp'], image_data))
+            self.out_buffer.append((state['timestamp'], image_bytes))
         return True
 
 
     def record(self, state):
 
-        # Do not write if write is not desired
-        # Try to encode an mp4 in the background if we're done recording
+        # Do not write if write is not desired.. but close up any recording process by
+        # trying to encode an mp4 in the background.
         if not self.is_recording(state):
             if self.is_recording_initialized(state):
                 fps = int(self.frame_counter / (time() - self.start_time) + 0.5)
@@ -110,12 +112,12 @@ class Camera(Component):
                                 '!', 'mp4mux',
                                 '!', 'filesink location="%s/%s.mp4"' % args])
                 subprocess.Popen(cmd, shell=True)
-            return True
+                self.folder = None
+            return True                
 
         # If we are initialized, then spit out jpg images directly to disk
         if not self.is_recording_initialized(state):
             super(Camera, self).record(state)
-
             self.folder = state['folder']
             self.recording_dir = os.path.join(self.folder, self.config['name'])
             self.frame_counter = 0

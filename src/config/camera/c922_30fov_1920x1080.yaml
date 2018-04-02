@@ -1,0 +1,18 @@
+name: 'camera'
+required: True
+class: 'Camera'
+index: 0
+hfov: 78
+vfov: 43.875
+fps: 30
+height: 1080
+width: 1920
+depth: 3
+x: 0 # meters forward from front axle
+y: 0 # meters left from center of vehicle. Assume zero for now
+z: 1 # meters up from floor
+roll:   0 # degrees left tilt. Assume zero for now
+pitch:  0 # degrees incline
+yaw:    0 # degrees left turn. Assume zero for now
+state:
+  camera_frame: null

@@ -15,7 +15,8 @@ sudo apt install \
      python3-pillow \
      python3-pip \
      python3-seaborn \
-     python3-scipy
+     python3-scipy \
+     python3-zmq
 
 # Install Python Packages
 pip3 install --user --upgrade Adafruit-BNO055
@@ -44,11 +45,32 @@ if [[ -e $(groups | grep netdev) ]] ; then
     sudo usermod -a -G netdev $USER # bluetooth
 fi
 
+# Setup SD card if we're a car otherwise just the derp variables
+if [[ $(uname -m) -eq "aarch64" ]] ; then
+    bash sdcard.sh
+    echo "Please add the following line to 'crontab -e'"
+    echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/src/ds4daemon.sh'
+else
+    cat > ~/.derprc <<EOF
+export DERP_CODE=$(dirname $PWD)/src
+export DERP_CONFIG=$(dirname $PWD)/src/config
+export DERP_DATA=${HOME}/data
+export DERP_MODEL=${HOME}/models
+export DERP_SCRATCH=${HOME}/scratch
+EOF
+    echo "source ~/.derprc" >> ~/.bashrc
+fi
+source ~/.derprc
+
 # Install v4l2capture, a python&C library for interfacing with cameras
 bash v4l2capture.sh
 
 # Compile OpenCV from source
 bash opencv.sh
 
+# Compile PyCuda from source
+bash pycuda.sh
+
 # Compile PyTorch from source
 bash pytorch.sh
+

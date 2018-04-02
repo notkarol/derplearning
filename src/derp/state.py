@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 import os
+import yaml
 import time
 from derp.component import Component
 import derp.util
@@ -19,12 +20,15 @@ class State(Component, Mapping):
         self['timestamp'] = time.time()
         self['record'] = False
         self['folder'] = None
-        self['auto_speed'] = False
-        self['auto_steer'] = False
+        self['warn'] = False
+        self['error'] = False
+        self['auto'] = False
         self['speed'] = 0
         self['steer'] = 0
-        self['offset_speed'] = config['offset_speed'] if 'offset_speed' in config else 0
-        self['offset_steer'] = config['offset_steer'] if 'offset_steer' in config else 0
+        self['offset_speed'] = None
+        self['offset_steer'] = None
+        self['use_offset_speed'] = False
+        self['use_offset_steer'] = True
 
 
     def __getitem__(self, key):
@@ -56,6 +60,9 @@ class State(Component, Mapping):
             if item:
                 if not self[key]:
                     self['folder'] = derp.util.create_record_folder()
+                    config_path = os.path.join(self['folder'], 'config.yaml')
+                    with open(config_path, 'w') as f:
+                        f.write(yaml.dump(self.full_config, default_flow_style=False))
             else:
                 self['folder'] = None
                 
@@ -94,10 +101,10 @@ class State(Component, Mapping):
         return self.exit
 
 
-    def update_multipart(basename, subnames, values):
+    def update_multipart(self, basename, subnames, values):
         """ 
         Sometimes we want to update multiple similarly named variables
         """
-        for subname, value in zip(subname, values):
+        for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value

@@ -1,4 +1,3 @@
-
 no_cuda: False
 model_dir: Null
 
@@ -7,12 +6,15 @@ components:
   - path: "input/keyboard.yaml"
   - path: "camera/OV2710_100fov_1920x1080.yaml"
     name: "camera_front"
-    x: -0.21 # meters forward from front axle
+    x: -0.23 # meters forward from front axle
     y:  0.00 # meters left from center of vehicle. Assume zero for now
-    z:  0.43 # meters up from floor
+    z:  0.36 # meters up from floor
     roll:   0.0 # degrees left tilt. Assume zero for now
-    pitch: -28. # degrees incline
+    pitch: -8.5 # degrees incline
     yaw:    0.0 # degrees left turn. Assume zero for now
+    bottom_row_width: 1.07 # width in meters of bottom pixel row
+    bottom_row_x:     0.49 # distance in meters of bottom pixel row from camera
+    vehicle_width:    0.30 # width of car in meters
   - path: "imu/bno055.yaml"
     name: "imu_stalk"
   - path: "servo/micromaestro_speed_3785.yaml"
@@ -28,11 +30,11 @@ components:
       n_perts: 1
       perts:
         shift:
-          max: 0 # meters
+          max: 0.1 # meters
           fudge: 0.00
           timedecay: 1.0
         rotate:
-          max: 0 # degrees
+          max: 5 # degrees
           fudge: 0.00
-          timedecay: 1.0
-    camera_name: "camera_front"       
+          timedecay: 1.0         
+    camera_name: "camera_front"
