@@ -59,9 +59,10 @@ def step(epoch, config, model, loader, optimizer, criterion,
 def main(args):
 
     # Make sure we have somewhere to run the experiment
-    full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
+    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
+    full_config = derp.util.load_config(config_path)
     target_config = derp.util.find_component_config(full_config, 'clone')
-    experiment_path = os.path.join(os.environ["DERP_SCRATCH"], full_config['name'])
+    experiment_path = os.path.join(os.environ["DERP_ROOT"], 'scratch', full_config['name'])
 
     # Prepare model
     tc = target_config['thumb']

@@ -77,7 +77,7 @@ Data by default is saved to files in the folder /data/ which is created in the p
 
 The data can be moved by swapping the SD card if the derplearning directory is located there or by using ssl rsync from the directory you want to move the data to on your device:
 ```bash
-rsync rvP ${car}:/mnt/sdcard/data/* ${DERP_DATA}/train
+rsync rvP ${car}:/mnt/sdcard/data/* $DERP_ROOT/data/train
 ```
 
 ### Single Pass Pipeline
@@ -93,7 +93,7 @@ Note: the data source is a location containing data you want to move to the loca
 Any recorded data file can be labled creating a file /label.csv in the same folder as all other data files for a given recording.
 
 ```bash
-python3 label.py --path $DERP_DATA/???
+python3 label.py --path data/???
 ```
 
 ### Build Dataset
@@ -114,7 +114,7 @@ python3 clone_train.py --config __NAME__
 To deploy a model for use in control of a vehicle copy the model file to the desired button folder on the vehicle and rename the model to "clone.pt"
 
 ```bash
-rsync -rvP $model ${car}:${DERP_MODEL}/__BUTTON__/clone.pt
+rsync -rvP $model ${car}:$DERP_ROOT/scratch/model/__BUTTON__/clone.pt
 ```
 
 Once a model is deployed to the car it can be loaded by pressing the appropriate button and given control of the vehicle by pressing the playstation button.

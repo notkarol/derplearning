@@ -8,7 +8,8 @@ import derp.util
 def main(args):
 
     # Prepare configuration and some supplied arguments
-    config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
+    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
+    config = derp.util.load_config(config_path)
     if args.model_dir is not None:
         config['model_dir'] = args.model_dir
     state, components = derp.util.load_components(config)

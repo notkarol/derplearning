@@ -205,9 +205,10 @@ def process_recording(args):
 def main(args):
     
     # Import configs that we wish to train for
-    full_config = derp.util.load_config(os.path.join(os.environ['DERP_CONFIG'], args.config + '.yaml'))
+    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
+    full_config = derp.util.load_config(config_path)
     component_config = derp.util.find_component_config(full_config, 'clone')
-    experiment_path = os.path.join(os.environ['DERP_SCRATCH'], full_config['name'])
+    experiment_path = os.path.join(os.environ['DERP_ROOT'], 'scratch', full_config['name'])
 
     # Create folders
     if not os.path.exists(experiment_path):
@@ -229,7 +230,7 @@ def main(args):
 
         # If we don't have an absolute path, prepend derp_data folder
         if not os.path.isabs(data_folder):
-            data_folder = os.path.join(os.environ['DERP_DATA'], data_folder)
+            data_folder = os.path.join(os.environ['DERP_ROOT'], 'data', data_folder)
 
         # If we have the recording path, process what's in it
         for filename in os.listdir(data_folder):

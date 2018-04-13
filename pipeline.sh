@@ -16,10 +16,10 @@ car=${name%%-*}
 data_source=$3
 
 # Copy over training data from car
-rsync --size-only -rvP $data_source* ${DERP_DATA}/train
+rsync --size-only -rvP $data_source* ${DERP_ROOT}/data/train
 
 # label data in the local train folder if it doesn't have a label file
-for f in $DERP_DATA/train/*
+for f in ${DERP_ROOT}/data/train/*
 do
     if ! [[ -e $f/label.csv ]]
     then
@@ -28,7 +28,7 @@ do
 done
 
 # Delete existing trained name
-rm -rf ${DERP_SCRATCH}/${name}
+rm -rf ${DERP_ROOT}/scratch/${name}
 
 # Train a new model
 cd derp
@@ -37,8 +37,8 @@ python3 clone_train.py --config $name
 
 # Deploy Model to the target vehicle
 if [[ -n $button ]] ; then
-    model=$(ls ${DERP_SCRATCH}/${name}/*pt | tail -n 1)
-    rsync -rvP $model ${car}:${DERP_MODEL}/${button}/clone.pt
+    model=$(ls ${DERP_ROOT}/scratch/${name}/*pt | tail -n 1)
+    rsync -rvP $model ${car}:${DERP_ROOT}/model/${button}/clone.pt
     if [[ $? --eq "0" ]] ; then
 	   echo "SUCCESS"
     fi

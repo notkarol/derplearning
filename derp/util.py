@@ -45,7 +45,7 @@ def create_record_folder():
     """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
-    path = os.path.join(os.environ['DERP_DATA'], "%s-%s" % (dt, hn))
+    path = os.path.join(os.environ['DERP_ROOT'], "data", "%s-%s" % (dt, hn))
     print("Creating", path)
     os.mkdir(path)
     return path
@@ -76,7 +76,7 @@ def load_config(config_path):
 
         # Check if we need to load more parameters from elsewhere
         if 'path' in component_config:
-            component_path = os.path.join(os.environ['DERP_CONFIG'], component_config['path'])
+            component_path = os.path.join(os.environ['DERP_ROOT'], 'config', component_config['path'])
             with open(component_path) as f:
                 default_component_config = yaml.load(f)
 

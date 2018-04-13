@@ -18,13 +18,7 @@ sudo mount $root
 sudo chown -R ${USER}:${USER} $root
 
 # Prepare derprc
-cat > ~/.derprc <<EOF
-export DERP_CODE=${root}/derplearning/src
-export DERP_CONFIG=${root}/derplearning/src/config
-export DERP_DATA=${root}/data
-export DERP_MODEL=${root}/models
-export DERP_SCRATCH=${root}/scratch
-EOF
+echo "export DERP_ROOT=${root}" >> ~/.derprc
 echo "source ~/.derprc" >> ~/.bashrc
 
 # Prepare folders and code on sdcard

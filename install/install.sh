@@ -51,13 +51,7 @@ if [[ $(uname -m) -eq "aarch64" ]] ; then
     echo "Please add the following line to 'crontab -e'"
     echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/src/ds4daemon.sh'
 else
-    cat > ~/.derprc <<EOF
-export DERP_CODE=$(dirname $PWD)/src
-export DERP_CONFIG=$(dirname $PWD)/src/config
-export DERP_DATA=${HOME}/data
-export DERP_MODEL=${HOME}/models
-export DERP_SCRATCH=${HOME}/scratch
-EOF
+    echo "export DERP_ROOT=$(dirname $PWD)" >> ~/.derprc
     echo "source ~/.derprc" >> ~/.bashrc
 fi
 source ~/.derprc
