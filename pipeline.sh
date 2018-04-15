@@ -16,10 +16,12 @@ car=${name%%-*}
 data_source=$3
 
 # Copy over training data from car
-rsync --size-only -rvP $data_source* ${DERP_ROOT}/data/train
+rsync --size-only -rvP $data_source* ${DERP_ROOT}/data/train 
+
+#TODO redefine the data destination/label target to be driven by the model config file instead of hardcoded.
 
 # label data in the local train folder if it doesn't have a label file
-for f in ${DERP_ROOT}/data/train/*
+for f in ${DERP_ROOT}/data/train/* 
 do
     if ! [[ -e $f/label.csv ]]
     then
@@ -32,7 +34,7 @@ rm -rf ${DERP_ROOT}/scratch/${name}
 
 # Train a new model
 cd derp
-python3 clone_create.py --config $name
+python3 clone_build.py --config $name
 python3 clone_train.py --config $name
 
 # Deploy Model to the target vehicle
