@@ -16,14 +16,12 @@ class Clone(Component):
         super(Clone, self).__init__(config, full_config)
         
         self.config = config
-        self.no_cuda = 'no_cuda' in full_config and full_config['no_cuda']
         
         # Which config is our settings coming from
         self.source_config = derp.util.find_component_config(full_config, config['camera_name'])
 
         # Prepare camera inputs
-        self.bbox = derp.imagemanip.get_patch_bbox(self.config['thumb'],
-                                                   self.source_config)
+        self.bbox = derp.imagemanip.get_patch_bbox(self.config['thumb'], self.source_config)
         self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
@@ -41,70 +39,26 @@ class Clone(Component):
         # Data saving
         self.out_buffer = []
         self.frame_counter = 0  
-
-
-    # Prepare input image
-    def prepare_thumb(self, state):
-        frame = state[self.config['camera_name']]
-        patch = frame[self.bbox.y : self.bbox.y + self.bbox.h,
-                      self.bbox.x : self.bbox.x + self.bbox.w]
-        thumb = cv2.resize(patch, self.size, interpolation=cv2.INTER_AREA)
-        return thumb
-
-
-    # Prepare status
-    def prepare_status(self, state):
-        if len(self.config['status']) == 0:
-            return None
-        status = np.zeros(len(self.config['status']), dtype=np.float32)
-        for i, sd in enumerate(self.config['status']):
-            status[i] = state[sd['field']] * sd['scale']
-        return status
     
 
-    # Prepare input batch
-    def prepare_batch(self, thumbs, status):
-
-        # Prepare thumbs
-        if len(thumbs.shape) == 3:
-            thumbs = np.reshape(thumbs, [1] + list(thumbs.shape))
-        thumbs = thumbs.transpose((0, 3, 1, 2))
-        thumbs = torch.from_numpy(thumbs).float()
-        if not self.no_cuda:
-            thumbs = thumbs.cuda()
-        thumbs /= 255 # normalize
-        thumbs = Variable(thumbs)
-
-        # Prepare status variable
-        if status is not None:
-            if len(status.shape) == 1:
-                status = np.reshape(status, [1] + list(status.shape))
-            status = torch.from_numpy(status).float()
-            if not self.no_cuda:
-                status = status.cuda()
-            status = Variable(status)
-            
-        return thumbs, status
-
-
     def predict(self, state):
-        thumb = self.prepare_thumb(state)
-        status = self.prepare_status(state)
-        thumb_batch, status_batch = self.prepare_batch(thumb, status)
-        out = self.model(thumb_batch, status_batch)
 
-        # Prepare predictions from model output by converting them to numpy vector
-        predictions = out.data.numpy()[0] if self.no_cuda else out.data.cpu().numpy()[0]
-
-        # Normalize predictions to desired range
-        for i, pd in enumerate(self.config['predict']):
-            predictions[i] /= pd['scale']
+        status = derp.util.extractList(self.config['status'], state)
+        frame = state[self.config['camera_name']]
+        patch = derp.imagemanip.crop(frame, self.bbox)
+        thumb = derp.imagemanip.resize(patch, self.size)
+        status_batch = derp.util.prepareVectorBatch(status)
+        thumb_batch = derp.util.prepareImageBatch(thumb)
+        status_batch = derp.util.prepareVectorBatch(status)
+        prediction_batch = self.model(thumb_batch, status_batch)
+        prediction = derp.util.unbatch(prediction_batch)
+        derp.util.unscale(self.config['predict'], prediction)
 
         # Append frame to out buffer if we're writing
         if self.is_recording(state):
-            self.out_buffer.append((state['timestamp'], thumb, predictions))
+            self.out_buffer.append((state['timestamp'], thumb, prediction))
 
-        return predictions
+        return prediction
 
 
     def plan(self, state):
@@ -113,13 +67,10 @@ class Clone(Component):
             return 0.0, 0.0
 
         # Get the predictions of our model
-        predictions = self.predict(state)
+        prediction = self.predict(state)
 
-        # Use the given speed and steer directly from predictions
-        speed = float(predictions[0])
-        steer = float(predictions[1])
+        return prediction[0], prediction[1]
 
-        return speed, steer
 
     def record(self, state):
 
@@ -136,11 +87,12 @@ class Clone(Component):
             os.mkdir(self.recording_dir)
 
         # Write out buffered images
-        for timestamp, thumb, predictions in self.out_buffer:
+        for timestamp, thumb, prediction in self.out_buffer:
             path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
             img = PIL.Image.fromarray(thumb)
             img.save(path)
-            self.frame_counter += 1            
+            self.frame_counter += 1
+            # TODO handle predictions
         del self.out_buffer[:]
 
         return True                         

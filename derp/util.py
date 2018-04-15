@@ -8,6 +8,7 @@ import socket
 import time
 import yaml
 
+
 def load_image(path):
     """
     Load the RGB version of the image and a PIL image
@@ -230,3 +231,76 @@ def find_matching_file(path, name_pattern):
             if pattern.search(filename) is not None:
                 return os.path.join(path, filename)
     return None
+
+
+def extractList(config, state):
+    if len(config) == 0:
+        return
+    vector = np.zeros(len(config), dtype=np.float32)
+    for i, d in enumerate(config):
+        scale = d['scale'] if 'scale' in d else 1
+        vector[i] = state[d['field']] * scale
+    return vector
+
+
+def unscale(config, vector):
+    if len(config) == 0:
+        return
+    state = {}
+    for i, d in enumerate(config):
+        scale = d['scale'] if 'scale' in d else 1
+        vector[i] /= scale
+    return vector
+    
+
+def unbatch(batch):
+    if torch.cuda.is_available():
+        out = batch.data.cpu().numpy()
+    else:
+        out = batch.data.numpy()
+    if len(out) == 1:
+        return out[0]
+    return out
+
+
+def prepareVectorBatch(vector, cuda=True):
+    """ Common vector to batch preparation script for training and inference """
+    if vector is None:
+        return
+
+    # Treat it as if it's a row in a larger batch
+    if len(vector.shape) == 1:
+        vector = np.reshape(vector, [1] + list(vector.shape))
+
+    # Pepare the torch representation
+    batch = Variable(torch.from_numpy(vector).float())
+    if cuda:
+        batch = batch.cuda()
+    return batch
+
+
+def prepareImageBatch(image, cuda=True):
+    """ Common image to batch preparation script for training and inference """
+    if image is None:
+        return
+
+    # Make sure it's a 4d tensor
+    if len(image.shape) < 4:
+        batch = np.reshape(image, [1] * (4 - len(image.shape)) + list(image.shape))
+
+    # Make sure that we have BCHW
+    batch = batch.transpose((0, 3, 1, 2))
+
+    # Normalize input to range [0, 1)
+    batch /= 256
+    
+    batch = Variable(torch.from_numpy(batch).float())
+    if cuda:
+        batch = batch.cuda()
+
+    return batch
+    
+    
+        
+    
+    

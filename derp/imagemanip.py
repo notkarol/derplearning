@@ -14,6 +14,7 @@ class Bbox:
         return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
 
 
+    
 def get_patch_bbox(target_config, source_config):
     """
     Currently we assume that orientations and positions are identical
@@ -39,6 +40,16 @@ def get_patch_bbox(target_config, source_config):
             y + height <= source_config['height'])
 
     return Bbox(x, y, width, height)
+
+
+def crop(image, bbox):
+    out = frame[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
+    return out
+
+
+def resize(image, size):
+    out = cv2.resize(image, size, interpolation=cv2.INTER_AREA)
+    return out
 
 
 def perturb(frame, config, perts):
@@ -77,6 +88,7 @@ def perturb(frame, config, perts):
         elif magnitude < 0:
             frame[index, :magnitude, :] = frame[index, abs(magnitude):]
             frame[index, frame.shape[1] + magnitude:] = 0
+
 
 def deg2rad(val):
     return val * np.pi / 180
