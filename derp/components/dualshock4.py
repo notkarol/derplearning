@@ -193,8 +193,8 @@ class Dualshock4(Component):
             out['red'] = 1
 
         if state['warn']:
-            out['light_on'] = 0.5
-            out['light_off'] = 0.05
+            out['light_on'] = 0.1
+            out['light_off'] = 0.1
             
         self.__server_socket.send_json(out)
         return True

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-
-import io
+import cv2
 import numpy as np
 import os
 import re
@@ -8,7 +7,6 @@ import select
 import sys
 from time import time, sleep
 import v4l2capture
-import PIL.Image
 import subprocess
 from derp.component import Component
 import derp.util as util
@@ -77,9 +75,8 @@ class Camera(Component):
             try:
                 state['timestamp'] = time()
                 image_bytes = self.cap.read_and_queue()
-                image_io = io.BytesIO(image_bytes)
-                pil_frame = PIL.Image.open(image_io)
-                frame = np.array(pil_frame)
+                image_array = np.fromstring(image_bytes, np.uint8)
+                frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
             except:
                 print("Camera: Unable to get frame. Retrying")
         

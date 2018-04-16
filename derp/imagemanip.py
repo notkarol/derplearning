@@ -1,4 +1,4 @@
-#import imageio
+import cv2
 import numpy as np
 import scipy.misc
 
@@ -11,21 +11,18 @@ class Bbox:
     def __repr__(self):
         return str(self)
     def __str__(self):
-        return "bbox(%i,%i)[%i,%i]" % (self.x, self.y, self.w, self.h)
-
+        return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
     
 def get_patch_bbox(target_config, source_config):
     """
     Currently we assume that orientations and positions are identical
     """
+
     hfov_ratio = target_config['hfov'] / source_config['hfov']
     vfov_ratio = target_config['vfov'] / source_config['vfov']
-    hfov_offset = source_config['yaw'] - target_config['yaw'] - target_config['hcenter']
-    vfov_offset = source_config['pitch'] - target_config['pitch'] - target_config['vcenter']
-
-    assert hfov_ratio <= 1 and vfov_ratio <= 1
-
+    hfov_offset = source_config['yaw'] - target_config['yaw']
+    vfov_offset = source_config['pitch'] - target_config['pitch']
     width = source_config['width'] * hfov_ratio
     height = source_config['height'] * vfov_ratio
     x_center = (source_config['width'] - width) // 2
@@ -34,16 +31,14 @@ def get_patch_bbox(target_config, source_config):
     y_offset = (vfov_offset / source_config['vfov']) * source_config['height']
     x = x_center + x_offset
     y = y_center + y_offset
-
-    assert (x >= 0 and y >= 0 and
-            x + width <= source_config['width'] and
-            y + height <= source_config['height'])
-
-    return Bbox(x, y, width, height)
+    assert x >= 0 and x + width <= source_config['width']
+    assert y >= 0 and y + height <= source_config['height']
+    bbox = Bbox(x, y, width, height)
+    return bbox
 
 
 def crop(image, bbox):
-    out = frame[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
+    out = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
     return out
 
 

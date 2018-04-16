@@ -3,9 +3,7 @@
 import cv2
 import numpy as np
 import os
-import PIL
 import torch
-from torch.autograd import Variable
 from derp.component import Component
 import derp.util
 import derp.imagemanip
@@ -42,7 +40,6 @@ class Clone(Component):
     
 
     def predict(self, state):
-
         status = derp.util.extractList(self.config['status'], state)
         frame = state[self.config['camera_name']]
         patch = derp.imagemanip.crop(frame, self.bbox)
@@ -50,28 +47,29 @@ class Clone(Component):
         status_batch = derp.util.prepareVectorBatch(status)
         thumb_batch = derp.util.prepareImageBatch(thumb)
         status_batch = derp.util.prepareVectorBatch(status)
-        prediction_batch = self.model(thumb_batch, status_batch)
-        prediction = derp.util.unbatch(prediction_batch)
-        derp.util.unscale(self.config['predict'], prediction)
-
-        # Append frame to out buffer if we're writing
+        if self.model:
+            prediction_batch = self.model(thumb_batch, status_batch)
+            prediction = derp.util.unbatch(prediction_batch)
+            derp.util.unscale(self.config['predict'], prediction)
+        else:
+            prediction = np.zeros(len(self.config['predict']), dtype=np.float32)
+            # Debugging
+            #cv2.imshow('frame', frame)
+            #cv2.imshow('patch', patch)
+            #cv2.imshow('thumb', thumb)
+            #cv2.waitKey(1)
+            
+        # Store the thumb and our prediction
         if self.is_recording(state):
             self.out_buffer.append((state['timestamp'], thumb, prediction))
-
         return prediction
 
 
     def plan(self, state):
-        # Do not do anything if we do not have a loaded model
-        if self.model is None:
-            return 0.0, 0.0
-
-        # Get the predictions of our model
         prediction = self.predict(state)
+        return prediction
 
-        return prediction[0], prediction[1]
-
-
+    
     def record(self, state):
 
         # If we can not record, return false
@@ -89,8 +87,7 @@ class Clone(Component):
         # Write out buffered images
         for timestamp, thumb, prediction in self.out_buffer:
             path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
-            img = PIL.Image.fromarray(thumb)
-            img.save(path)
+            cv2.imsave(path, thumb)
             self.frame_counter += 1
             # TODO handle predictions
         del self.out_buffer[:]

@@ -1,29 +1,22 @@
 import csv
+import cv2
 from datetime import datetime
 import numpy as np
 import os
-import PIL.Image
 import re
 import socket
 import time
+import torch
+from torch.autograd import Variable
 import yaml
 
 
 def load_image(path):
-    """
-    Load the RGB version of the image and a PIL image
-    """
-    with open(path, 'rb') as f:
-        with PIL.Image.open(f) as img:
-            return img.convert('RGB')                    
+    return cv2.imread(path)
 
-def save_image(path, img):
-    """
-    Store an image numpy array or PIL image to disk
-    """
-    if type(img) == np.ndarray:
-        img = PIL.Image.fromarray((img * 255).astype(np.uint8))
-    img.save(path)
+
+def save_image(path, image):
+    return cv2.imwrite(path, image)
 
 
 def get_name(path):
@@ -292,11 +285,10 @@ def prepareImageBatch(image, cuda=True):
     batch = batch.transpose((0, 3, 1, 2))
 
     # Normalize input to range [0, 1)
-    batch /= 256
-    
     batch = Variable(torch.from_numpy(batch).float())
     if cuda:
         batch = batch.cuda()
+        batch /= 256
 
     return batch
     

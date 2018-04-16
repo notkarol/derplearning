@@ -9,17 +9,7 @@ class CloneFixSpeed(Clone):
 
 
     def plan(self, state):
-        # Do not do anything if we do not have a loaded model
-        if self.model is None:
-            return 0.0, 0.0
-        
-        # Get the predictions of our model
         predictions = self.predict(state)
-
-        # Speed is fixed based on state
         speed = state['offset_speed']
-
-        # Steer is a simple weighted average of the previous speed and the current
         steer = float(predictions[0])
-        
         return speed, steer

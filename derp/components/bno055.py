@@ -41,8 +41,9 @@ class BNO055(Component):
                 print("Loaded calibrations with status: %s" % self.cal_config['status'])
             else: print("Failed to load saved calibrations.")
             self.calibration_status = self.bno.get_calibration_status()
-        print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % self.calibration_status, end="\r")
-        self.calibration_flag = (self.calibration_status == (3, 3, 3, 3) )
+        print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" %
+              self.calibration_status, end="\r")
+        self.calibration_flag = (self.calibration_status == (3, 3, 3, 3))
         self.ready = True
     
     def sense(self, state):
@@ -66,12 +67,10 @@ class BNO055(Component):
         state.update_multipart('gyro', 'xyz', gyro)
         state.update_multipart('accel', 'xyz', accel)
         state['temp'] = temp
-        state['warn'] = state['warn'] or not self.calibration_flag
-        if not self.calibration_flag:
-            print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" % calibration_status, end="\r")
-        elif not self.save_calibration(): print("Failed to Save IMU Calibration Settings.")
+        state['warn'] |= not self.calibration_flag
+        if self.calibration_flag:
+            self.save_calibration()
         self.calibration_flag = (calibration_status == (3, 3, 3, 3) )
-    
         return True
 
 
