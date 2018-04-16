@@ -1,6 +1,7 @@
 import csv
 import numpy as np
 import os
+import PIL.Image
 import torch.utils.data
 import derp.util
 
@@ -61,7 +62,7 @@ class Fetcher(torch.utils.data.Dataset):
         """ Return the specified index. Apply transforms as specified """
         
         # Prepare 
-        thumb = derp.util.load_image(self.paths[index])
+        thumb = PIL.Image.fromarray(derp.util.load_image(self.paths[index]))
         status = self.status[index]
         predict = self.predict[index]
 

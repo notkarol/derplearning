@@ -108,7 +108,7 @@ def perturb(component_config, frame_config, frame, predict, status, perts):
             predict[i] = max(-1, predict[i])
 
     # Manipulate image
-    derp.imagemanip.perturb(frame, frame_config, perts)
+    derp.util.perturb(frame, frame_config, perts)
 
 
 def process_recording(args):

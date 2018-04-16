@@ -6,7 +6,6 @@ import os
 import torch
 from derp.component import Component
 import derp.util
-import derp.imagemanip
 
 class Clone(Component):
 
@@ -19,7 +18,7 @@ class Clone(Component):
         self.source_config = derp.util.find_component_config(full_config, config['camera_name'])
 
         # Prepare camera inputs
-        self.bbox = derp.imagemanip.get_patch_bbox(self.config['thumb'], self.source_config)
+        self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.source_config)
         self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
@@ -37,13 +36,18 @@ class Clone(Component):
         # Data saving
         self.out_buffer = []
         self.frame_counter = 0  
-    
+
+
+    def prepare_thumb(self, state):
+        frame = state[self.config['camera_name']]
+        patch = derp.util.crop(frame, self.bbox)
+        thumb = derp.util.resize(patch, self.size)
+        return thumb
+
 
     def predict(self, state):
         status = derp.util.extractList(self.config['status'], state)
-        frame = state[self.config['camera_name']]
-        patch = derp.imagemanip.crop(frame, self.bbox)
-        thumb = derp.imagemanip.resize(patch, self.size)
+        thumb = self.prepare_thumb(state)
         status_batch = derp.util.prepareVectorBatch(status)
         thumb_batch = derp.util.prepareImageBatch(thumb)
         status_batch = derp.util.prepareVectorBatch(status)
