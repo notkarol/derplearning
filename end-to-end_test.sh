@@ -42,7 +42,7 @@ sed -i "s/'train'/'test_train'/g" $DERP_ROOT/config/${TEST_CONFIG}.yaml
 
 #_____________test the pipeline.sh___________________
 
-. $DERP_ROOT/pipeline.sh $TEST_CONFIG $BUTTON $TEST_DIR
+. $DERP_ROOT/pipeline.sh $TEST_CONFIG $TEST_DIR
 
 
 #_________________test drive.py______________________
