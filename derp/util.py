@@ -144,6 +144,23 @@ def create_record_folder():
     return path
 
 
+def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
+    #passes a single config dict entry as a return value so it can be used by a shell script.
+    with open(config_path) as f:
+        config = yaml.load(f)
+
+    if(dict_3 != 0):
+        value = config[dict_0][list_ind][dict_1][dict_2][dict_3]
+    elif(dict_2 != 0):
+        value = config[dict_0][list_ind][dict_1][dict_2]
+    elif(dict_1 != 0):
+        value = config[dict_0][list_ind][dict_1]
+    else:
+        value = config[dict_0]
+    
+    return value
+
+
 def load_config(config_path):
     """ Loads the vehicle config and all requisite components configs """
     if os.path.isdir(config_path):

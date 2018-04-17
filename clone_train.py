@@ -26,7 +26,7 @@ def step(epoch, config, model, loader, optimizer, criterion,
     # Store the average loss for this epoch
     step_loss = []
 
-    # Go throgh each epoch
+    # Go through each epoch
     for batch_idx, (example, status, label) in enumerate(loader):
 
         # Plot this batch if desired
@@ -54,7 +54,7 @@ def step(epoch, config, model, loader, optimizer, criterion,
         letter = 'T' if is_train else 'V'
         print("%s %03i %.6f" % (letter, batch_idx, np.mean(step_loss)), end='\r')
         
-    return np.mean(step_loss), batch_idx
+    return np.mean(step_loss), batch_idx + 1
 
 def main(args):
 
