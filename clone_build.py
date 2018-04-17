@@ -207,7 +207,7 @@ def main(args):
     # Import configs that we wish to train for
     config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
     full_config = derp.util.load_config(config_path)
-    component_config = derp.util.find_component_config(full_config, 'clone')
+    componentwhich _config = derp.util.find_component_config(full_config, 'clone')
     experiment_path = os.path.join(os.environ['DERP_ROOT'], 'scratch', full_config['name'])
 
     # Create folders
