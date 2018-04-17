@@ -8,10 +8,11 @@ class Component:
         raise ValueError("Please do not use default constructor; supply a config")
 
 
-    def __init__(self, config, full_config):
+    def __init__(self, config, full_config, state):
         # Common variables
         self.config = config
         self.full_config = full_config
+        self.state = state
         self.ready = False
 
         # Output csv variables
@@ -35,11 +36,11 @@ class Component:
         return repr(self)
 
 
-    def is_recording(self, state):
-        return 'record' in state and state['record']
+    def is_recording(self):
+        return 'record' in self.state and self.state['record']
 
 
-    def is_recording_initialized(self, state):
+    def is_recording_initialized(self):
         return self.folder is not None
 
 
@@ -50,27 +51,27 @@ class Component:
         return self.ready
 
 
-    def sense(self, state):
+    def sense(self):
         return True
     
 
-    def plan(self, state):
+    def plan(self):
         return True
 
 
-    def act(self, state):
+    def act(self):
         return True
 
 
-    def record(self, state):
+    def record(self):
         """
         Creates the output csv file
         If it returns true, that means that it is good to write outputs
         """
 
         # Skip if aren't asked to record or we have nothing to record
-        if not self.is_recording(state):
-            if self.is_recording_initialized(state):
+        if not self.is_recording(self.state):
+            if self.is_recording_initialized(self.state):
                 self.folder = None
             return False
 
@@ -78,8 +79,8 @@ class Component:
         if len(self.csv_header):
 
             # Create a new output csv writer since the folder name changed
-            if not self.is_recording_initialized(state):
-                self.folder = state['folder']
+            if not self.is_recording_initialized(self.state):
+                self.folder = self.state['folder']
                 # Close existing csv file descriptor if it exists
                 if self.csv_fd is not None:
                     self.csv_fd.close()

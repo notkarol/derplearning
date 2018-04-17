@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-
 import os
 import usb.core
 import usb.util
 from derp.component import Component
 
 class UsbServo(Component):
+    """
+    Interface through USB to the servo controller. At the moment the only
+    supported capabilities are vague controls of the speed and steering. 
+    """
 
-    def __init__(self, config, full_config):
-        """
-        Interface through USB to the servo controller. At the moment the only
-        supported capabilities are vague controls of the speed and steering. 
-        """
-        super(UsbServo, self).__init__(config, full_config)
+    def __init__(self, config, full_config, state):
+
+        super(UsbServo, self).__init__(config, full_config, state)
         self.device = None
         
         self.usb_vendor_id = 0x1ffb # Polulu
@@ -46,18 +46,18 @@ class UsbServo(Component):
         return self.device.ctrl_transfer(0x40, 0x85, command, self.config['index'])
            
 
-    def act(self, state):
+    def act(self):
 
         if self.device is None:
             return False
 
         # Prepare turning command
-        value = state[self.state_name]
-        if state[self.use_offset_name]:
-            value += state[self.offset_name]
+        value = self.state[self.state_name]
+        if self.state[self.use_offset_name]:
+            value += self.state[self.offset_name]
 
         # If we're done then just set the value to zero
-        if state.done():
+        if self.state.done():
             value = 0
         
         return self.send(value)

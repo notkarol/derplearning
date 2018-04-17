@@ -7,8 +7,8 @@ import derp.util
 
 class Inferer(Component):
     
-    def __init__(self, config, full_config):
-        super(Inferer, self).__init__(config, full_config)  
+    def __init__(self, config, full_config, state):
+        super(Inferer, self).__init__(config, full_config, state)
         
         # If we have a blank config or path, then assume we can't plan, 
         if 'path' not in config or not config['path']:
@@ -19,44 +19,44 @@ class Inferer(Component):
         # If we are not given a path then we have no script, and therefore cannot plan
         script_path = 'derp.scripts.%s' % (config['script'].lower())
         script_class = derp.util.load_class(script_path, config['script'])
-        self.script = script_class(config, full_config)
+        self.script = script_class(config, full_config, self.state)
         self.ready = True
 
 
-    def sense(self, state):
-        if self.script is None or not state['auto']:
+    def sense(self):
+        if self.script is None or not self.state['auto']:
             return True
-        return self.script.sense(state)
+        return self.script.sense()
 
 
-    def plan(self, state):
+    def plan(self):
         """
         Runs the loaded python inferer script's plan
         """
 
         # Skip if we have no script to run or we're not asked to control the cor
-        if self.script is None or not state['auto']:
+        if self.script is None or not self.state['auto']:
             return True
 
         # Get the proposed list of changes
         speed, steer = self.script.plan(state)
 
         # Make sure we have the permissions to update these fields
-        if state['auto']:
-            state['speed'] = speed
-            state['steer'] = steer
+        if self.state['auto']:
+            self.state['speed'] = speed
+            self.state['steer'] = steer
 
         return True
 
 
-    def act(self, state):
-        if self.script is None or not state['auto']:
+    def act(self):
+        if self.script is None or not self.state['auto']:
             return True
-        return self.script.act(state)
+        return self.script.act(self.state)
 
 
-    def record(self, state):
-        if self.script is None or not state['auto']:
+    def record(self):
+        if self.script is None or not self.state['auto']:
             return True
-        return self.script.record(state)
+        return self.script.record(self.state)
     

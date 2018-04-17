@@ -18,8 +18,8 @@ def find_device(names):
 
 class Keyboard(Component):
 
-    def __init__(self, config, full_config):
-        super(Keyboard, self).__init__(config, full_config)
+    def __init__(self, config, full_config, state):
+        super(Keyboard, self).__init__(config, full_config, state)
         self.device = None
 
         # Prepare key code
@@ -133,7 +133,7 @@ class Keyboard(Component):
             self.device = None
 
 
-    def process(self, state, out, event):
+    def process(self, out, event):
 
         # Skip events that I don't know what they mean, but appear all the time
         if event.code == 0 or event.code == 4:
@@ -141,26 +141,26 @@ class Keyboard(Component):
 
         # Set steer
         if self.code_map[event.code] == 'arrow_left' and event.value:
-            out['steer'] = state['steer'] - 0.1
+            out['steer'] = self.state['steer'] - 0.1
             return
         if self.code_map[event.code] == 'arrow_right' and event.value:
-            out['steer'] = state['steer'] + 0.1
+            out['steer'] = self.state['steer'] + 0.1
             return
 
         # Set speed
         if self.code_map[event.code] == 'arrow_up' and event.value:
-            out['speed'] = state['speed'] + 0.01
+            out['speed'] = self.state['speed'] + 0.01
             return
         if self.code_map[event.code] == 'arrow_down' and event.value:
-            out['speed'] = state['speed'] - 0.01
+            out['speed'] = self.state['speed'] - 0.01
             return
         
         # set steer offset
         if self.code_map[event.code] == '[' and event.value:
-            out['offset_steer'] = state['offset_steer'] - 0.00390625
+            out['offset_steer'] = self.state['offset_steer'] - 0.00390625
             return
         if self.code_map[event.code] == ']' and event.value:
-            out['offset_steer'] = state['offset_steer'] + 0.00390625
+            out['offset_steer'] = self.state['offset_steer'] + 0.00390625
             return
 
         # set speed offset
@@ -224,11 +224,11 @@ class Keyboard(Component):
             out['record'] = False
             out['auto'] = False
             out['use_offset_speed'] = False
-            state.close()
+            self.state.close()
             return
 
 
-    def sense(self, state):
+    def sense(self):
         out = {'record' : None,
                'speed' : None,
                'steer' : None,
@@ -240,12 +240,12 @@ class Keyboard(Component):
         # Process every action we received until there are no more left
         try:
             for event in self.device.read():
-                self.process(state, out, event)
+                self.process(self.state, out, event)
         except BlockingIOError:
             pass
 
         # Process 'out' into 'state'
         for field in out:
             if out[field] is not None:
-                state[field] = out[field]
+                self.state[field] = out[field]
         return True

@@ -23,19 +23,21 @@ class Bbox:
     def __str__(self):
         return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
-    
-def get_patch_bbox(target_config, source_config):
-    """
-    Currently we assume that orientations and positions are identical
-    """
 
-    source_top = source_config['pitch'] + source_config['vfov'] / 2
-    source_bot = source_config['pitch'] - source_config['vfov'] / 2
-    target_top = target_config['pitch'] + target_config['vfov'] / 2
-    target_bot = target_config['pitch'] - target_config['vfov'] / 2
-    print("Top: %7.3f %7.3f" % (source_top, target_top))
-    print("Bot: %7.3f %7.3f" % (source_bot, target_bot))
-    
+def print_image_config(config):
+    """ Prints some useful variables about the camera for debugging purposes """
+    top = config['pitch'] + config['vfov'] / 2
+    bot = config['pitch'] - config['vfov'] / 2
+    left = config['yaw'] - config['hfov'] / 2
+    right = config['yaw'] + config['hfov'] / 2
+    hppd = config['width'] / config['hfov']
+    vppd = config['height'] / config['vfov']
+    print("top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
+          (top, bot, left, right, hppd, vppd))
+
+
+def get_patch_bbox(target_config, source_config):
+    """ Currently we assume that orientations and positions are identical """
     hfov_ratio = target_config['hfov'] / source_config['hfov']
     vfov_ratio = target_config['vfov'] / source_config['vfov']
     hfov_offset = source_config['yaw'] - target_config['yaw']
@@ -50,18 +52,20 @@ def get_patch_bbox(target_config, source_config):
     y = y_center + y_offset
     assert x >= 0 and x + width <= source_config['width']
     assert y >= 0 and y + height <= source_config['height']
-    bbox = Bbox(x, y, width, height)
-    return bbox
+    return Bbox(x, y, width, height)
 
 
-def crop(image, bbox):
-    out = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
-    return out
+def crop(image, bbox, copy=False):
+    """ Crops the Bbox(x,y,w,h) from the image. Copy indicates to copy of the ROI's memory"""
+    roi = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
+    if copy:
+        return roi.copy()
+    return roi
 
 
 def resize(image, size):
-    out = cv2.resize(image, size, interpolation=cv2.INTER_AREA)
-    return out
+    """ Resize the image to the target (w, h) """
+    return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
 
 
 def perturb(frame, config, perts):
@@ -119,9 +123,7 @@ def save_image(path, image):
 
 
 def get_name(path):
-    """
-    The name of a script is it's filename without the extension
-    """
+    """ The name of a script is it's filename without the extension """
     clean_path = path.rstrip('/')
     bn = os.path.basename(clean_path)
     name, ext = os.path.splitext(bn)
@@ -133,9 +135,7 @@ def get_hostname():
 
 
 def create_record_folder():
-    """
-    Generate the name of the record folder and created it
-    """
+    """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
     path = os.path.join(os.environ['DERP_ROOT'], "data", "%s-%s" % (dt, hn))
@@ -145,13 +145,9 @@ def create_record_folder():
 
 
 def load_config(config_path):
-    """ 
-    Loads the vehicle config and all requisite components configs
-    """
-
-    # Make sure we have a path to a file
+    """ Loads the vehicle config and all requisite components configs """
     if os.path.isdir(config_path):
-        config_path  = os.path.join(config_path, 'config.yaml')
+        config_path = os.path.join(config_path, 'config.yaml')
     
     # First load the car's config
     with open(config_path) as f:
@@ -197,12 +193,12 @@ def load_config(config_path):
     return config
 
 
-def load_component(component_config, config):
+def load_component(component_config, config, state):
 
     # Load the component from its module
     module_name = "derp.components." + component_config['class'].lower()
     class_fn = load_class(module_name, component_config['class'])
-    component = class_fn(component_config, config)
+    component = class_fn(component_config, config, state)
 
     # If we're ready, add it, otherwise make sure it's required
     if not component.ready and component_config['required']:
@@ -212,19 +208,17 @@ def load_component(component_config, config):
     return component
 
 
-def load_components(config):
+def load_components(config, state):
     """
     Load the class of each component by its name and initialize all state keys.
     """
-    from derp.state import State
-    state = State(config['state'], config)
-    components = [state]
 
     # Initialize components
+    components = []
     for component_config in config['components']:
 
         # Load the component object
-        component = load_component(component_config, config)
+        component = load_component(component_config, config, state)
 
         # Skip a non-ready component. Raise an error if it's required as we can't continue
         if not component.ready:
@@ -247,8 +241,7 @@ def load_components(config):
                 val = component_config['state'][key]
                 if key not in state or state[key] is None:
                     state[key] = val
-
-    return state, components
+    return components
 
 
 def find_component_config(full_config, name):

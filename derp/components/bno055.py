@@ -12,8 +12,8 @@ class BNO055(Component):
     IMU processing class
     """
 
-    def __init__(self, config, full_config):
-        super(BNO055, self).__init__(config, full_config)
+    def __init__(self, config, full_config, state):
+        super(BNO055, self).__init__(config, full_config, state)
 
         # Connect to the imu and then initialize it using adafruit class
         self.bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.config['busnum'])
@@ -46,7 +46,7 @@ class BNO055(Component):
         self.calibration_flag = (self.calibration_status == (3, 3, 3, 3))
         self.ready = True
     
-    def sense(self, state):
+    def sense(self):
 
         # Read in sensor data
         quaternion = self.bno.read_quaternion()
@@ -57,17 +57,17 @@ class BNO055(Component):
         accel = self.bno.read_linear_acceleration()
         temp = self.bno.read_temp()
         calibration_status = self.bno.get_calibration_status()
-        timestamp = state['timestamp']
+        timestamp = self.state['timestamp']
 
         # Update state
-        state.update_multipart('quaternion', 'wxyz', quaternion)
-        state.update_multipart('euler', 'hrp', euler)
-        state.update_multipart('gravity', 'xyz', gravity)
-        state.update_multipart('magneto', 'xyz', magneto)
-        state.update_multipart('gyro', 'xyz', gyro)
-        state.update_multipart('accel', 'xyz', accel)
-        state['temp'] = temp
-        state['warn'] |= not self.calibration_flag
+        self.state.update_multipart('quaternion', 'wxyz', quaternion)
+        self.state.update_multipart('euler', 'hrp', euler)
+        self.state.update_multipart('gravity', 'xyz', gravity)
+        self.state.update_multipart('magneto', 'xyz', magneto)
+        self.state.update_multipart('gyro', 'xyz', gyro)
+        self.state.update_multipart('accel', 'xyz', accel)
+        self.state['temp'] = temp
+        self.state['warn'] |= not self.calibration_flag
         if self.calibration_flag:
             self.save_calibration()
         self.calibration_flag = (calibration_status == (3, 3, 3, 3) )

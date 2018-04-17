@@ -1,5 +1,4 @@
 # A class that carries the state of the car through time
-
 from collections.abc import Mapping
 import os
 import yaml
@@ -7,26 +6,29 @@ import time
 from derp.component import Component
 import derp.util
 
-class State(Component, Mapping):
+class State(Mapping):
 
-    def __init__(self, config, full_config):
-        super(State, self).__init__(config, full_config)
-        self.state = {}
+    def __init__(self, config):
         self.exit = False
         self.folder = None
-        self.config['name'] = 'state'
-
+        self.config = config
+        self.state = {}
+        self.csv_fd = None
+        self.csv_writer = None
+        self.csv_buffer = []
+        self.csv_header = []
+        
         # Prepare default state variables
         self['timestamp'] = time.time()
         self['record'] = False
-        self['folder'] = None
+        self['folder'] = self.folder
         self['warn'] = False
         self['error'] = False
         self['auto'] = False
         self['speed'] = 0
         self['steer'] = 0
-        self['offset_speed'] = None
-        self['offset_steer'] = None
+        self['offset_speed'] = 0.0
+        self['offset_steer'] = 0.0
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
 
@@ -62,7 +64,7 @@ class State(Component, Mapping):
                     self['folder'] = derp.util.create_record_folder()
                     config_path = os.path.join(self['folder'], 'config.yaml')
                     with open(config_path, 'w') as f:
-                        f.write(yaml.dump(self.full_config, default_flow_style=False))
+                        f.write(yaml.dump(self.config, default_flow_style=False))
             else:
                 self['folder'] = None
                 
@@ -71,9 +73,17 @@ class State(Component, Mapping):
         self.state[key] = item
         return item
 
-    
-    def record(self, state=None):
-        if self.is_recording(self):
+
+    def is_recording(self):
+        return 'record' in self.state and self.state['record']
+
+
+    def is_recording_initialized(self):
+        return self.folder is not None  
+
+
+    def record(self):
+        if self.is_recording():
             row = []
             for key in self.csv_header:
                 t = type(self[key])
@@ -84,7 +94,40 @@ class State(Component, Mapping):
                 else:
                     row.append('')
             self.csv_buffer.append(row)
-        super(State, self).record(self)
+
+        # Skip if aren't asked to record or we have nothing to record
+        if not self.is_recording():
+            if self.is_recording_initialized():
+                self.folder = None
+            return False
+
+        # As long as we have a csv header to write out, write out data
+        if len(self.csv_header):
+
+            # Create a new output csv writer since the folder name changed
+            if not self.is_recording_initialized():
+                self.folder = self.state['folder']
+                # Close existing csv file descriptor if it exists
+                if self.csv_fd is not None:
+                    self.csv_fd.close()
+
+                # Create output csv
+                filename = "%s.csv" % (str(self).lower())
+                csv_path = os.path.join(self.folder, filename)
+                self.csv_fd = open(csv_path, 'w')
+                self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
+                                               quoting=csv.QUOTE_MINIMAL)
+                self.csv_writer.writerow(self.csv_header)
+
+            # Write out buffer and flush it
+            for row in self.csv_buffer:
+                self.csv_writer.writerow(row)
+            self.csv_fd.flush()
+
+        # Clear csv buffer in any case to prevent memory leaks
+        del self.csv_buffer[:]
+
+        return True
             
 
     def close(self):
@@ -108,3 +151,13 @@ class State(Component, Mapping):
         for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value
+
+
+    def verify(self):
+        # Verify that all have been initialized
+        for var in self.state:
+            if self.state[var] is None and var is not 'folder':
+                raise ValueError("Field [%s] is None" % var)
+        
+
+            

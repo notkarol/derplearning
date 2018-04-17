@@ -9,16 +9,16 @@ import derp.util
 
 class Clone(Component):
 
-    def __init__(self, config, full_config):
-        super(Clone, self).__init__(config, full_config)
-        
-        self.config = config
-        
-        # Which config is our settings coming from
-        self.source_config = derp.util.find_component_config(full_config, config['camera_name'])
+    def __init__(self, config, full_config, state):
+        super(Clone, self).__init__(config, full_config, state)
+        self.camera_config = derp.util.find_component_config(full_config, config['camera_name'])
 
+        # Show the user what we're working with
+        derp.util.print_image_config(self.camera_config)
+        derp.util.print_image_config(self.config['thumb'])
+        
         # Prepare camera inputs
-        self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.source_config)
+        self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
         self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
