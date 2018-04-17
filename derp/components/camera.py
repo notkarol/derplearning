@@ -109,7 +109,7 @@ class Camera(Component):
 
         # If we are initialized, then spit out jpg images directly to disk
         if not self.is_recording_initialized():
-            super(Camera, self).record(self.state)
+            super(Camera, self).record()
             self.folder = self.state['folder']
             self.recording_dir = os.path.join(self.folder, self.config['name'])
             self.frame_counter = 0

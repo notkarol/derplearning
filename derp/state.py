@@ -1,5 +1,6 @@
 # A class that carries the state of the car through time
 from collections.abc import Mapping
+import csv
 import os
 import yaml
 import time

@@ -70,8 +70,8 @@ class Component:
         """
 
         # Skip if aren't asked to record or we have nothing to record
-        if not self.is_recording(self.state):
-            if self.is_recording_initialized(self.state):
+        if not self.is_recording():
+            if self.is_recording_initialized():
                 self.folder = None
             return False
 
@@ -79,7 +79,7 @@ class Component:
         if len(self.csv_header):
 
             # Create a new output csv writer since the folder name changed
-            if not self.is_recording_initialized(self.state):
+            if not self.is_recording_initialized():
                 self.folder = self.state['folder']
                 # Close existing csv file descriptor if it exists
                 if self.csv_fd is not None:
