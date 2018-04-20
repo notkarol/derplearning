@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
 
 import os
-from derp.component import Component
 from time import time
-import Adafruit_BNO055.BNO055
 import yaml
 
+import Adafruit_BNO055.BNO055
+
+from derp.component import Component
 
 class BNO055(Component):
-    """
-    IMU processing class
-    """
 
     def __init__(self, config, full_config, state):
         super(BNO055, self).__init__(config, full_config, state)
 
-        # Connect to the imu and then initialize it using adafruit class
         self.bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.config['busnum'])
-        if not self.bno.begin():
+        self.ready = self.bno.begin()
+        if not self.ready:
             return
-        self.calibration_status = self.bno.get_calibration_status()
 
         # Remap Axes to match camera's principle axes
         self.bno.set_axis_remap(x = Adafruit_BNO055.BNO055.AXIS_REMAP_Y,
@@ -29,77 +26,45 @@ class BNO055(Component):
                                 y_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
                                 z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
 
-        # Collect some nice status data that we can print as we do
+        self.calibration_saved = False
+        if os.path.exists(self.config['calibration_path']):
+            with open(self.config['calibration_path']) as f:
+                calibration = yaml.load(f)
+            self.bno.set_calibration(calibration)
+            self.calibration_saved = self.is_calibrated()
+
         print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status() )
         print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
         
-        #check calibration level and attempt to load calibration data from file
-        with open(self.config['calibration_path']) as f:
-            self.cal_config = yaml.load(f)
-        if ( not (3, 3, 3, 3) == self.calibration_status ) :
-            if self.load_saved_calibration(self.cal_config['calibrations']):
-                print("Loaded calibrations with status: %s" % self.cal_config['status'])
-            else: print("Failed to load saved calibrations.")
-            self.calibration_status = self.bno.get_calibration_status()
-        print("BNO055 sytem calibration status: %s gyro: %s accel: %s mag: %s" %
-              self.calibration_status, end="\r")
-        self.calibration_flag = (self.calibration_status == (3, 3, 3, 3))
-        self.ready = True
+    def is_calibrated(self):
+        return self.bno.get_calibration_status() == (3, 3, 3, 3)
+
+    def print_calibration_status(self):
+        print("System: %i | Gyro: %i | Accel: %i | Mag: %i" % self.bno.get_calibration_status())
     
     def sense(self):
-
-        # Read in sensor data
-        quaternion = self.bno.read_quaternion()
-        euler = self.bno.read_euler()
-        gravity = self.bno.read_gravity()
-        magneto = self.bno.read_magnetometer()
-        gyro = self.bno.read_gyroscope()
-        accel = self.bno.read_linear_acceleration()
-        temp = self.bno.read_temp()
-        calibration_status = self.bno.get_calibration_status()
-        timestamp = self.state['timestamp']
-
-        # Update state
-        self.state.update_multipart('quaternion', 'wxyz', quaternion)
-        self.state.update_multipart('euler', 'hrp', euler)
-        self.state.update_multipart('gravity', 'xyz', gravity)
-        self.state.update_multipart('magneto', 'xyz', magneto)
-        self.state.update_multipart('gyro', 'xyz', gyro)
-        self.state.update_multipart('accel', 'xyz', accel)
-        self.state['temp'] = temp
-        self.state['warn'] |= not self.calibration_flag
-        if self.calibration_flag:
-            self.save_calibration()
-        self.calibration_flag = (calibration_status == (3, 3, 3, 3) )
+        self.state.update_multipart('quaternion', 'wxyz', self.bno.read_quaternion())
+        self.state.update_multipart('euler', 'hrp', self.bno.read_euler())
+        self.state.update_multipart('gravity', 'xyz', self.bno.read_gravity())
+        self.state.update_multipart('magneto', 'xyz', self.bno.read_magnetometer())
+        self.state.update_multipart('gyro', 'xyz', self.bno.read_gyroscope())
+        self.state.update_multipart('accel', 'xyz', self.bno.read_linear_acceleration())
+        self.state.update_multipart('calibration', ('system', 'gyro', 'accel', 'mag'),
+                                    self.bno.get_calibration_status())
+        self.state['temp'] = self.bno.read_temp()
         return True
 
-
-    def cal_report(self):
+    def record(self):
         """
-        Reports the calibration status as a tuple: (sys, gyro, accel, mag)
+        Store 22 bytes of calibration data to a pre-set file, as according to the config.
         """
-        return self.bno.get_calibration() 
-
-
-    #stores good calibrations settings for future use.
-    def save_calibration(self):
-        """
-        Return the sensor's calibration data and return it as an array of
-        22 bytes. Can be saved and then reloaded with the set_calibration function
-        to quickly calibrate from a previously calculated set of calibration data.
-        """
-        calibration = {
-            'status' : list(self.bno.get_calibration_status()),
-            'calibrations' : self.bno.get_calibration() }
-
+        if self.calibration_saved:
+            return True
+        calibration = self.bno.get_calibration()
+        if sum(calibration) != 12:
+            return False
         with open(self.config['calibration_path'], 'w') as yaml_file:
             yaml.dump(calibration, yaml_file, default_flow_style=False)
-
+        self.calibration_saved = True
         return True
 
-
-    def load_saved_calibration(self, calibration_data):
-
-        self.bno.set_calibration(calibration_data)
-
-        return True

@@ -18,4 +18,4 @@ state:
   gravity_z: 0.0  
   temp: 0.0
   warn: null
-calibration_path: config/imu/bno055-calibration.yaml
+calibration_path: /tmp/bno055-calibration.yaml

@@ -11,6 +11,7 @@ def find_device(names):
     for filename in sorted(evdev.list_devices()):
         device = evdev.InputDevice(filename)
         device_name = device.name.lower()
+        print(device_name)
         for name in names:
             if name in device_name:
                 return device
@@ -123,7 +124,7 @@ class Keyboard(Component):
                          125: 'super',
                      }
 
-        self.device = find_device(['keyboard', 'kbd'])
+        self.device = find_device(self.config['device_names'])
         self.ready = self.device is not None
 
     def __del__(self):
@@ -141,18 +142,18 @@ class Keyboard(Component):
 
         # Set steer
         if self.code_map[event.code] == 'arrow_left' and event.value:
-            out['steer'] = self.state['steer'] - 0.1
+            out['steer'] = self.state['steer'] - 0.015625
             return
         if self.code_map[event.code] == 'arrow_right' and event.value:
-            out['steer'] = self.state['steer'] + 0.1
+            out['steer'] = self.state['steer'] + 0.015625
             return
 
         # Set speed
         if self.code_map[event.code] == 'arrow_up' and event.value:
-            out['speed'] = self.state['speed'] + 0.01
+            out['speed'] = self.state['speed'] + 0.015625
             return
         if self.code_map[event.code] == 'arrow_down' and event.value:
-            out['speed'] = self.state['speed'] - 0.01
+            out['speed'] = self.state['speed'] - 0.015625
             return
         
         # set steer offset
@@ -240,7 +241,7 @@ class Keyboard(Component):
         # Process every action we received until there are no more left
         try:
             for event in self.device.read():
-                self.process(self.state, out, event)
+                self.process(out, event)
         except BlockingIOError:
             pass
 
