@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 
-import evdev
 import os
 from time import time
+
+import evdev
+
 from derp.component import Component
 import derp.util
-
 
 def find_device(names):
     for filename in sorted(evdev.list_devices()):
         device = evdev.InputDevice(filename)
         device_name = device.name.lower()
-        print(device_name)
         for name in names:
             if name in device_name:
+                print("Using evdev:", device_name)
                 return device
     return None  
 
@@ -22,6 +23,7 @@ class Keyboard(Component):
     def __init__(self, config, full_config, state):
         super(Keyboard, self).__init__(config, full_config, state)
         self.device = None
+        self.initialize()
 
         # Prepare key code
         self.code_map = {1: 'escape',
@@ -124,15 +126,16 @@ class Keyboard(Component):
                          125: 'super',
                      }
 
-        self.device = find_device(self.config['device_names'])
-        self.ready = self.device is not None
-
     def __del__(self):
         super(Keyboard, self).__del__()
         if self.device is not None:
             self.device.close()
             self.device = None
 
+    def initialize(self):
+        self.device = find_device(self.config['device_names'])
+        self.ready = self.device is not None
+        return self.ready
 
     def process(self, out, event):
 
@@ -209,7 +212,6 @@ class Keyboard(Component):
             out['use_offset_speed'] = True
             return
 
-
         # Stop car and recording, but keep running program
         if self.code_map[event.code] == 'q' and event.value:
             out['speed'] = 0
@@ -228,8 +230,10 @@ class Keyboard(Component):
             self.state.close()
             return
 
-
     def sense(self):
+        if not self.ready:
+            self.initialize()
+
         out = {'record' : None,
                'speed' : None,
                'steer' : None,
@@ -244,6 +248,9 @@ class Keyboard(Component):
                 self.process(out, event)
         except BlockingIOError:
             pass
+        except Exception as e:
+            print("keyboard sense:", e)
+            self.ready = False
 
         # Process 'out' into 'state'
         for field in out:
