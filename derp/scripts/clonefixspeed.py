@@ -8,8 +8,8 @@ class CloneFixSpeed(Clone):
         super(CloneFixSpeed, self).__init__(config, full_config, state)
 
 
-    def plan(self, state):
-        predictions = self.predict(state)
-        speed = state['offset_speed']
+    def plan(self):
+        predictions = self.predict()
+        speed = self.state['offset_speed']
         steer = float(predictions[0])
         return speed, steer

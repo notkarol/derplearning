@@ -39,7 +39,7 @@ class Inferer(Component):
             return True
 
         # Get the proposed list of changes
-        speed, steer = self.script.plan(state)
+        speed, steer = self.script.plan()
 
         # Make sure we have the permissions to update these fields
         if self.state['auto']:
@@ -52,11 +52,11 @@ class Inferer(Component):
     def act(self):
         if self.script is None or not self.state['auto']:
             return True
-        return self.script.act(self.state)
+        return self.script.act()
 
 
     def record(self):
         if self.script is None or not self.state['auto']:
             return True
-        return self.script.record(self.state)
+        return self.script.record()
     

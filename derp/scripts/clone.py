@@ -38,16 +38,16 @@ class Clone(Component):
         self.frame_counter = 0  
 
 
-    def prepare_thumb(self, state):
-        frame = state[self.config['camera_name']]
+    def prepare_thumb(self):
+        frame = self.state[self.config['camera_name']]
         patch = derp.util.crop(frame, self.bbox)
         thumb = derp.util.resize(patch, self.size)
         return thumb
 
 
-    def predict(self, state):
-        status = derp.util.extractList(self.config['status'], state)
-        thumb = self.prepare_thumb(state)
+    def predict(self):
+        status = derp.util.extractList(self.config['status'], self.state)
+        thumb = self.prepare_thumb()
         status_batch = derp.util.prepareVectorBatch(status)
         thumb_batch = derp.util.prepareImageBatch(thumb)
         status_batch = derp.util.prepareVectorBatch(status)
@@ -64,26 +64,26 @@ class Clone(Component):
             #cv2.waitKey(1)
             
         # Store the thumb and our prediction
-        if self.is_recording(state):
-            self.out_buffer.append((state['timestamp'], thumb, prediction))
+        if self.is_recording():
+            self.out_buffer.append((self.state['timestamp'], thumb, prediction))
         return prediction
 
 
-    def plan(self, state):
-        prediction = self.predict(state)
+    def plan(self):
+        prediction = self.predict()
         return prediction
 
     
-    def record(self, state):
+    def record(self):
 
         # If we can not record, return false
-        if not self.is_recording(state):
+        if not self.is_recording():
             return False
 
         # If we are initialized, then spit out jpg images directly to disk
-        if not self.is_recording_initialized(state):
-            super(Clone, self).record(state)
-            self.folder = state['folder']
+        if not self.is_recording_initialized():
+            super(Clone, self).record()
+            self.folder = self.state['folder']
             self.recording_dir = os.path.join(self.folder, self.config['name'])
             self.frame_counter = 0
             os.mkdir(self.recording_dir)
