@@ -7,7 +7,6 @@ class Component:
     def __init__(self):
         raise ValueError("Please do not use default constructor; supply a config")
 
-
     def __init__(self, config, full_config, state):
         # Common variables
         self.config = config
@@ -22,27 +21,21 @@ class Component:
         self.csv_buffer = []
         self.csv_header = []
 
-
     def __del__(self):
         if self.csv_fd is not None:
             self.csv_fd.close()
 
-
     def __repr__(self):
         return "%s_%s" % (self.__class__.__name__.lower(), self.config['name'])
-
 
     def __str__(self):
         return repr(self)
 
-
     def is_recording(self):
         return 'record' in self.state and self.state['record']
 
-
     def is_recording_initialized(self):
         return self.folder is not None
-
 
     def ready(self):
         """
@@ -50,18 +43,17 @@ class Component:
         """
         return self.ready
 
-
     def sense(self):
         return True
-    
 
     def plan(self):
         return True
 
-
     def act(self):
         return True
 
+    def flush(self):
+        return True
 
     def record(self):
         """

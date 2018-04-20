@@ -1,6 +1,7 @@
 #!/usr/bin/env/python3
 import argparse
 import os
+from time import time, sleep
 import derp.state
 import derp.util
 
@@ -17,6 +18,11 @@ def main(args):
     # Event loop that runs until state is done
     prev_time = None
     while not state.done():
+
+        # Make sure we're not going faster than 100 fps
+        if time() - state['timestamp'] < 0.01:
+            sleep(time() - state['timestamp'] - 0.001)
+        state['timestamp'] = time()
         state['warn'] = 0
 
         # Sense Plan Act Record loop
@@ -27,19 +33,18 @@ def main(args):
         for component in components:
             component.act()
         for component in components:
+            component.flush()
+        for component in components:
             component.record()
         state.record()
-            
+
         # Print to the screen for verbose mode
         if not args.quiet:
-            print("%.3f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i | %.2f" %
-                  (state['timestamp'],
-                   'R' if state['record'] else '_',
-                   'A' if state['auto'] else '_',
+            print("%.3f %.2f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+                  (state['timestamp'], state['warn'],
+                   'R' if state['record'] else '_', 'A' if state['auto'] else '_',
                    state['speed'], state['offset_speed'], state['use_offset_speed'],
-                   state['steer'], state['offset_steer'], state['use_offset_steer'],
-                   state['warn']))
-                                              
+                   state['steer'], state['offset_steer'], state['use_offset_steer']))
 
 # Load all the arguments and feed them to the main event loader and loop
 if __name__ == "__main__":

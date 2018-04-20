@@ -38,7 +38,6 @@ class Dualshock4(Component):
 
         # Reset the message queue
         self.__server_socket.send_json(True)
-
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
@@ -48,18 +47,15 @@ class Dualshock4(Component):
         self.__server_socket.disconnect(self.__server_addr)
         super(Dualshock4, self).__del__()
 
-
     def in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
         return 128 - self.__deadzone < value <= 128 + self.__deadzone
-
 
     def normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
-
 
     def process(self, status, out):
 
@@ -168,7 +164,6 @@ class Dualshock4(Component):
             out['auto'] = False
             self.state.close()
 
-
     def act(self):
         out = {'red': 0,
                'green': 0,
@@ -197,6 +192,15 @@ class Dualshock4(Component):
         self.__server_socket.send_json(out)
         return True
 
+    def poll(self):
+        poller = zmq.Poller()
+        poller.register(self.__server_socket, zmq.POLLIN)
+        msg = dict(poller.poll(10))
+        if len(msg) > 0:
+            msgs = self.__server_socket.recv_json()
+            self.__last_recv_time = time()
+            return msgs
+        return []
 
     def sense(self):
         out = {'record' : None,
@@ -207,16 +211,8 @@ class Dualshock4(Component):
                'offset_speed' : None,
                'offset_steer' : None}
 
-        # Ask the controller for messages
-        poller = zmq.Poller()
-        poller.register(self.__server_socket, zmq.POLLIN)
-        msg = dict(poller.poll(10))
-        if len(msg) > 0:
-            msgs = self.__server_socket.recv_json()
-            self.__last_recv_time = time()
-        else:
-            msgs = []
-
+        msgs = self.poll()
+        
         # For each message, process the fields we want to set a new desired value
         for msg in msgs:
             self.process(msg, out)
@@ -229,4 +225,9 @@ class Dualshock4(Component):
         for field in out:
             if out[field] is not None:
                 self.state[field] = out[field]
+        return True
+
+    def flush(self):
+        while len(self.poll()):
+            pass
         return True
