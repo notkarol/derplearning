@@ -141,24 +141,24 @@ class Dualshock4(Component):
             self.left_active = True
         elif self.left_active:
             self.left_active = False
-            out['offset_steer'] = self.state['offset_steer'] - 1 / 128
+            out['offset_steer'] = self.state['offset_steer'] - 0.015625
         if status['right']:
             self.right_active = True
         elif self.right_active:
             self.right_active = False
-            out['offset_steer'] = self.state['offset_steer'] + 1 / 128
+            out['offset_steer'] = self.state['offset_steer'] + 0.015625
 
         # Fixed speed modifications using arrows
         if status['up']:
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['offset_speed'] = self.state['offset_speed'] + 0.01
+            out['offset_speed'] = self.state['offset_speed'] + 0.015625
         if status['down']:
             self.down_active = True
         elif self.down_active:
             self.down_active = False
-            out['offset_speed'] = self.state['offset_speed'] - 0.01
+            out['offset_speed'] = self.state['offset_speed'] - 0.015625
 
         # Close down
         if status['button_trackpad'] or status['button_share'] or status['button_options']:
@@ -191,9 +191,8 @@ class Dualshock4(Component):
             out['blue'] = 1
         if self.state['auto']:
             out['red'] = 1
-        if self.state['warn']:
-            out['light_on'] = 0.1
-            out['light_off'] = 0.1
+        out['light_on'] = self.state['warn']
+        out['light_off'] = self.state['warn']
             
         self.__server_socket.send_json(out)
         return True

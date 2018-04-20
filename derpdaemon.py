@@ -188,7 +188,7 @@ class Daemon:
                    'red': 0.2 if msg is False else 0.05,
                    'green': 0.2 if msg is True else 0.05,
                    'blue': 0.2 if msg is None else 0.05,
-                   'light_on': 1, 'light_off': 1}
+                   'light_on': 0, 'light_off': 0}
         self.__packet[7] = self.encodeController(msg['rumble_high'])
         self.__packet[8] = self.encodeController(msg['rumble_low'])
         self.__packet[9] = self.encodeController(msg['red'])

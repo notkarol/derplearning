@@ -17,7 +17,8 @@ def main(args):
     # Event loop that runs until state is done
     prev_time = None
     while not state.done():
-        
+        state['warn'] = 0
+
         # Sense Plan Act Record loop
         for component in components:
             component.sense()
@@ -31,12 +32,13 @@ def main(args):
             
         # Print to the screen for verbose mode
         if not args.quiet:
-            print("%.3f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+            print("%.3f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i | %.2f" %
                   (state['timestamp'],
                    'R' if state['record'] else '_',
                    'A' if state['auto'] else '_',
                    state['speed'], state['offset_speed'], state['use_offset_speed'],
-                   state['steer'], state['offset_steer'], state['use_offset_steer']))
+                   state['steer'], state['offset_steer'], state['use_offset_steer'],
+                   state['warn']))
                                               
 
 # Load all the arguments and feed them to the main event loader and loop
