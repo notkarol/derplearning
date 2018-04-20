@@ -17,7 +17,7 @@ bash install.sh
 
 ### Hardware
 
-You will need access to a drill and saw to cut holes in the car's chassis and into the PVC sheet or 3D printed roll cage. Select on (or more) of the compute options. TODO detailed instructions
+You will need access to a drill to cut holes in the car's chassis and into the PVC sheet or 3D printed camera pylon. Select one (or more) of the compute options. TODO detailed instructions
 
 #### Necessary
 
@@ -66,31 +66,55 @@ All of the following commands need to be run from the __src__ folder.
 
 
 ### Collect Data
+On the car run:
 
 ```bash
 python3 drive.py
 ```
 
-### Label Data
+Data by default is saved to files in the folder /data/ which is created in the parent directory of /derp_learning/
+
+
+The data can be moved by swapping the SD card if the derplearning directory is located there or by using ssl rsync from the directory you want to move the data to on your device:
+```bash
+rsync rvP ${car}:/mnt/sdcard/data/* $DERP_ROOT/data/train
+```
+
+### Single Pass Pipeline
+To move label and train a model on collected data use the shell script pipeline.sh. This is the ideal way to deploy a model trained on same day collected data. This option may be used instead of manualy performing the below steps.
 
 ```bash
-python3 label.py --path $DERP_DATA/???
+bash pipeline.sh __NAME__ __BUTTON__ __FRESH_DATA_SOURCE__
+```
+
+Note: the data source is a location containing data you want to move to the local training data folder.
+
+### Label Data
+Any recorded data file can be labled creating a file /label.csv in the same folder as all other data files for a given recording.
+
+```bash
+python3 label.py --path data/???
 ```
 
 ### Build Dataset
+This program prepares the recorded data for use in training and validation.
 
 ```bash
-python3 clone_create.py 
+python3 clone_create.py --config __NAME__
 ```
 
 ### Train Model
+Runs training on the dataset to build a model for deployment
 
 ```bash
-python3 clone_train.py 
+python3 clone_train.py --config __NAME__
 ```
 
-### Race Car
+### Deploy Model
+To deploy a model for use in control of a vehicle copy the model file to the desired button folder on the vehicle and rename the model to "clone.pt"
 
 ```bash
-python3 drive.py
+rsync -rvP $model ${car}:$DERP_ROOT/scratch/model/__BUTTON__/clone.pt
 ```
+
+Once a model is deployed to the car it can be loaded by pressing the appropriate button and given control of the vehicle by pressing the playstation button.
