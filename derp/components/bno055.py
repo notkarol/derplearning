@@ -17,25 +17,6 @@ class BNO055(Component):
         self.ready = self.initialize()
         if not self.ready:
             return
-
-        # Remap Axes to match camera's principle axes
-        self.bno.set_axis_remap(x = Adafruit_BNO055.BNO055.AXIS_REMAP_Y,
-                                y = Adafruit_BNO055.BNO055.AXIS_REMAP_Z,
-                                z = Adafruit_BNO055.BNO055.AXIS_REMAP_X,
-                                x_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_POSITIVE,
-                                y_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
-                                z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
-
-        self.calibration_saved = False
-        if os.path.exists(self.config['calibration_path']):
-            with open(self.config['calibration_path']) as f:
-                calibration = yaml.load(f)
-            self.bno.set_calibration(calibration)
-            self.calibration_saved = self.is_calibrated()
-            print("Loaded existing IMU calibration [%s]" % self.config['calibration_path'])
-
-        print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status() )
-        print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
         
         self.sensors = (('calibration', ('system', 'gyro', 'accel', 'mag'),
                          self.bno.get_calibration_status),
@@ -59,15 +40,36 @@ class BNO055(Component):
             self.bno = None
         try:
             self.bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.config['busnum'])
-            return self.bno.begin()
-        except:
+            self.ready = self.bno.begin()
+
+            # Remap Axes to match camera's principle axes
+            self.bno.set_axis_remap(x = Adafruit_BNO055.BNO055.AXIS_REMAP_Y,
+                                    y = Adafruit_BNO055.BNO055.AXIS_REMAP_Z,
+                                    z = Adafruit_BNO055.BNO055.AXIS_REMAP_X,
+                                    x_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_POSITIVE,
+                                    y_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
+                                    z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
+
+            self.calibration_saved = False
+            if os.path.exists(self.config['calibration_path']):
+                print("Existing:", self.bno.get_calibration(), self.bno.get_calibration_status())
+                with open(self.config['calibration_path']) as f:
+                    calibration = yaml.load(f)
+                self.bno.set_calibration(calibration)
+                print("Loaded:", self.bno.get_calibration(), self.bno.get_calibration_status())
+                self.calibration_saved = self.is_calibrated()
+
+            print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status() )
+            print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
+            return True
+        except Exception as e:
+            print("BNO055 initialize", e)
             return False
         
     def sense(self):
         """ Reinitialize IMU if it's failed to get data at any point. 
         Otherwise get data from the IMU to update state variable.
         """
-
         if not self.ready:
             self.ready = self.initialize()
         for name, subnames, func in self.sensors:
@@ -90,7 +92,7 @@ class BNO055(Component):
         total = 0
         for subname in subnames:
             field_name = "%s_%s" % (name, subname)
-            total += self.state[field_name]
+            total += 0 if self.state[field_name] is None else self.state[field_name]
         self.state['warn'] = 1 - (total / 12)
         return True
     
