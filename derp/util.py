@@ -48,6 +48,9 @@ def get_controller_models_path(name):
     return os.path.join(os.environ['DERP_ROOT'], 'models', name)
 
 
+def get_experiment_path(name):
+    return os.path.join(os.environ['DERP_ROOT'], 'scratch', name)
+
 def encode_video(folder, name, suffix, fps=30):
     cmd = " ".join(['gst-launch-1.0',
                     'multifilesrc',
@@ -203,7 +206,7 @@ def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
 def load_config(config_path):
     """ Loads the vehicle config and all requisite components configs """
     if os.path.isdir(config_path):
-        config_path = os.path.join(config_path, 'config.yaml')
+        raise ValueError("load_config should not load a folder [%s]" % config_path)
     
     # First load the car's config
     with open(config_path) as f:
@@ -257,6 +260,7 @@ def load_component(config, state):
 
 def load_controller(config, car_config, state):
     module_name = "derp.controllers.%s" % (config['class'].lower())
+    print(module_name)
     class_fn = load_class(module_name, config['class'])
     script = class_fn(config, car_config, state)
     if not script.ready:

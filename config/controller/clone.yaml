@@ -3,7 +3,7 @@ class: 'Clone'
 
 # Dataset creation parameters
 create:
-  data_folders: ['train']
+  data_folders: ['train-lights']
   train_chance: 0.9
   n_perts: 3
   perts:

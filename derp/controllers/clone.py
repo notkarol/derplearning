@@ -3,14 +3,14 @@
 import numpy as np
 import os
 import torch
-from derp.component import Component
+from derp.controller import Controller
 import derp.util
 
-class Clone(Component):
+class Clone(Controller):
 
     def __init__(self, config, car_config, state):
         super(Clone, self).__init__(config, car_config, state)
-        self.camera_config = derp.util.find_component_config(car_config, config['camera_name'])
+        self.camera_config = derp.util.find_component_config(car_config, config['thumb']['component'])
 
         # Show the user what we're working with
         derp.util.print_image_config(self.camera_config)
@@ -23,8 +23,11 @@ class Clone(Component):
         # Prepare model
         self.model_dir = derp.util.get_controller_models_path(self.config['name'])
         self.model_path = derp.util.find_matching_file(self.model_dir, 'clone.pt$')
-        self.model = torch.load(self.model_path)
-        self.model.eval()
+        if self.model_path is not None and os.path.exists(self.model_path):
+            self.model = torch.load(self.model_path)
+            self.model.eval()
+        else:
+            print("Clone: Unable to find model path [%s]" % self.model_path)
 
         # Useful variables for params
         self.prev_steer = 0
@@ -34,7 +37,7 @@ class Clone(Component):
         self.frame_counter = 0  
 
     def prepare_thumb(self):
-        frame = self.state[self.config['camera_name']]
+        frame = self.state[self.config['thumb']['component']]
         patch = derp.util.crop(frame, self.bbox)
         thumb = derp.util.resize(patch, self.size)
         return thumb

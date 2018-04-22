@@ -58,17 +58,16 @@ def step(epoch, config, model, loader, optimizer, criterion,
 
 def main(args):
 
-    # Make sure we have somewhere to run the experiment
-    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
-    full_config = derp.util.load_config(config_path)
-    target_config = derp.util.find_component_config(full_config, 'clone')
-    experiment_path = os.path.join(os.environ["DERP_ROOT"], 'scratch', full_config['name'])
+    # Import configs that we wish to train for
+    config_path = derp.util.get_controller_config_path(args.controller)
+    controller_config = derp.util.load_config(config_path)
+    experiment_path = derp.util.get_experiment_path(controller_config['name'])  
 
     # Prepare model
-    tc = target_config['thumb']
+    tc = controller_config['thumb']
     dim_in = np.array((tc['depth'], tc['height'], tc['width']))
-    n_status = len(target_config['status'])
-    n_out = len(target_config['predict'])
+    n_status = len(controller_config['status'])
+    n_out = len(controller_config['predict'])
     model_class = derp.util.load_class('derp.models.' + args.model.lower(), args.model)
     model = model_class(dim_in, n_status, n_out)
     criterion = nn.MSELoss()
@@ -80,7 +79,7 @@ def main(args):
 
     # Prepare perturbation of example
     tlist = []
-    for td in target_config['train']['prepare']:
+    for td in controller_config['train']['prepare']:
         if td['name'] == 'colorjitter':
             t = transforms.ColorJitter(brightness=td['brightness'],
                                        contrast=td['contrast'],
@@ -108,7 +107,7 @@ def main(args):
         for part in parts:
             start_time = time.time()
             is_train = epoch if 'train' in part else False
-            loss, count = step(epoch, target_config, model, loaders[part],
+            loss, count = step(epoch, controller_config, model, loaders[part],
                                optimizer, criterion, is_train,
                                args.nocuda, args.plot)
             durations[part] = time.time() - start_time
@@ -133,8 +132,8 @@ def main(args):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True,
-                        help="Car components and setup we wish to train form")
+    parser.add_argument('--controller', type=str, required=True,
+                        help="Controller we wish to train")
     parser.add_argument('--model', type=str, default="BModel",
                         help="Model to run. Default to Medium Sized")
     parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
