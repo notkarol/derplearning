@@ -31,18 +31,14 @@ class State(Mapping):
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
 
-
     def __getitem__(self, key):
         return self.state[key]
-
 
     def __iter__(self):
         return iter(self.state)
 
-
     def __len__(self):
         return len(self.state)
-
     
     def __repr__(self):
         return self.__class__.__name__.lower()
@@ -102,7 +98,6 @@ class State(Mapping):
         return 'jpg' if 'camera' in key else 'png'
     
     def record(self):
-
         # If we're not recording anymore, do post-processing and stop
         if not self.is_recording():
             if self.folder is not None:
@@ -117,7 +112,6 @@ class State(Mapping):
         # Prepare the csv row to print
         row = []
         for key in self.csv_header:
-            print(key)
             t = type(self[key])
             if t in (int, bool, type(None)):
                 row.append(self[key])

@@ -16,11 +16,47 @@ TODO: Make the viewer and the graph different windows to simplify
 display choices.
 '''
 
-class Labeler(object):
+class Labeler:
+
+    def __init__(self, recording_path, scale=1):
+        self.cap = None
+        
+        self.scale = scale #Image Scale Factor
+        self.recording_path = recording_path
+        self.config_path = os.path.join(self.recording_path, 'car.yaml')
+        self.config = util.load_config(self.config_path)
+        self.component_config = util.find_component_config(self.config, 'camera')
+        
+        self.red = np.array([0, 0, 255], dtype=np.uint8)
+        self.green = np.array([32, 192, 32], dtype=np.uint8)
+        self.blue = np.array([255, 128, 0], dtype=np.uint8)
+        self.yellow = np.array([0, 255, 255], dtype=np.uint8)
+        self.cyan = np.array([255, 255, 0], dtype=np.uint8)
+        self.magenta = np.array([255, 0, 255], dtype=np.uint8)
+        self.gray25 = np.array([64, 64, 64], dtype=np.uint8)
+        self.gray50 = np.array([128, 128, 128], dtype=np.uint8)
+        self.gray75 = np.array([192, 192, 192], dtype=np.uint8)
+        self.black = np.array([0, 0, 0], dtype=np.uint8)
+        self.white = np.array([255, 255, 255], dtype=np.uint8)
+        self.orange = np.array([255, 128, 0], dtype=np.uint8)
+        self.purple = np.array([255, 0, 128], dtype=np.uint8)
+        self.marker_color = {'' : self.gray50,
+                             'good': self.green,
+                             'risk': self.orange,
+                             'junk': self.red}
+
+        self.init_states()
+        self.init_camera()
+        self.init_labels()
+        self.init_window()
+
+    def __del__(self):
+        if self.cap:
+            self.cap.release()
+        cv2.destroyAllWindows()
 
     def legal_position(self, pos):
         return 0 <= pos < self.n_frames
-    
 
     def update_label(self, id1, id2, marker):
         if not marker:
@@ -28,6 +64,7 @@ class Labeler(object):
 
         # Update the labels that are to be stored
         beg, end = min(id1, id2), max(id1, id2)
+
         #The update is applied inclusive to both ends of the id range
         for i in range(beg, end + 1):
             self.labels[i] = marker
@@ -35,7 +72,6 @@ class Labeler(object):
         # Update the visual label bar
         beg_pos, end_pos = self.frame_pos(beg), self.frame_pos(end)
         self.label_bar[beg_pos: end_pos + 1] = self.marker_color[marker]
-        
     
     def seek(self, frame_id):
         if not self.legal_position(frame_id):
@@ -51,7 +87,6 @@ class Labeler(object):
         self.read()
         self.show = True
         return True
-
     
     def read(self):
         if not self.legal_position(self.frame_id + 1):
@@ -70,18 +105,14 @@ class Labeler(object):
         self.frame_id += 1
         return True
 
-    
     def draw_bar_timemarker(self):
         self.window[self.fh:, self.frame_pos(self.frame_id), :] = self.marker_color[self.marker]
 
-        
     def draw_bar_blank(self):
         self.window[self.fh:, :, :] = self.black
 
-        
     def draw_bar_status(self):
         self.window[self.fh : self.fh + int(self.bhh // 10), self.fwi, :] = self.label_bar
-        
 
     def draw_bar_zeroline(self):
         self.window[self.fh + self.bhh, self.fwi, :] = self.gray75
@@ -89,15 +120,14 @@ class Labeler(object):
     def draw_horizon_bar(self):
         percent = self.component_config['pitch'] / self.component_config['vfov'] + 0.5
         self.window[int(self.fh * percent), :, :] = self.magenta
-        
-    
+
     def draw_graph(self, data_vector, color):
         #interpolate the data vector to fill in gaps
         d_interpld = interp1d(self.state_x, data_vector)
         
         #convert data vector to a data array the size of the window's x dimension
         data_bar = np.array([-d_interpld(x) * self.bhh + 0.5 for x in self.window_x],
-                                  dtype=np.int)
+                            dtype=np.int)
 
         # All locations where we need to draw lines
         data_jump_locs = []
@@ -112,8 +142,7 @@ class Labeler(object):
         self.window[data_bar + self.fh + self.bhh, self.fwi, :] = color
         for rr, cc in data_jump_locs:
             self.window[rr, cc, :] = color
-        
-    
+
     #This function updates the viewer calling all appropriate functions
     def display(self):
         
@@ -134,7 +163,6 @@ class Labeler(object):
 
         # Display the newly generated window
         cv2.imshow('Labeler %s' % self.recording_path, self.window)
-
 
     def save_labels(self):
         with open(self.labels_path, 'w') as f:
@@ -191,11 +219,9 @@ class Labeler(object):
             print("Unknown key press: [%s]" % key)
             
         return True
-    
 
     def frame_pos(self, frame_id):
         return min(self.fw - 1, int(frame_id / len(self.timestamps) * self.fw))        
-
 
     def init_labels(self):
         self.labels_path = os.path.join(self.recording_path, 'label.csv')
@@ -205,15 +231,13 @@ class Labeler(object):
                 self.labels[i] = self.labels[i][0]                           
         else:
             self.labels = ["" for _ in range(self.n_frames)]
-        
-                
+
     def init_states(self):
         self.state_path = os.path.join(self.recording_path, 'state.csv')
         self.timestamps, self.state_headers, self.states = derp.util.read_csv(self.state_path)
         self.speeds = self.states[:, self.state_headers.index('speed')]
         self.steers = self.states[:, self.state_headers.index('steer')]
 
-            
     def init_camera(self):
         self.video_path = os.path.join(self.recording_path, 'camera_front.mp4')
         self.cap = cv2.VideoCapture(self.video_path)
@@ -222,7 +246,6 @@ class Labeler(object):
         self.frame_id = -1
         self.read()
 
-        
     def init_window(self):
         self.fh = self.frame.shape[0]
         self.fw = self.frame.shape[1]
@@ -230,7 +253,7 @@ class Labeler(object):
 
         self.fwi = np.arange(self.fw)   #frame width index
         self.window_shape = list(self.frame.shape)
-        self.window_shape[0] += self.bhh* 2 + 1
+        self.window_shape[0] += self.bhh * 2 + 2
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
 
         #state_x is a vector containing the indicies of the x coordinate of the state graph
@@ -243,7 +266,6 @@ class Labeler(object):
         self.label_bar = np.ones((self.fw, 3), dtype=np.uint8) * self.gray50
         for i in range(self.n_frames):
             self.update_label(i, i, self.labels[i])    
-        
 
     #Create arrays of predicted speed and steering using the designated model
     def predict(self, config, model_path):
@@ -266,22 +288,15 @@ class Labeler(object):
 
             if not ret or frame is None:
                 print("read failed frame", frame_id)
-
-            if i%1==0:
-                (self.m_speeds[i], 
-                 self.m_steers[i],
-                 batch) = bot.evaluate(frame, 
-                                    self.timestamps[i], 
-                                    config, 
-                                    model_path)
-
+            if i % 2 == 0:
+                results = bot.evaluate(frame, self.timestamps[i], config, model_path)
+                self.m_speeds[i], self.m_steers[i], batch = results
             else:
                 self.m_speeds[i] = self.m_speeds[i-1]
                 self.m_steers[i] = self.m_steers[i-1]
 
         #Restore the camera position to wherever it was before predict was called
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
-
 
     def run_labeler(self, config_path=None, model_path=None):
         
@@ -308,48 +323,6 @@ class Labeler(object):
                 
             if not self.handle_input():
                 break
-
-        
-    def __init__(self, recording_path, scale=1):
-        self.cap = None
-        
-        self.scale = scale #Image Scale Factor
-        self.recording_path = recording_path
-        self.config_path = os.path.join(self.recording_path, 'car.yaml')
-        self.config = util.load_config(self.config_path)
-        self.component_config = util.find_component_config(self.config, 'camera')
-        
-        # Useful color variables:
-        self.red = np.array([0, 0, 255], dtype=np.uint8)
-        self.green = np.array([32, 192, 32], dtype=np.uint8)
-        self.blue = np.array([255, 128, 0], dtype=np.uint8)
-        self.yellow = np.array([0, 255, 255], dtype=np.uint8)
-        self.cyan = np.array([255, 255, 0], dtype=np.uint8)
-        self.magenta = np.array([255, 0, 255], dtype=np.uint8)
-        self.gray25 = np.array([64, 64, 64], dtype=np.uint8)
-        self.gray50 = np.array([128, 128, 128], dtype=np.uint8)
-        self.gray75 = np.array([192, 192, 192], dtype=np.uint8)
-        self.black = np.array([0, 0, 0], dtype=np.uint8)
-        self.white = np.array([255, 255, 255], dtype=np.uint8)
-        self.orange = np.array([255, 128, 0], dtype=np.uint8)
-        self.purple = np.array([255, 0, 128], dtype=np.uint8)
-        self.marker_color = { '' : self.gray50,
-                              'good': self.green,
-                              'risk': self.orange,
-                              'junk': self.red}
-
-        #Initialize all elements needed to label data.
-        self.init_states()
-        self.init_camera()
-        self.init_labels()
-        # Initialze the viewer window
-        self.init_window()
-
-
-    def __del__(self):
-        if self.cap:
-            self.cap.release()
-        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
