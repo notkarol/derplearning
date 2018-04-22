@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from derp.scripts.clone import Clone
+from derp.controllers.clone import Clone
 
 class CloneFixSpeed(Clone):
 
