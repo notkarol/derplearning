@@ -252,7 +252,7 @@ class Labeler(object):
         self.m_steers = np.zeros(self.n_frames, dtype=float)
 
         #opens the video config file
-        video_config = util.load_config('%s/%s' % (self.recording_path, 'config.yaml') )
+        video_config = util.load_config('%s/%s' % (self.recording_path, 'car.yaml') )
         bot = Inferer(  video_config = video_config, 
                         model_config = config,
                         folder = self.recording_path,
@@ -315,7 +315,7 @@ class Labeler(object):
         
         self.scale = scale #Image Scale Factor
         self.recording_path = recording_path
-        self.config_path = os.path.join(self.recording_path, 'config.yaml')
+        self.config_path = os.path.join(self.recording_path, 'car.yaml')
         self.config = util.load_config(self.config_path)
         self.component_config = util.find_component_config(self.config, 'camera')
         

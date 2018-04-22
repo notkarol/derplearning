@@ -5,16 +5,15 @@ import numpy as np
 import os
 import yaml
 import time
-import shutil
 import derp.util
 
 class State(Mapping):
 
-    def __init__(self, car_config_path, controller_config_path):
+    def __init__(self, car_config, controller_config):
         self.exit = False
         self.folder = None
-        self.car_config_path = car_config_path
-        self.controller_config_path = controller_config_path
+        self.car_config = car_config
+        self.controller_config = controller_config
         self.state = {'record': False}
         self.csv_fd = None
         self.csv_writer = None
@@ -53,6 +52,7 @@ class State(Mapping):
         if key not in self.state:
             if self.state['record']:
                 raise KeyError("Cannot create variable [%s] during recording" % key)
+            self.csv_header.append(key)
             print("state created: %s" % key)
 
         # Update folder if we set record
@@ -64,12 +64,15 @@ class State(Mapping):
         return item
 
     def initialize_recording(self):
-        # Copy over configs used to initialize this recording
         self.folder = derp.util.create_record_folder()
+
         dst_car_config_path = os.path.join(self.folder, 'car.yaml')
+        with open(dst_car_config_path, 'w') as f:
+            yaml.dump(self.car_config, f)
+
         dst_controller_config_path = os.path.join(self.folder, 'controller.yaml')
-        shutil.copy(self.car_config_path, dst_car_config_path)
-        shutil.copy(self.controller_config_path, dst_controller_config_path)
+        with open(dst_controller_config_path, 'w') as f:
+            yaml.dump(self.controller_config, f)
 
         # Make a folder for every 2D or larger numpy array so we can store vectors/images
         for key in self.state:
@@ -113,15 +116,15 @@ class State(Mapping):
         
         # Prepare the csv row to print
         row = []
-        if self.is_recording():
-            for key in self.csv_header:
-                t = type(self[key])
-                if t in (int, bool, type(None)):
-                    row.append(self[key])
-                elif t is float:
-                    row.append(("%.6f" % self[key]).rstrip('0'))
-                else:
-                    row.append('')
+        for key in self.csv_header:
+            print(key)
+            t = type(self[key])
+            if t in (int, bool, type(None)):
+                row.append(self[key])
+            elif t is float:
+                row.append(("%.6f" % self[key]).rstrip('0'))
+            else:
+                row.append('')
         self.csv_writer.writerow(row)
         self.csv_fd.flush()
 

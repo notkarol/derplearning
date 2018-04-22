@@ -25,7 +25,7 @@ def main(args):
     controller_config_path = derp.util.get_controller_config_path(args.controller)
     controller_config = derp.util.load_config(controller_config_path)
 
-    state = derp.state.State(car_config_path, controller_config_path)
+    state = derp.state.State(car_config, controller_config)
     components = derp.util.load_components(car_config['components'], state)
     controller = derp.util.load_controller(controller_config, car_config, state)
 
