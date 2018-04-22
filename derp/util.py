@@ -1,16 +1,17 @@
 import csv
 import cv2
 from datetime import datetime
+import evdev
 import numpy as np
 import os
 import re
 import scipy.misc
 import socket
+import subprocess
 import time
 import torch
 from torch.autograd import Variable
 import yaml
-
 
 class Bbox:
     def __init__(self, x, y, w, h):
@@ -23,6 +24,33 @@ class Bbox:
     def __str__(self):
         return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
+
+def find_device(names):
+    for filename in sorted(evdev.list_devices()):
+        device = evdev.InputDevice(filename)
+        device_name = device.name.lower()
+        for name in names:
+            if name in device_name:
+                print("Using evdev:", device_name)
+                return device
+    return None
+
+
+def encode_video(folder, name, fps):
+    args = (folder, name)
+    cmd = " ".join(['gst-launch-1.0',
+                    'multifilesrc',
+                    'location="%s/%s/%%06d.jpg"' % args,
+                    '!', '"image/jpeg,framerate=%i/1"' % fps, 
+                    '!', 'jpegparse',
+                    '!', 'jpegdec',
+                    '!', 'omxh264enc', 'bitrate=8000000',
+                    '!', '"video/x-h264, stream-format=(string)byte-stream"',
+                    '!', 'h264parse',
+                    '!', 'mp4mux',
+                    '!', 'filesink location="%s/%s.mp4"' % args])
+    subprocess.Popen(cmd, shell=True)
+    
 
 def print_image_config(config):
     """ Prints some useful variables about the camera for debugging purposes """
@@ -210,19 +238,18 @@ def load_config(config_path):
     return config
 
 
-def load_component(component_config, config, state):
+def load_script(subfolder, config, full_config, state):
+    module_name = "derp.%s.%s" % (subfolder, config['class'].lower())
+    class_fn = load_class(module_name, config['class'])
+    script = class_fn(config, full_config, state)
+    if not script.ready and 'required' in config and config['required']:
+        raise ValueError("load_script: failed", config['name'])
+    print("Loaded %s" % module_name)
+    return script
 
-    # Load the component from its module
-    module_name = "derp.components." + component_config['class'].lower()
-    class_fn = load_class(module_name, component_config['class'])
-    component = class_fn(component_config, config, state)
 
-    # If we're ready, add it, otherwise make sure it's required
-    if not component.ready and component_config['required']:
-        raise ValueError("load_components: missing required", component_config['name'])
-
-    print("Loaded component", module_name)
-    return component
+def load_controller(config, state):
+    return load_script('controllers', config['controller'], config, state)
 
 
 def load_components(config, state):
@@ -235,7 +262,7 @@ def load_components(config, state):
     for component_config in config['components']:
 
         # Load the component object
-        component = load_component(component_config, config, state)
+        component = load_script('component', component_config, config, state)
 
         # Skip a non-ready component. Raise an error if it's required as we can't continue
         if not component.ready:

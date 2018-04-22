@@ -14,7 +14,7 @@ class BNO055(Component):
         super(BNO055, self).__init__(config, full_config, state)
 
         self.bno = None
-        self.ready = self.initialize()
+        self.ready = self.__connect()
         if not self.ready:
             return
         
@@ -27,14 +27,14 @@ class BNO055(Component):
                         ('gyro', 'xyz', self.bno.read_gyroscope),
                         ('accel', 'xyz', self.bno.read_linear_acceleration))
 
-    def is_calibrated(self):
+    def __is_calibrated(self):
         try:
             return self.bno.get_calibration_status() == (3, 3, 3, 3)
         except:
             self.ready = False
             return False
 
-    def initialize(self):
+    def __connect(self):
         if self.bno:
             del self.bno
             self.bno = None
@@ -57,13 +57,13 @@ class BNO055(Component):
                     calibration = yaml.load(f)
                 self.bno.set_calibration(calibration)
                 print("Loaded:", self.bno.get_calibration(), self.bno.get_calibration_status())
-                self.calibration_saved = self.is_calibrated()
+                self.calibration_saved = self.__is_calibrated()
 
             print("BNO055 status: %s self_test: %s error: %s" % self.bno.get_system_status() )
             print("BNO055 sw: %s bl: %s accel: %s mag: %s gyro: %s" % self.bno.get_revision())
             return True
         except Exception as e:
-            print("BNO055 initialize", e)
+            print("BNO055 connect", e)
             return False
         
     def sense(self):
@@ -71,7 +71,7 @@ class BNO055(Component):
         Otherwise get data from the IMU to update state variable.
         """
         if not self.ready:
-            self.ready = self.initialize()
+            self.ready = self.__connect()
         for name, subnames, func in self.sensors:
             try:
                 values = func()
@@ -84,26 +84,18 @@ class BNO055(Component):
         except:
             self.read = False
             self.state['temp'] = None
-        return True
 
-    def plan(self):
-        """ The IMU plans by communicating its calibration state """
+        # Decide if this data is good
         name, subnames = self.sensors[0][:2]
         total = 0
         for subname in subnames:
             field_name = "%s_%s" % (name, subname)
             total += 0 if self.state[field_name] is None else self.state[field_name]
         self.state['warn'] = 1 - (total / 12)
-        return True
-    
-    def record(self):
-        """
-        Store 22 bytes of calibration data to a pre-set file, as according to the config.
-        """
-        if self.calibration_saved:
+
+        # Store 22 bytes of calibration data to a pre-set file, as according to the config.
+        if self.calibration_saved or not self.__is_calibrated():
             return True
-        if not self.is_calibrated():
-            return False
         try:
             calibration = self.bno.get_calibration()
         except:
@@ -113,4 +105,5 @@ class BNO055(Component):
             yaml.dump(calibration, yaml_file, default_flow_style=False)
         self.calibration_saved = True
         return True
+        
 

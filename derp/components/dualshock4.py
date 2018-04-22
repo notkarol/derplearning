@@ -47,35 +47,35 @@ class Dualshock4(Component):
         self.__server_socket.disconnect(self.__server_addr)
         super(Dualshock4, self).__del__()
 
-    def in_deadzone(self, value):
+    def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
         return 128 - self.__deadzone < value <= 128 + self.__deadzone
 
-    def normalize_stick(self, value, deadzone):
+    def __normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
 
-    def process(self, status, out):
+    def __process(self, status, out):
 
         # Insensitive steering
-        if self.in_deadzone(status['right_analog_x']):
+        if self.__in_deadzone(status['right_analog_x']):
             if self.right_analog_active:
                 self.right_analog_active = False
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            out['steer'] = self.normalize_stick(status['right_analog_x'], self.__deadzone)
+            out['steer'] = self.__normalize_stick(status['right_analog_x'], self.__deadzone)
 
         # Sensitive steering
-        if self.in_deadzone(status['left_analog_x']):
+        if self.__in_deadzone(status['left_analog_x']):
             if self.left_analog_active:
                 self.left_analog_active = False
                 out['steer'] = 0
         else:
             self.left_analog_active = True
-            steer = self.normalize_stick(status['left_analog_x'], self.__deadzone)
+            steer = self.__normalize_stick(status['left_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -190,6 +190,10 @@ class Dualshock4(Component):
         out['light_off'] = self.state['warn']
             
         self.__server_socket.send_json(out)
+
+        # Clear out outstanding messages
+        while len(self.poll()):
+            pass
         return True
 
     def poll(self):
@@ -215,19 +219,14 @@ class Dualshock4(Component):
         
         # For each message, process the fields we want to set a new desired value
         for msg in msgs:
-            self.process(msg, out)
+            self.__process(msg, out)
 
         # Kill car if we're out of range
         if (time() - self.__last_recv_time) > self.__timeout:
             self.state.close()
             
-        # After all messages have been processed, update the state
+        # After all messages have been process, update the state
         for field in out:
             if out[field] is not None:
                 self.state[field] = out[field]
-        return True
-
-    def flush(self):
-        while len(self.poll()):
-            pass
         return True

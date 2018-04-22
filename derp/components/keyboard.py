@@ -8,22 +8,12 @@ import evdev
 from derp.component import Component
 import derp.util
 
-def find_device(names):
-    for filename in sorted(evdev.list_devices()):
-        device = evdev.InputDevice(filename)
-        device_name = device.name.lower()
-        for name in names:
-            if name in device_name:
-                print("Using evdev:", device_name)
-                return device
-    return None  
-
 class Keyboard(Component):
 
     def __init__(self, config, full_config, state):
         super(Keyboard, self).__init__(config, full_config, state)
         self.device = None
-        self.initialize()
+        self.__connect()
 
         # Prepare key code
         self.code_map = {1: 'escape',
@@ -132,12 +122,12 @@ class Keyboard(Component):
             self.device.close()
             self.device = None
 
-    def initialize(self):
-        self.device = find_device(self.config['device_names'])
+    def __connect(self):
+        self.device = derp.util.find_device(self.config['device_names'])
         self.ready = self.device is not None
         return self.ready
 
-    def process(self, out, event):
+    def __process(self, out, event):
 
         # Skip events that I don't know what they mean, but appear all the time
         if event.code == 0 or event.code == 4:
@@ -232,7 +222,7 @@ class Keyboard(Component):
 
     def sense(self):
         if not self.ready:
-            self.initialize()
+            self.__connect()
 
         out = {'record' : None,
                'speed' : None,
@@ -245,7 +235,7 @@ class Keyboard(Component):
         # Process every action we received until there are no more left
         try:
             for event in self.device.read():
-                self.process(out, event)
+                self.__process(out, event)
         except BlockingIOError:
             pass
         except Exception as e:

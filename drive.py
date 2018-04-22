@@ -6,53 +6,45 @@ from time import time, sleep
 import derp.state
 import derp.util
 
-def loop(state, components):
-    # Make sure we're not going faster than 100 fps
-    if time() - state['timestamp'] < 0.01:
-        sleep(time() - state['timestamp'] - 0.001)
+def loop(state, controller, components):
     state['timestamp'] = time()
     state['warn'] = 0
 
     # Sense Plan Act Record loop
     for component in components:
         component.sense()
-    for component in components:
-        component.plan()
+    controller.plan()
     for component in components:
         component.act()
-    for component in components:
-        component.flush()
-    for component in components:
-        component.record()
     state.record()
 
-    # Print to the screen for verbose mode
-    if not args.quiet:
-        print("%.3f %.2f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
-              (state['timestamp'], state['warn'],
-               'R' if state['record'] else '_', 'A' if state['auto'] else '_',
-               state['speed'], state['offset_speed'], state['use_offset_speed'],
-               state['steer'], state['offset_steer'], state['use_offset_steer']))
 
 def main(args):
-    # Prepare configuration and some supplied arguments
-    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
-    config = derp.util.load_config(config_path)
-    if args.model_dir is not None:
-        config['model_dir'] = args.model_dir
-    state = derp.state.State(config)
-    components = derp.util.load_components(config, state)
+    car_config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
+    car_config = derp.util.load_config(car_config_path)
+    controller_config = derp.util.load_config(args.controller)
 
-    # Event loop that runs until state is done
+    state = derp.state.State(config)
+    components = derp.util.load_components(car_config, state)
+    controller = derp.util.load_controller(controller_config, state, car_config)
+
     while not state.done():
-        loop(state, components)
+        loop(state, controller, components)
+
+        if not args.quiet:
+            print("%.3f %.2f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+                  (state['timestamp'], state['warn'],
+                   'R' if state['record'] else '_', 'A' if state['auto'] else '_',
+                   state['speed'], state['offset_speed'], state['use_offset_speed'],
+                   state['steer'], state['offset_steer'], state['use_offset_steer']))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default=derp.util.get_hostname(),
-                        help="physical config")
-    parser.add_argument('--model_dir', type=str, default=None,
-                        help="directory to models we wish to run")
+    parser.add_argument('--car', type=str, default=derp.util.get_hostname(),
+                        help="location of config file for vehicle")
+    parser.add_argument('--controller', type=str, default=None):
+                        help="location of controller folder")
     parser.add_argument('--quiet', action='store_true', default=False,
                         help="do not print speed/steer")
     parser.add_argument('--debug', action='store_true', default=False,

@@ -22,7 +22,7 @@ class Camera(Component):
         self.start_time = 0
         self.image_bytes = b''
         self.state[self.config['name']] = None
-        self.initialize()
+        self.__connect()
 
     def __del__(self):
         super(Camera, self).__del__()
@@ -30,11 +30,11 @@ class Camera(Component):
             self.cap.close()
             self.cap = None
 
-    def initialize(self):
+    def __connect(self):
         if self.cap:
             del self.cap
             self.cap = None
-        self.ready = self.find_camera()
+        self.ready = self.__find()
         if not self.ready:
             return False
         try:
@@ -49,7 +49,7 @@ class Camera(Component):
             self.ready = False
         return self.ready
             
-    def find_camera(self):
+    def __find(self):
         """ Finds and connects to the camera """
         if self.config['index'] is None:
             devices = [int(f[-1]) for f in sorted(os.listdir('/dev'))
@@ -78,7 +78,7 @@ class Camera(Component):
     def sense(self):
         """ Read the next video frame. If we couldn't get it, use the previous one """
         if not self.ready:
-           self.initialize()
+           self.__connect()
 
         if self.ready:
             frame = None
@@ -99,44 +99,3 @@ class Camera(Component):
             self.out_buffer.append((self.state['timestamp'], self.image_bytes))
         return self.ready
 
-
-    def record(self):
-        # Do not write if write is not desired.. but close up any recording process by
-        # trying to encode an mp4 in the background.
-        if not self.is_recording():
-            if self.is_recording_initialized():
-                fps = int(self.frame_counter / (time() - self.start_time) + 0.5)
-                args = (self.folder, self.config['name'])
-                cmd = " ".join(['gst-launch-1.0',
-                                'multifilesrc',
-                                'location="%s/%s/%%06d.jpg"' % args,
-                                '!', '"image/jpeg,framerate=%i/1"' % fps, 
-                                '!', 'jpegparse',
-                                '!', 'jpegdec',
-                                '!', 'omxh264enc', 'bitrate=8000000',
-                                '!', '"video/x-h264, stream-format=(string)byte-stream"',
-                                '!', 'h264parse',
-                                '!', 'mp4mux',
-                                '!', 'filesink location="%s/%s.mp4"' % args])
-                subprocess.Popen(cmd, shell=True)
-                self.folder = None
-            return True                
-
-        # If we are initialized, then spit out jpg images directly to disk
-        if not self.is_recording_initialized():
-            super(Camera, self).record()
-            self.folder = self.state['folder']
-            self.recording_dir = os.path.join(self.folder, self.config['name'])
-            self.frame_counter = 0
-            self.start_time = time()
-            os.mkdir(self.recording_dir)
-
-        # Write out buffered images
-        for timestamp, image_data in self.out_buffer:
-            path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
-            with open(path, 'wb') as f:
-                f.write(image_data)
-            self.frame_counter += 1
-        del self.out_buffer[:]
-
-        return True

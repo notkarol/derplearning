@@ -84,6 +84,15 @@ class State(Mapping):
 
 
     def record(self):
+
+        # If we are initialized, then spit out jpg images directly to disk
+        if not self.is_recording_initialized():
+            self.folder = self.state['folder']
+            self.recording_dir = os.path.join(self.folder, self.config['name'])
+            self.frame_counter = 0
+            self.start_time = time()
+            os.mkdir(self.recording_dir)
+
         if self.is_recording():
             row = []
             for key in self.csv_header:
@@ -100,11 +109,11 @@ class State(Mapping):
         if not self.is_recording():
             if self.is_recording_initialized():
                 self.folder = None
+                # TODO encode videos
             return False
 
         # As long as we have a csv header to write out, write out data
         if len(self.csv_header):
-
             # Create a new output csv writer since the folder name changed
             if not self.is_recording_initialized():
                 self.folder = self.state['folder']
@@ -124,9 +133,15 @@ class State(Mapping):
             for row in self.csv_buffer:
                 self.csv_writer.writerow(row)
             self.csv_fd.flush()
-
-        # Clear csv buffer in any case to prevent memory leaks
         del self.csv_buffer[:]
+
+        # Write out buffered images
+        for timestamp, image_data in self.out_buffer:
+            path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
+            with open(path, 'wb') as f:
+                f.write(image_data)
+            self.frame_counter += 1
+        del self.out_buffer[:]
 
         return True
             

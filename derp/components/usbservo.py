@@ -22,14 +22,14 @@ class UsbServo(Component):
         self.offset_name = 'offset_' + self.state_name
         self.use_offset_name = 'use_offset_' + self.state_name
 
-        self.initialize()
+        self.__connect()
         self.ready = True
 
     def __del__(self):
         """ Upon close make sure to kill the car """
-        self.send(0)
+        self.__send(0)
 
-    def initialize(self):
+    def __connect(self):
         """ Re-initialize connection to USB servo """
         try:
             self.device = usb.core.find(idVendor=self.usb_vendor_id,
@@ -39,7 +39,7 @@ class UsbServo(Component):
         except Exception as e:
             print("usbservo initialize:", e)
         
-    def send(self, value):
+    def __send(self, value):
         """ Actually send the message through USB to set the servo to the desired value """
         # Limit command to known limits and convert to command
         value = min(value, self.config['max_value'])
@@ -56,7 +56,7 @@ class UsbServo(Component):
     def act(self):
         """ Send the servo a specific value in [-1, 1] to move to """
         if not self.ready:
-            self.initialize()
+            self.__connect()
 
         value = self.state[self.state_name]
         if self.state[self.use_offset_name]:
@@ -64,4 +64,4 @@ class UsbServo(Component):
         if self.state.done():
             value = 0
 
-        return self.send(value)
+        return self.__send(value)
