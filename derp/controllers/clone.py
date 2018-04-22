@@ -38,6 +38,7 @@ class Clone(Controller):
 
     def prepare_thumb(self):
         frame = self.state[self.config['thumb']['component']]
+        print(frame.shape, self.bbox, self.size)
         patch = derp.util.crop(frame, self.bbox)
         thumb = derp.util.resize(patch, self.size)
         return thumb
@@ -54,7 +55,7 @@ class Clone(Controller):
             derp.util.unscale(self.config['predict'], prediction)
         else:
             prediction = np.zeros(len(self.config['predict']), dtype=np.float32)
-        state['prediction'] = prediction
+        self.state['prediction'] = prediction
         
 
     def plan(self):
