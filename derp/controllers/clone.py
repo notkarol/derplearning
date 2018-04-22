@@ -38,7 +38,6 @@ class Clone(Controller):
 
     def prepare_thumb(self):
         frame = self.state[self.config['thumb']['component']]
-        print(frame.shape, self.bbox, self.size)
         patch = derp.util.crop(frame, self.bbox)
         thumb = derp.util.resize(patch, self.size)
         return thumb
