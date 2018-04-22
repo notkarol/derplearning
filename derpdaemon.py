@@ -221,21 +221,13 @@ class Daemon:
                     self.__creation_time = time()
                     cmd = ["python3", "%s/drive.py" % os.environ['DERP_ROOT'], "--quiet"]
                     if byte8 & 16:
-                        config = derp.util.get_hostname() + '-square'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "square")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'square'])
                     elif byte8 & 32:
-                        config = derp.util.get_hostname() + '-cross'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "cross")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        pass
                     elif byte8 & 64:
-                        config = derp.util.get_hostname() + '-circle'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "circle")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'circle'])
                     elif byte8 & 128:
-                        config = derp.util.get_hostname() + '-triangle'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "triangle")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'triangle'])
                     print(cmd)
                     Popen(cmd)
         return True

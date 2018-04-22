@@ -1,6 +1,5 @@
 components:
   - path: "joystick/dualshock4.yaml"
-  - path: "input/keyboard.yaml"
   - path: "camera/OV2710_100fov_1920x1080.yaml"
     name: "camera_front"
     x: -0.21 # meters forward from front axle
