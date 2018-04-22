@@ -4,19 +4,20 @@ from derp.scripts.clone import Clone
 
 class CloneAdaSpeed(Clone):
 
-    def __init__(self, config, full_config, state):
-        super(CloneAdaSpeed, self).__init__(config, full_config, state)
+    def __init__(self, config, car_config, state):
+        super(CloneAdaSpeed, self).__init__(config, car_config, state)
 
     def plan(self):
-        predictions = self.predict()
-
+        self.predict()
+        if self.state['auto']:
+            return
+    
         # Future steering angle magnitude dictates speed
         if self.config['use_min_for_speed']:
-            future_steer = float(min(predictions))
+            future_steer = float(min(self.state['prediction']))
         else:
-            future_steer = float(predictions[1])
+            future_steer = float(self.state['prediction'][1])
         multiplier = 1 + self.config['scale'] * (1 - abs(future_steer)) ** self.config['power']
-        speed = self.state['offset_speed'] * multiplier
 
-        steer = float(predictions[0])
-        return speed, steer
+        self.state['speed'] = self.state['offset_speed'] * multiplier
+        self.state['steer'] = float(self.state['predictions'][0])

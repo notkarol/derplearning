@@ -10,9 +10,9 @@ class UsbServo(Component):
     supported capabilities are vague controls of the speed and steering. 
     """
 
-    def __init__(self, config, full_config, state):
+    def __init__(self, config, state):
 
-        super(UsbServo, self).__init__(config, full_config, state)
+        super(UsbServo, self).__init__(config, state)
         self.device = None
         
         self.usb_vendor_id = 0x1ffb # Polulu
@@ -26,8 +26,7 @@ class UsbServo(Component):
         self.ready = True
 
     def __del__(self):
-        """ Upon close make sure to kill the car """
-        self.__send(0)
+        self.__send(0) # make sure we tell the car to stop
 
     def __connect(self):
         """ Re-initialize connection to USB servo """

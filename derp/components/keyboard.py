@@ -10,8 +10,8 @@ import derp.util
 
 class Keyboard(Component):
 
-    def __init__(self, config, full_config, state):
-        super(Keyboard, self).__init__(config, full_config, state)
+    def __init__(self, config, state):
+        super(Keyboard, self).__init__(config, state)
         self.device = None
         self.__connect()
 
@@ -117,10 +117,8 @@ class Keyboard(Component):
                      }
 
     def __del__(self):
-        super(Keyboard, self).__del__()
         if self.device is not None:
             self.device.close()
-            self.device = None
 
     def __connect(self):
         self.device = derp.util.find_device(self.config['device_names'])

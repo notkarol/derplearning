@@ -1,8 +1,5 @@
-# Which script to load from derp.scripts
-script: 'CloneFixSpeed'
-required: True
-class: 'Inferer'
-name: 'clonefixspeed'
+name: 'cloneadaspeed'
+class: 'CloneAdaSpeed'
 
 # Training related parameters
 create:
@@ -36,7 +33,7 @@ thumb:
   y: 0.0
   z: 0.43
   roll: 0
-  pitch: -13
+  pitch: -10
   yaw: 0
 
 # The status we feed into the network
@@ -45,5 +42,11 @@ status: []
 # States we will predict
 predict:
   - {field: 'steer', delay: 0.4, scale: 1 }
+  - {field: 'steer', delay: 2.4, scale: 1 }
 #  - {field: 'shift', scale: 10 }
 #  - {field: 'rotate', scale: 0.1 }
+
+# Other parameters that will affect things during autonomous mode
+scale: 0.5
+power: 2
+use_min_for_speed: true

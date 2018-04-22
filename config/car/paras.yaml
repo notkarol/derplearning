@@ -1,7 +1,3 @@
-
-no_cuda: False
-model_dir: Null
-
 components:
   - path: "joystick/dualshock4.yaml"
   - path: "input/keyboard.yaml"
@@ -21,18 +17,3 @@ components:
   - path: "servo/micromaestro_steer_2075.yaml"
     state:
       offset_steer: 0.0 # assume no steering bias
-  - path: "inference/clone_fixspeed.yaml"
-    create:
-      data_folders: ['train']
-      train_chance: 0.9
-      n_perts: 1
-      perts:
-        shift:
-          max: 0 # meters
-          fudge: 0.00
-          timedecay: 1.0
-        rotate:
-          max: 0 # degrees
-          fudge: 0.00
-          timedecay: 1.0
-    camera_name: "camera_front"       

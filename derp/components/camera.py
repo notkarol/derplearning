@@ -13,11 +13,10 @@ import derp.util as util
 
 class Camera(Component):
 
-    def __init__(self, config, full_config, state):
-        super(Camera, self).__init__(config, full_config, state)
+    def __init__(self, config, state):
+        super(Camera, self).__init__(config, state)
 
         self.cap = None
-        self.out_buffer = []
         self.frame_counter = 0
         self.start_time = 0
         self.image_bytes = b''
@@ -25,10 +24,8 @@ class Camera(Component):
         self.__connect()
 
     def __del__(self):
-        super(Camera, self).__del__()
         if self.cap is not None:
             self.cap.close()
-            self.cap = None
 
     def __connect(self):
         if self.cap:
@@ -95,7 +92,5 @@ class Camera(Component):
                     self.ready = False
                     break
         
-        if self.is_recording():
-            self.out_buffer.append((self.state['timestamp'], self.image_bytes))
         return self.ready
 

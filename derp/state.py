@@ -1,28 +1,27 @@
 # A class that carries the state of the car through time
 from collections.abc import Mapping
 import csv
+import numpy as np
 import os
 import yaml
 import time
-from derp.component import Component
+import shutil
 import derp.util
 
 class State(Mapping):
 
-    def __init__(self, config):
+    def __init__(self, car_config_path, controller_config_path):
         self.exit = False
         self.folder = None
-        self.config = config
-        self.state = {}
+        self.car_config_path = car_config_path
+        self.controller_config_path = controller_config_path
+        self.state = {'record': False}
         self.csv_fd = None
         self.csv_writer = None
-        self.csv_buffer = []
         self.csv_header = []
         
         # Prepare default state variables
         self['timestamp'] = time.time()
-        self['record'] = False
-        self['folder'] = self.folder
         self['warn'] = False
         self['error'] = False
         self['auto'] = False
@@ -49,52 +48,72 @@ class State(Mapping):
     def __repr__(self):
         return self.__class__.__name__.lower()
 
-    
     def __setitem__(self, key, item):
-        # When we update the state, keep track of every variable we add to the state
-        # so when it's saved it's also written to disk. Skip folder as it's long.
+
         if key not in self.state:
-            if key not in ['record', 'folder']:
-                self.csv_header.append(key)
+            if self.state['record']:
+                raise KeyError("Cannot create variable [%s] during recording" % key)
             print("state created: %s" % key)
 
         # Update folder if we set record
-        if key == 'record' and key in self.state:
-            if item:
-                if not self[key]:
-                    self['folder'] = derp.util.create_record_folder()
-                    config_path = os.path.join(self['folder'], 'config.yaml')
-                    with open(config_path, 'w') as f:
-                        f.write(yaml.dump(self.config, default_flow_style=False))
-            else:
-                self['folder'] = None
-                
-            
+        if key == 'record' and key in self.state and item and not self[key]:
+            self.initialize_recording()
+
         # Otherwise treat state exactly as a dictionary
         self.state[key] = item
         return item
 
+    def initialize_recording(self):
+        # Copy over configs used to initialize this recording
+        self.folder = derp.util.create_record_folder()
+        dst_car_config_path = os.path.join(self.folder, 'car.yaml')
+        dst_controller_config_path = os.path.join(self.folder, 'controller.yaml')
+        shutil.copy(self.car_config_path, dst_car_config_path)
+        shutil.copy(self.controller_config_path, dst_controller_config_path)
+
+        # Make a folder for every 2D or larger numpy array so we can store vectors/images
+        for key in self.state:
+            if self.is_multidimensional(key):
+                folder = os.path.join(self.folder, key)
+                os.mkdir(folder)
+        
+        # Create state csv
+        csv_path = os.path.join(self.folder, 'state.csv')
+        self.csv_fd = open(csv_path, 'w')
+        self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
+                                     quoting=csv.QUOTE_MINIMAL)
+        self.csv_writer.writerow(self.csv_header)
+
+        self.frame_counter = 0
+        
+    def is_multidimensional(self, var):
+        return type(self[var]) is np.ndarray and len(self[var]) > 1
 
     def is_recording(self):
         return 'record' in self.state and self.state['record']
 
+    def is_image(self, key):
+        return len(self[key].shape) == 3 and self[key].shape[-1] == 3
 
-    def is_recording_initialized(self):
-        return self.folder is not None  
-
-
+    def get_image_suffix(self, key):
+        return 'jpg' if 'camera' in key else 'png'
+    
     def record(self):
 
-        # If we are initialized, then spit out jpg images directly to disk
-        if not self.is_recording_initialized():
-            self.folder = self.state['folder']
-            self.recording_dir = os.path.join(self.folder, self.config['name'])
-            self.frame_counter = 0
-            self.start_time = time()
-            os.mkdir(self.recording_dir)
-
+        # If we're not recording anymore, do post-processing and stop
+        if not self.is_recording():
+            if self.folder is not None:
+                self.csv_fd.close()
+                for key in self.state:
+                    if self.is_multidimensional(key) and self.is_image(key):
+                        suffix = self.get_image_suffix(key)
+                        derp.util.encode_video(self.folder, key, suffix)
+                self.folder = None
+            return False
+        
+        # Prepare the csv row to print
+        row = []
         if self.is_recording():
-            row = []
             for key in self.csv_header:
                 t = type(self[key])
                 if t in (int, bool, type(None)):
@@ -103,77 +122,36 @@ class State(Mapping):
                     row.append(("%.6f" % self[key]).rstrip('0'))
                 else:
                     row.append('')
-            self.csv_buffer.append(row)
+        self.csv_writer.writerow(row)
+        self.csv_fd.flush()
 
-        # Skip if aren't asked to record or we have nothing to record
-        if not self.is_recording():
-            if self.is_recording_initialized():
-                self.folder = None
-                # TODO encode videos
-            return False
+        for key in self.state:
+            if not self.is_multidimensional(key):
+                continue
 
-        # As long as we have a csv header to write out, write out data
-        if len(self.csv_header):
-            # Create a new output csv writer since the folder name changed
-            if not self.is_recording_initialized():
-                self.folder = self.state['folder']
-                # Close existing csv file descriptor if it exists
-                if self.csv_fd is not None:
-                    self.csv_fd.close()
-
-                # Create output csv
-                filename = "%s.csv" % (str(self).lower())
-                csv_path = os.path.join(self.folder, filename)
-                self.csv_fd = open(csv_path, 'w')
-                self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
-                                               quoting=csv.QUOTE_MINIMAL)
-                self.csv_writer.writerow(self.csv_header)
-
-            # Write out buffer and flush it
-            for row in self.csv_buffer:
-                self.csv_writer.writerow(row)
-            self.csv_fd.flush()
-        del self.csv_buffer[:]
-
-        # Write out buffered images
-        for timestamp, image_data in self.out_buffer:
-            path = '%s/%06i.jpg' % (self.recording_dir, self.frame_counter)
-            with open(path, 'wb') as f:
-                f.write(image_data)
-            self.frame_counter += 1
-        del self.out_buffer[:]
-
+            path_stem = os.path.join(self.folder, key, "%06i." % self.frame_counter)
+            if self.is_image(key):
+                path = path_stem + self.get_image_suffix(key)
+                derp.util.save_image(path, self[key])
+            else:
+                np.save(path_stem, self[key], allow_pickle=False)
+    
+        self.frame_counter += 1
         return True
-            
 
     def close(self):
-        """
-        Mark this run as being done.
-        """
+        """ Mark this run as being done so that the program knows to exist"""
         self.exit = True
 
-
     def done(self):
-        """
-        Returns whether this component is ready to close
-        """
+        """ Returns whether the state is ready to close """
         return self.exit
 
-
     def update_multipart(self, basename, subnames, values):
-        """ 
-        Sometimes we want to update multiple similarly named variables
-        """
+        """ Sometimes we want to update multiple similarly named variables """
         for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value
-
-
-    def verify(self):
-        # Verify that all have been initialized
-        for var in self.state:
-            if self.state[var] is None and var is not 'folder':
-                raise ValueError("Field [%s] is None" % var)
         
 
             

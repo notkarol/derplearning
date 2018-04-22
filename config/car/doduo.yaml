@@ -1,7 +1,3 @@
-
-no_cuda: False
-model_dir: Null
-
 components:
   - path: "input/keyboard.yaml"
   - path: "camera/c922_30fov_1920x1080.yaml"

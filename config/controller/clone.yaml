@@ -1,8 +1,5 @@
-# Which script to load from derp.scripts
-script: 'Clone'
-required: True
-class: 'Inferer'
 name: 'clone'
+class: 'Clone'
 
 # Dataset creation parameters
 create:

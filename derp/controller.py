@@ -1,17 +1,15 @@
-#!/usr/bin/env python3
-
-import os
-from time import time
-from derp.component import Component
-import derp.util
-
-class Controller(Component):
-    
-    def __init__(self, config, full_config, state):
+class Controller:
+    def __init__(self, config, car_config, state):
         self.config = config
-        self.full_config = full_config
+        self.car_config = car_config
         self.state = state
         self.ready = True
+
+    def __repr__(self):
+        return self.__class__.__name__.lower()
+
+    def __str__(self):
+        return repr(self)
 
     def plan(self):
         return True

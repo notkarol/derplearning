@@ -36,11 +36,22 @@ def find_device(names):
     return None
 
 
-def encode_video(folder, name, fps):
-    args = (folder, name)
+def get_car_config_path(name):
+    return os.path.join(os.environ['DERP_ROOT'], 'config', 'car', name + '.yaml')
+
+
+def get_controller_config_path(name):
+    return os.path.join(os.environ['DERP_ROOT'], 'config', 'controller', name + '.yaml')
+
+
+def get_controller_models_path(name):
+    return os.path.join(os.environ['DERP_ROOT'], 'models', name)
+
+
+def encode_video(folder, name, suffix, fps=30):
     cmd = " ".join(['gst-launch-1.0',
                     'multifilesrc',
-                    'location="%s/%s/%%06d.jpg"' % args,
+                    'location="%s/%s/%%06d.%s"' % (folder, name, suffix),
                     '!', '"image/jpeg,framerate=%i/1"' % fps, 
                     '!', 'jpegparse',
                     '!', 'jpegdec',
@@ -48,7 +59,7 @@ def encode_video(folder, name, fps):
                     '!', '"video/x-h264, stream-format=(string)byte-stream"',
                     '!', 'h264parse',
                     '!', 'mp4mux',
-                    '!', 'filesink location="%s/%s.mp4"' % args])
+                    '!', 'filesink location="%s/%s.mp4"' % (folder, name)])
     subprocess.Popen(cmd, shell=True)
     
 
@@ -204,8 +215,9 @@ def load_config(config_path):
     if 'path' not in config:
         config['path'] = config_path
 
-    # Then load the each component
-    dirname = os.path.dirname(config_path)
+    # Load component configs recursively if they exist, and eventually return the full config
+    if 'components' not in config:
+        return config
     for component_config in config['components']:
 
         # Check if we need to load more parameters from elsewhere
@@ -230,39 +242,36 @@ def load_config(config_path):
         # Make sure we were able to find a class
         if 'class' not in component_config:
             raise ValueError("load_config: all components must have a class in components/")
-
-    # Make sure we also have a state
-    if 'state' not in config:
-        config['state'] = {}
-        
     return config
 
 
-def load_script(subfolder, config, full_config, state):
-    module_name = "derp.%s.%s" % (subfolder, config['class'].lower())
+def load_component(config, state):
+    module_name = "derp.components.%s" % (config['class'].lower())
     class_fn = load_class(module_name, config['class'])
-    script = class_fn(config, full_config, state)
-    if not script.ready and 'required' in config and config['required']:
+    script = class_fn(config, state)
+    if not script.ready and config['required']:
         raise ValueError("load_script: failed", config['name'])
     print("Loaded %s" % module_name)
     return script
 
 
-def load_controller(config, state):
-    return load_script('controllers', config['controller'], config, state)
+def load_controller(config, car_config, state):
+    module_name = "derp.controllers.%s" % (config['class'].lower())
+    class_fn = load_class(module_name, config['class'])
+    script = class_fn(config, car_config, state)
+    if not script.ready:
+        raise ValueError("load_controller: failed")
+    print("Loaded %s" % module_name)
+    return script
 
 
 def load_components(config, state):
-    """
-    Load the class of each component by its name and initialize all state keys.
-    """
-
-    # Initialize components
+    # Load the class of each component by its name and initialize all state keys.
     components = []
-    for component_config in config['components']:
+    for component_config in config:
 
         # Load the component object
-        component = load_script('component', component_config, config, state)
+        component = load_component(component_config, state)
 
         # Skip a non-ready component. Raise an error if it's required as we can't continue
         if not component.ready:

@@ -10,8 +10,8 @@ from derp.component import Component
 
 class BNO055(Component):
 
-    def __init__(self, config, full_config, state):
-        super(BNO055, self).__init__(config, full_config, state)
+    def __init__(self, config, state):
+        super(BNO055, self).__init__(config, state)
 
         self.bno = None
         self.ready = self.__connect()

@@ -13,8 +13,8 @@ import derp.util as util
 
 class Dualshock4(Component):
 
-    def __init__(self, config, full_config, state):
-        super(Dualshock4, self).__init__(config, full_config, state)
+    def __init__(self, config, state):
+        super(Dualshock4, self).__init__(config, state)
         
         # The deadzone of the analog sticks to ignore them
         self.__timeout = self.config['timeout']
@@ -45,7 +45,6 @@ class Dualshock4(Component):
         self.__server_socket.send_json(False)
         sleep(0.1)
         self.__server_socket.disconnect(self.__server_addr)
-        super(Dualshock4, self).__del__()
 
     def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
