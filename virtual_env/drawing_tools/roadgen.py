@@ -20,28 +20,32 @@ v5 draws 3 color lines on the ground the middle one being dashed.
 '''
 
 import yaml
-with open("config/line_model.yaml", 'r') as yamlfile:
-    cfg = yaml.load(yamlfile)
+with open(os.environ['DERP_ROOT'] + "/virtual_env/v_config/meta.yaml", 'r') as yamlfile:
+    meta = yaml.load(yamlfile)
+with open(os.environ['DERP_ROOT'] + "/virtual_env/v_config/data.yaml", 'r') as yamlfile:
+    data = yaml.load(yamlfile)
+with open(os.environ['DERP_ROOT'] + "/virtual_env/v_config/objects.yaml", 'r') as yamlfile:
+    objects = yaml.load(yamlfile)
 
-''' The Rooagen class is responsible for all things related to the generation of virtual training data
+''' The Roadgen class is responsible for all things related to the generation of virtual training data
     Roadgen's init function defines several key image parameters used by line_model validation systems
     So the class is frequently invoked in line_validate '''
 
 class Roadgen:
     """Load the generation configuration parameters"""
-    def __init__(self, config=cfg):
+    def __init__(self):
         #characteristics of the lines to be detected:
-        self.n_lines = config['line']['n_lines']
-        self.n_points = config['line']['n_points']
-        self.n_dimensions = config['line']['n_dimensions']
-        self.n_channels = config['line']['n_channels']
+        self.n_lines = data['labels']['line_count']
+        self.n_points = data['labels']['cp_per_line']
+        self.n_dimensions = data['labels']['dimensions']
+        self.n_channels = data['depth']
         self.max_intensity = 256
 
         #parameters of the virtual view window
-        self.view_res = (cfg['line']['gen_width'], 
-                            cfg['line']['gen_height'])
-        self.input_res = (cfg['line']['input_width'] , 
-                            cfg['line']['input_height'])
+        self.view_res = (data['view_width'], 
+                            data['view_height'])
+        self.input_res = (data['input_width'], 
+                            data['input_height'])
 
         self.gen_res = self.view_res * 2
         self.cropsize = ((self.gen_res[0] - self.view_res[0])/2,
@@ -69,9 +73,10 @@ class Roadgen:
         self.lane_convergence = .6 #rate at which lanes converge approaching horizon
 
         #parameters to be used by the drawing function road_gen
-        self.n_segments = config['line']['n_segments']
+        self.n_segments = objects['road']['segments']
         self.line_width = self.view_res[0] * .007
         self.line_wiggle = self.view_res[0] * 0.00005
+        #TODO move noise params to config
 
     def __del__(self):
         #Deconstructor
@@ -494,15 +499,15 @@ def main():
         help='determines how many validation batches to generate')    
     args = parser.parse_args()
 
-    roads = Roadgen(cfg)
+    roads = Roadgen()
 
     #generate the training data
     for batch in range(args.batches):
-        roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['train_data'])
+        roads.batch_gen(n_datapoints=args.frames, data_dir=os.environ['DERP_ROOT'] + meta['dir']['train_data'])
 
     #generate the validation data
     for batch in range(args.val_batches):
-        roads.batch_gen(n_datapoints=args.frames, data_dir=cfg['dir']['val_data'])        
+        roads.batch_gen(n_datapoints=args.frames, data_dir=os.environ['DERP_ROOT'] + meta['dir']['val_data'])        
 
 if __name__ == "__main__":
     main()
