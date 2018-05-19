@@ -1,0 +1,15 @@
+
+#camera view roi to be recreated:
+view_height: 160
+view_width: 640
+
+#nn data input to resize to:
+input_height: 32
+input_width: 128
+depth: 3 # channel Count
+
+#Lable attirbutes:
+labels:
+  dimensions: 2
+  line_count: 3
+  cp_per_line: 3

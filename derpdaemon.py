@@ -58,10 +58,15 @@ class Daemon:
         self.__creation_time = 0
         self.sendController(None)
 
-        
+    def __del__(self):
+        """ Close all of our sockets and file descriptors """
+        self.__ctrl_socket.close()
+        self.__intr_socket.close()
+        if self.__claimed and os.path.exists(self.__pid_path):
+            os.unlink(self.__pid_path)
+
     def paired(self):
-        return self.__paired            
-    
+        return self.__paired    
 
     def verifyUnique(self):
         """ If we're not the only ones running """
@@ -84,7 +89,6 @@ class Daemon:
         # Otherwise, it probably doesn't exist so
         return False
 
-
     def pair(self, max_attempts=5):
         """ Try pairing with the controller """
         if not self.__claimed:
@@ -105,15 +109,6 @@ class Daemon:
                     # Does not receive packets properly until we send it at least one command
                     return True
         return False
-
-
-    def __del__(self):
-        """ Close all of our sockets and file descriptors """
-        self.__ctrl_socket.close()
-        self.__intr_socket.close()
-        if self.__claimed and os.path.exists(self.__pid_path):
-            os.unlink(self.__pid_path)
-
 
     def decodeController(self, buf):
         """
@@ -159,14 +154,12 @@ class Daemon:
                   "mic" : (buf[33] & 64) != 0}
         return status
 
-    
     def encodeController(self, val):
         val = float(val) * 255 # normalize from 0->1 to 0->255
         val = int(val + 0.5) # round it to nearest int
         if val < 0: val = 0 # bound it
         if val > 255: val = 255 # bound it
         return val
-
 
     def sendClient(self):
         with self.__mutex:
@@ -176,11 +169,9 @@ class Daemon:
             self.__client_queue.clear()
         return True
 
-
     def recvClient(self):
         self.__last_msg = self.__client_socket.recv_json()
         return self.__last_msg
-
 
     def sendController(self, msg=None):
         if type(msg) is not dict:
@@ -198,7 +189,6 @@ class Daemon:
         self.__packet[13] = self.encodeController(msg['light_off'])
         self.__ctrl_socket.sendall(self.__packet)
         return True
-
 
     def recvController(self):
         buf = bytearray(self.__report_size - 2)
@@ -232,17 +222,14 @@ class Daemon:
                     Popen(cmd)
         return True
 
-
     def loop(self):
         threading.Thread(target=self.loopController).start()
         threading.Thread(target=self.loopClient).start()
-        
-    
+
     def loopController(self):
         while True:
             sleep(0.01)
-            self.recvController()      
-
+            self.recvController()
 
     def loopClient(self):
         while True:

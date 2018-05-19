@@ -1,17 +1,14 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
-from roadgen import Roadgen as rg
-import yaml
-with open("config/line_model.yaml", 'r') as yamlfile:
-    cfg = yaml.load(yamlfile)
+from shapes import Shapes
 
 
-class Test_Roadgen(unittest.TestCase):
+class Test_Shapes(unittest.TestCase):
 	"""docstring for Test_Roadgen"""
 	#Setup the test instance of the class
 	def setUp(self): 
-		self.test0 = rg(cfg)
+		self.test0 = Shapes()
 
 	def tearDown(self):
 		pass
