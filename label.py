@@ -332,8 +332,41 @@ if __name__ == "__main__":
     parser.add_argument('--scale', type=float, default=1.0, help="frame rescale ratio")
     parser.add_argument('--config', type=str, default=None, help="physical configuration")
     parser.add_argument('--infer', type=str, default=None, help="infer configuration")
+    parser.add_argument('--controls', type=bool, default=True, help="Opens raceday.md with label.py controls notes.")
 
     args = parser.parse_args()
+    
+    if args.controls:
+        print("""## Navigation
+You can maneuver through the tool through the arrow keys.
+* Left Arrow: Move backward in time 1 frame
+* Right Arrow: Move forward in time 1 frame
+* Up Arrow: Move forward in time 1 second
+* Down Arrow: Move backward in time 1 second
+* `: Move to the beginning of the file.
+* 1: Move to 10% into the file.
+* 2: Move to 20% into the file.
+* 3: Move to 30% into the file.
+* 4: Move to 40% into the file.
+* 5: Move to 50% into the file.
+* 6: Move to 60% into the file.
+* 7: Move to 70% into the file.
+* 8: Move to 80% into the file.
+* 9: Move to 90% into the file.
+* 0: Move to 100% into the file.
+
+## Modes
+* g: good data that we should use for data
+* r: risky data that we mark is interesting but probably don't want to train
+* t: trash data that we wish to junk and not use again
+
+You an also clear the marker so that when you maneuver through the video you don't update the mode at the time.
+* c: clear marker
+
+## Save the labels to a file:
+* s: Save video
+
+""")
     
     labeler = Labeler(recording_path=args.path, scale=args.scale)
     labeler.run_labeler(args.config, args.infer)
