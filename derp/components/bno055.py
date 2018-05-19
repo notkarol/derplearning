@@ -91,7 +91,7 @@ class BNO055(Component):
         for subname in subnames:
             field_name = "%s_%s" % (name, subname)
             total += 0 if self.state[field_name] is None else self.state[field_name]
-        self.state['warn'] = 1 - (total / 12)
+        self.state['warn'] = (1 - total / 12) / 4
 
         # Store 22 bytes of calibration data to a pre-set file, as according to the config.
         if self.calibration_saved or not self.__is_calibrated():
