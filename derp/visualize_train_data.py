@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+#plots a grid of training image frames and the corresponding labels
+#This allows an engineer to visually validate a training data batch
+
 def plot_batch(example, label, name):
     dim = int(np.sqrt(len(example))) + 1
     fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
