@@ -35,7 +35,7 @@ class Clone(Controller):
 
         # Data saving
         self.frame_counter = 0  
-
+ 
     def prepare_thumb(self):
         frame = self.state[self.config['thumb']['component']]
         patch = derp.util.crop(frame, self.bbox)

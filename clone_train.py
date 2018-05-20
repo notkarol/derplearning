@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from derp.fetcher import Fetcher
 import torchvision.transforms as transforms
 import derp.util
+import derp.visualize
 
 def step(epoch, config, model, loader, optimizer, criterion,
          is_train, nocuda, plot_batch=False):
@@ -30,10 +31,9 @@ def step(epoch, config, model, loader, optimizer, criterion,
     for batch_idx, (example, status, label) in enumerate(loader):
 
         # Plot this batch if desired
-        if plot_batch:
+        if 1 or plot_batch:
             name = "batch_%02i_%i_%04i" % (epoch, is_train, batch_idx)
-            derp.util.plot_batch(example, label, name)
-
+            derp.visualize.plot_batch(example, label, name)
         # Run training or evaluation to get loss, and then use loss if in training
         if not nocuda:
             example = example.cuda()
@@ -42,7 +42,6 @@ def step(epoch, config, model, loader, optimizer, criterion,
         example = Variable(example)
         status = Variable(status)
         label = Variable(label)
-        
         if is_train:
             optimizer.zero_grad()
         out = model(example, status)
@@ -85,7 +84,7 @@ def main(args):
                                        contrast=td['contrast'],
                                        saturation=td['saturation'],
                                        hue=td['hue'])
-            tlist.append(t)
+            #tlist.append(t)
     tlist.append(transforms.ToTensor())
     transform = transforms.Compose(tlist)
 

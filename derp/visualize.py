@@ -1,12 +1,12 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_batch(example, label, name):
-    dim = int(np.sqrt(len(example)))
+    dim = int(np.sqrt(len(example))) + 1
     fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
     for i in range(len(example)):
         x = i % dim
         y = int(i // dim)
-
         # change from CHW to HWC and only show first three channels
         img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
         axs[y, x].imshow(img)
