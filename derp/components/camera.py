@@ -37,7 +37,7 @@ class Camera(Component):
         try:
             w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG')
             fps = self.cap.set_fps(self.config['fps'])
-            self.cap.create_buffers(1)
+            self.cap.create_buffers(2)
             self.cap.queue_all_buffers()
             self.cap.start()
             self.ready = True
@@ -82,13 +82,14 @@ class Camera(Component):
             counter = 1
             while frame is None and counter:
                 counter -= 1
-                select.select((self.cap,), (), (), 0.1)
+                select.select((self.cap,), (), ())
                 try:
                     self.image_bytes = self.cap.read_and_queue()
                     image_array = np.fromstring(self.image_bytes, np.uint8)
-                    self.state[self.config['name']] = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+                    frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+                    self.state[self.config['name']] = frame
                 except Exception as e:
-                    print("Camera: Unable to get frame. Retrying")
+                    print("Camera: Unable to get frame. Retrying", e)
                     self.ready = False
                     break
         

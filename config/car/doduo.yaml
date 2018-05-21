@@ -1,4 +1,4 @@
 components:
   - path: "input/keyboard.yaml"
-  - path: "camera/c922_30fov_1920x1080.yaml"
+  - path: "camera/OV7725_150fov_640x480.yaml"
     name: "camera_front"

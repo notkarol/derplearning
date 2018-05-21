@@ -82,7 +82,7 @@ class Labeler:
 
         self.frame_id = frame_id - 1
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
-        print("%i %5i %6.3f %6.3f" % (self.frame_id, self.timestamps[self.frame_id],
+        print("%04i %.3f %6.3f %6.3f" % (self.frame_id, self.timestamps[self.frame_id],
                                       self.speeds[frame_id], self.steers[frame_id]))
         self.read()
         self.show = True
