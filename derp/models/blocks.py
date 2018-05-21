@@ -83,7 +83,6 @@ class ResnetBlock(nn.Module):
         out = self.activation(out)
         return out
 
-
 class LinearBlock(nn.Module):
     def __init__(self, dim, n_out, dropout=0.0, bn=False, activation=True, verbose=False):
         super(LinearBlock, self).__init__()
@@ -100,7 +99,6 @@ class LinearBlock(nn.Module):
         if verbose:
             print("Linear in %3i out %3i                     params %9i" %
                   (n_in, n_out, self.n_params))
-
 
     def forward(self, x):
         out = self.linear(x)
@@ -131,7 +129,6 @@ class PoolBlock(nn.Module):
         self.n_params = 0
         if verbose:
             pass
-
             
     def forward(self, x):
         out = self.pool(x)
