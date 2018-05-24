@@ -30,6 +30,7 @@ class State(Mapping):
         self['offset_steer'] = 0.0
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
+        self['frame_counter'] = 0
 
     def __getitem__(self, key):
         return self.state[key]
@@ -61,7 +62,8 @@ class State(Mapping):
 
     def initialize_recording(self):
         self.folder = derp.util.create_record_folder()
-
+        self['frame_counter'] = 0
+        
         dst_car_config_path = os.path.join(self.folder, 'car.yaml')
         with open(dst_car_config_path, 'w') as f:
             yaml.dump(self.car_config, f)
@@ -82,8 +84,7 @@ class State(Mapping):
         self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
                                      quoting=csv.QUOTE_MINIMAL)
         self.csv_writer.writerow(self.csv_header)
-
-        self.frame_counter = 0
+        
         
     def is_multidimensional(self, var):
         return type(self[var]) is np.ndarray and len(self[var]) > 1
@@ -126,14 +127,15 @@ class State(Mapping):
             if not self.is_multidimensional(key):
                 continue
 
-            path_stem = os.path.join(self.folder, key, "%06i." % self.frame_counter)
+            path_stem = os.path.join(self.folder, key, "%06i." % self['frame_counter'])
+)
             if self.is_image(key):
                 path = path_stem + self.get_image_suffix(key)
                 derp.util.save_image(path, self[key])
             else:
                 np.save(path_stem, self[key], allow_pickle=False)
     
-        self.frame_counter += 1
+        self['frame_counter'] += 1
         return True
 
     def close(self):
