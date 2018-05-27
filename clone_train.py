@@ -9,14 +9,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.autograd import Variable
 from derp.fetcher import Fetcher
 import torchvision.transforms as transforms
 import derp.util
 import derp.visualize
 
-def step(epoch, config, model, loader, optimizer, criterion,
-         is_train, nocuda, plot_batch=False):
+    
+def step(epoch, config, model, loader, optimizer, criterion, is_train, device, plot_batch):
 
     # prepare model for either training or evaluation
     if is_train:
@@ -25,35 +24,30 @@ def step(epoch, config, model, loader, optimizer, criterion,
         model.eval()
 
     # Store the average loss for this epoch
-    step_loss = []
-
-    # Go through each epoch
+    losses = []
     for batch_idx, (example, status, label) in enumerate(loader):
 
-        # Plot this batch if desired
-        if 1 or plot_batch:
+        if plot_batch:
             name = "batch_%02i_%i_%04i" % (epoch, is_train, batch_idx)
             derp.visualize.plot_batch(example, label, name)
-        # Run training or evaluation to get loss, and then use loss if in training
-        if not nocuda:
-            example = example.cuda()
-            status = status.cuda()
-            label = label.cuda()
-        example = Variable(example)
-        status = Variable(status)
-        label = Variable(label)
+
+        example = example.to(device)
+        status = status.to(device)
+        label = label.to(device)
+
         if is_train:
             optimizer.zero_grad()
+
         out = model(example, status)
         loss = criterion(out, label)
-        step_loss.append(loss.data.mean())
+
+        losses.append(loss.item())
+
         if is_train:
             loss.backward()
             optimizer.step()
-        letter = 'T' if is_train else 'V'
-        print("%s %03i %.6f" % (letter, batch_idx, np.mean(step_loss)), end='\r')
-        
-    return np.mean(step_loss), batch_idx + 1
+
+    return np.mean(losses), batch_idx + 1
 
 def main(args):
 
@@ -62,19 +56,20 @@ def main(args):
     controller_config = derp.util.load_config(config_path)
     experiment_path = derp.util.get_experiment_path(controller_config['name'])  
 
+    # Prepare device we will train on 
+    device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
+    
     # Prepare model
     tc = controller_config['thumb']
     dim_in = np.array((tc['depth'], tc['height'], tc['width']))
     n_status = len(controller_config['status'])
     n_out = len(controller_config['predict'])
     model_class = derp.util.load_class('derp.models.' + args.model.lower(), args.model)
-    model = model_class(dim_in, n_status, n_out)
-    criterion = nn.MSELoss()
-    if not args.nocuda:
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
-        model = model.cuda()
-        criterion = criterion.cuda()
+    model = model_class(dim_in, n_status, n_out).to(device)
+    criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), args.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=8,
+                                                     factor=0.5, verbose=True)
 
     # Prepare perturbation of example
     tlist = []
@@ -84,8 +79,8 @@ def main(args):
                                        contrast=td['contrast'],
                                        saturation=td['saturation'],
                                        hue=td['hue'])
-            #tlist.append(t)
-    tlist.append(transforms.ToTensor())
+            tlist.append(t)
+        tlist.append(transforms.ToTensor())
     transform = transforms.Compose(tlist)
 
     # prepare data loaders
@@ -94,8 +89,7 @@ def main(args):
     for part in parts:
         path = os.path.join(experiment_path, part)
         fetcher = Fetcher(path, transform)
-        loaders[part] = DataLoader(fetcher, batch_size=args.bs,
-                                   num_workers=args.threads, shuffle=True)
+        loaders[part] = DataLoader(fetcher, batch_size=args.bs, shuffle=True, num_workers=4)
 
     # Train
     min_loss = 1
@@ -106,13 +100,16 @@ def main(args):
         for part in parts:
             start_time = time.time()
             is_train = epoch if 'train' in part else False
-            loss, count = step(epoch, controller_config, model, loaders[part],
-                               optimizer, criterion, is_train,
-                               args.nocuda, args.plot)
+            loss, count = step(epoch, controller_config, model, loaders[part], optimizer,
+                               criterion, is_train, device, args.plot)
             durations[part] = time.time() - start_time
             batch_durations[part] = 1000 * (time.time() - start_time) / count
             losses[part] = loss
 
+        # Use the last loss to update the scheduler
+        if epoch:
+            scheduler.step(loss)
+            
         # Only save models that have a lower loss than ever seen before
         note = ''
         if losses[parts[-1]] < min_loss:
@@ -126,21 +123,20 @@ def main(args):
         total_duration = 0
         for part in parts:
             total_duration += durations[part]
-            print("%s (%.5f %ims)" % (part, losses[part], batch_durations[part]), end=' ')
-        print("%.1fs %s" % (total_duration, note))
-    
+            print("%s (%.5f %2ims)" % (part, losses[part], batch_durations[part]), end=' ')
+        print("%4.1fs %s" % (total_duration, note))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--controller', type=str, required=True,
                         help="Controller we wish to train")
-    parser.add_argument('--model', type=str, default="BModel",
+    parser.add_argument('--model', type=str, default="StarTree",
                         help="Model to run. Default to Medium Sized")
-    parser.add_argument('--gpu', type=int, default=0, help="GPU to use")
+    parser.add_argument('--gpu', type=str, default='0', help="GPU to use")
     parser.add_argument('--bs', type=int, default=32, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
-    parser.add_argument('--threads', type=int, default=4, help="Number of threads to fetch data")
     parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
-    parser.add_argument('--nocuda', default=False, action='store_true', help='do not use cuda')
     parser.add_argument('--plot', default=False, action='store_true',
                         help='save a plot of each batch for verification purposes')
     args = parser.parse_args()    

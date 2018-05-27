@@ -2,8 +2,8 @@ name: 'camera'
 required: True
 class: 'Camera'
 index: 0
-hfov: 75
-vfov: 56.25
+hfov: 150
+vfov: 112.5
 fps: 60
 height: 480
 width: 640

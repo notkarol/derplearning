@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from derp.models.blocks import ConvBlock, LinearBlock, ViewBlock
 
-class PNModel(nn.Module):
+class PilotNet(nn.Module):
 
     def __init__(self, in_dim, n_status, n_out, verbose=True):
-        super(PNModel, self).__init__()
+        super(PilotNet, self).__init__()
         dim = in_dim.copy()
         self.c1 = ConvBlock(dim, 24, 5, stride=2, padding=0, verbose=verbose)
         self.c2 = ConvBlock(dim, 36, 5, stride=2, padding=0, verbose=verbose)

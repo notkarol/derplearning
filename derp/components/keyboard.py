@@ -3,8 +3,6 @@
 import os
 from time import time
 
-import evdev
-
 from derp.component import Component
 import derp.util
 
