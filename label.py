@@ -11,10 +11,6 @@ from scipy.interpolate import interp1d
 from skimage.draw import line_aa
 import derp.util as util
 
-'''
-TODO: Make the viewer and the graph different windows to simplify
-display choices.
-'''
 
 class Labeler:
 
