@@ -58,7 +58,7 @@ class Dualshock4(Component):
 
     def __process(self, status, out):
 
-        # Insensitive steering
+        # linear steering
         if self.__in_deadzone(status['right_analog_x']):
             if self.right_analog_active:
                 self.right_analog_active = False
@@ -67,7 +67,7 @@ class Dualshock4(Component):
             self.right_analog_active = True
             out['steer'] = self.__normalize_stick(status['right_analog_x'], self.__deadzone)
 
-        # Sensitive steering
+        # parabolic steering
         if self.__in_deadzone(status['left_analog_x']):
             if self.left_analog_active:
                 self.left_analog_active = False
@@ -88,12 +88,21 @@ class Dualshock4(Component):
         # Forward
         if status['left_trigger']:
             self.left_trigger_active = True
-            z, x, y = self.config['speed_elbow']
+            min_speed, inflect_pt, speed_at_inflect = self.config['speed_elbow']
             speed = status['left_trigger'] / 256
-            if speed < x:
-                speed = z + speed * (y - z) / x
+            if speed < inflect_pt:
+                speed = (min_speed
+                         + speed
+                         * (speed_at_inflect - min_speed) 
+                         / inflect_pt 
+                        )
             else:
-                speed = (y + (speed - x) * (1 - y) / (1 - x))
+                speed = (speed_at_inflect
+                         + ( (speed - inflect_pt)
+                            * (1 - speed_at_inflect)
+                            / (1 - inflect_pt)
+                           )
+                        )
             out['speed'] = -speed
         elif self.left_trigger_active:
             self.left_trigger_active = False
@@ -102,12 +111,20 @@ class Dualshock4(Component):
         # Reverse
         if status['right_trigger']:
             self.right_trigger_active = True
-            z, x, y = self.config['speed_elbow']
+            min_speed, inflect_pt, speed_at_inflect = self.config['speed_elbow']
             speed = status['right_trigger'] / 256
-            if speed < x:
-                speed = z + speed * (y - z) / x
+            if speed < inflect_pt:
+                speed = (min_speed
+                         + speed
+                         * (speed_at_inflect - min_speed) 
+                         / inflect_pt
+                        )
             else:
-                speed = (y + (speed - x) * (1 - y) / (1 - x))
+                speed = (speed_at_inflect
+                         + (speed - inflect_pt)
+                         * (1 - speed_at_inflect)
+                         / (1 - inflect_pt)
+                        )
             out['speed'] = speed
         elif self.right_trigger_active:
             self.right_trigger_active = False

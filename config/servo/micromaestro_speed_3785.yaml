@@ -3,7 +3,7 @@ required: True
 class: 'UsbServo'
 index: 1
 act_state: 'speed'
-min_value: -0.95
-max_value: 0.95
+min_value: -0.3
+max_value: 0.3
 state:
   offset_speed: 0.0

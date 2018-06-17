@@ -128,7 +128,6 @@ class State(Mapping):
                 continue
 
             path_stem = os.path.join(self.folder, key, "%06i." % self['frame_counter'])
-)
             if self.is_image(key):
                 path = path_stem + self.get_image_suffix(key)
                 derp.util.save_image(path, self[key])

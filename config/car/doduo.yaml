@@ -1,4 +1,4 @@
 components:
-  - path: "input/keyboard.yaml"
+  - path: "joystick/dualshock4.yaml"
   - path: "camera/OV7725_150fov_640x480.yaml"
     name: "camera_front"
