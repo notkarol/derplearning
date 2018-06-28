@@ -19,16 +19,12 @@ sudo apt install \
      python3-zmq
 
 # Install Python Packages
-pip3 install --user --upgrade Adafruit-BNO055
-pip3 install --user --upgrade evdev
-pip3 install --user --upgrade pybluez
-pip3 install --user --upgrade pyserial
-pip3 install --user --upgrade pyusb
+pip3 install --user --upgrade Adafruit-BNO055 evdev pybluez pyserial pyusb
 
 # Enable bluetooth
-rfkill unblock bluetooth
-systemctl enable bluetooth
-systemctl start bluetooth
+sudo rfkill unblock bluetooth
+sudo systemctl enable bluetooth
+sudo systemctl start bluetooth
 
 # Make sure we can communicate to Micro Maestro
 sudo cp 99-pololu.rules /etc/udev/rules.d/
@@ -49,7 +45,7 @@ fi
 if [[ $(uname -m) -eq "aarch64" ]] ; then
     bash sdcard.sh
     echo "Please add the following line to 'crontab -e'"
-    echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/src/ds4daemon.sh'
+    echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/ds4daemon.sh'
 else
     echo "export DERP_ROOT=$(dirname $PWD)" >> ~/.derprc
     echo "source ~/.derprc" >> ~/.bashrc

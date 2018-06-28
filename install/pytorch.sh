@@ -1,10 +1,9 @@
 #!/bin/bash
 
-PYTORCH_VERSION=v0.3.0
+PYTORCH_VERSION=v0.4.0
 
 # Install latest python pip and setuptools and openblas
 sudo apt-get install libopenblas-dev
-pip3 install --user --upgrade pip setuptools
 
 # Pytorch
 if ! [[ -e pytorch ]] ; then
