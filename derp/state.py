@@ -1,14 +1,24 @@
-# A class that carries the state of the car through time
+"""
+A class that carries the state of the car through time.
+"""
 from collections.abc import Mapping
 import csv
-import numpy as np
-import yaml
 import time
+import yaml
+
+import numpy as np
+
 import derp.util
 
 class State(Mapping):
+    """
+    A class that carries the state of the car through time.
+    """
 
     def __init__(self, car_config, controller_config):
+        """
+        Create the dict that is this is this class and pre-set some defaults.
+        """
         self.exit = False
         self.folder = None
         self.car_config = car_config
@@ -17,7 +27,7 @@ class State(Mapping):
         self.csv_fd = None
         self.csv_writer = None
         self.csv_header = []
-        
+
         # Prepare default state variables
         self['timestamp'] = time.time()
         self['warn'] = False
@@ -39,7 +49,7 @@ class State(Mapping):
 
     def __len__(self):
         return len(self.state)
-    
+
     def __repr__(self):
         return self.__class__.__name__.lower()
 
@@ -62,26 +72,26 @@ class State(Mapping):
     def initialize_recording(self):
         self.folder = derp.util.create_record_folder()
         self['frame_counter'] = 0
-        with open(str(self.folder / 'car.yaml'), 'w') as fd:
-            yaml.dump(self.car_config, fd)
-        with open(str(self.folder / 'controller.yaml'), 'w') as fd:
-            yaml.dump(self.controller_config, fd)
+        with open(str(self.folder / 'car.yaml'), 'w') as car_fd:
+            yaml.dump(self.car_config, car_fd)
+        with open(str(self.folder / 'controller.yaml'), 'w') as controller_fd:
+            yaml.dump(self.controller_config, controller_fd)
 
         # Make a folder for every 2D or larger numpy array so we can store vectors/images
         for key in self.state:
             if self.is_multidimensional(key):
                 folder = self.folder / key
-                os.mkdir(folder)
-        
+                folder.mkdir(parents=True, exist_ok=True)
+
         # Create state csv
         self.csv_fd = open(str(self.folder / 'state.csv'), 'w')
         self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
                                      quoting=csv.QUOTE_MINIMAL)
         self.csv_writer.writerow(self.csv_header)
-        
-        
+
+
     def is_multidimensional(self, var):
-        return type(self[var]) is np.ndarray and len(self[var]) > 1
+        return isinstance(self[var], np.ndarray) and len(self[var]) > 1
 
     def is_recording(self):
         return 'record' in self.state and self.state['record']
@@ -91,7 +101,7 @@ class State(Mapping):
 
     def get_image_suffix(self, key):
         return 'jpg' if 'camera' in key else 'png'
-    
+
     def record(self):
         # If we're not recording anymore, do post-processing and stop
         if not self.is_recording():
@@ -103,14 +113,14 @@ class State(Mapping):
                         derp.util.encode_video(self.folder, key, suffix)
                 self.folder = None
             return False
-        
+
         # Prepare the csv row to print
         row = []
         for key in self.csv_header:
-            t = type(self[key])
-            if t in (int, bool, type(None)):
+            key_type = type(self[key])
+            if key_type in (int, bool, type(None)):
                 row.append(self[key])
-            elif t is float:
+            elif key_type is float:
                 row.append(("%.6f" % self[key]).rstrip('0'))
             else:
                 row.append('')
@@ -121,13 +131,13 @@ class State(Mapping):
             if not self.is_multidimensional(key):
                 continue
 
-            path_stem = os.path.join(self.folder, key, "%06i." % self['frame_counter'])
+            path_stem = self.folder / key / ("%06i." % self['frame_counter'])
             if self.is_image(key):
                 path = path_stem + self.get_image_suffix(key)
                 derp.util.save_image(path, self[key])
             else:
                 np.save(path_stem, self[key], allow_pickle=False)
-    
+
         self['frame_counter'] += 1
         return True
 
@@ -144,6 +154,3 @@ class State(Mapping):
         for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value
-        
-
-            

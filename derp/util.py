@@ -1,9 +1,12 @@
+"""
+Common utilities for derp used by various classes.
+"""
 import csv
 import cv2
 from datetime import datetime
 import evdev
-import numpy as np
 import pathlib
+import numpy as np
 import os
 import re
 import scipy.misc
@@ -18,17 +21,29 @@ import yaml
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 class Bbox:
+    """
+    A bounding box is a 4-tuple of integers representing x, y, width, height
+    """
     def __init__(self, x, y, w, h):
+        """ Creates class x, y, w,h variables from the arguments. """
         self.x = int(x + 0.5) # first col
         self.y = int(y + 0.5) # first row
         self.w = int(w + 0.5) # width
         self.h = int(h + 0.5) # height
+
     def __repr__(self):
-        return str(self)
-    def __str__(self):
+        """
+        For this class's representation just use all the local class variables.
+        """
         return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
+    def __str__(self):
+        return str(self)
+
 def find_device(names):
+    """
+    Searches for an input devices. Assuming it is found that device is returned
+    """
     for filename in sorted(evdev.list_devices()):
         device = evdev.InputDevice(filename)
         device_name = device.name.lower()
@@ -170,10 +185,7 @@ def save_image(path, image):
 
 def get_name(path):
     """ The name of a script is it"s filename without the extension """
-    clean_path = path.rstrip("/")
-    bn = os.path.basename(clean_path)
-    name, ext = os.path.splitext(bn)
-    return name
+    return pathlib.Path(path.rstrip("/")).name.stem
 
 
 def get_hostname():
@@ -190,15 +202,17 @@ def create_record_folder():
 
 
 def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
-    #passes a single config dict entry as a return value so it can be used by a shell script.
-    with open(str(config_path)) as f:
-        config = yaml.load(f)
+    """
+    Passes a single config dict entry as a return value so it can be used by a shell script.
+    """
+    with open(str(config_path)) as config_fd:
+        config = yaml.load(config_fd)
 
-    if(dict_3 != 0):
+    if dict_3 != 0:
         value = config[dict_0][list_ind][dict_1][dict_2][dict_3]
-    elif(dict_2 != 0):
+    elif dict_2 != 0:
         value = config[dict_0][list_ind][dict_1][dict_2]
-    elif(dict_1 != 0):
+    elif dict_1 != 0:
         value = config[dict_0][list_ind][dict_1]
     else:
         value = config[dict_0]
@@ -209,8 +223,8 @@ def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
 def load_config(config_path):
 
     # First load the car"s config
-    with open(str(config_path)) as f:
-        config = yaml.load(f)
+    with open(str(config_path)) as config_fd:
+        config = yaml.load(config_fd)
 
     # Make sure we set the name and path of the config stored
     if "name" not in config:
@@ -226,8 +240,8 @@ def load_config(config_path):
         # Check if we need to load more parameters from elsewhere
         if "path" in component_config:
             component_path = ROOT / "config" / component_config["path"]
-            with open(str(component_path)) as f:
-                default_component_config = yaml.load(f)
+            with open(str(component_path)) as component_fd:
+                default_component_config = yaml.load(component_fd)
 
             # Load paramters only if they"re not found in default
             for key in default_component_config:
@@ -236,7 +250,7 @@ def load_config(config_path):
 
             # Make sure we have a name for this component
             if "name" not in component_config:
-                component_config["name"] = os.path.basename(os.path.dirname(component_config["path"]))
+                component_config["name"] = pathlib.Path(component_config["path"]).parent.name
 
         # Make sure we were able to find a name
         if "name" not in component_config:
@@ -327,8 +341,8 @@ def read_csv(path, floats=True):
     """
     timestamps = []
     states = []
-    with open(str(path)) as f:
-        reader = csv.reader(f)
+    with open(str(path)) as csv_fd:
+        reader = csv.reader(csv_fd)
         headers = next(reader)[1:]
         for line in reader:
             if not len(line):
@@ -337,7 +351,8 @@ def read_csv(path, floats=True):
             timestamps.append(float(line[0]))
             for value in line[1:]:
                 try:
-                    value = float(value) if floats else value
+                    if floats:
+                        value = float(value)
                 except:
                     value = 0
                 state.append(value)
@@ -368,10 +383,10 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
-    if os.path.exists(path):
-        for filename in os.listdir(path):
+    if path.exists():
+        for filename in path.glob('*'):
             if pattern.search(filename) is not None:
-                return os.path.join(path, filename)
+                return path / filename
     return None
 
 
@@ -453,6 +468,6 @@ def plot_batch(example, label, name):
         img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
         axs[y, x].imshow(img)
         axs[y, x].set_title(" ".join(["%.2f" % x for x in label[i]]))
-        
+
     plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
     print("Saved batch [%s]" % name)
