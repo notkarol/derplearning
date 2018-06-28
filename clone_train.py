@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-
+"""
+Run a training instance over the supplied controller dataset. Stores a torch model in
+the controller dataset folder every time the validation loss decreases.
+"""
 import argparse
-import numpy as np
-import os
-import sys
 import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from derp.fetcher import Fetcher
 import torchvision.transforms as transforms
+
+from derp.fetcher import Fetcher
 import derp.util
-import derp.visualize
 
-    
-def step(epoch, config, model, loader, optimizer, criterion, is_train, device, plot_batch):
 
-    # prepare model for either training or evaluation
+def step(epoch, model, loader, optimizer, criterion, is_train, device, plot_batch):
+    """
+    Run through dataset to complete a single epoch
+    """
     if is_train:
         model.train()
     else:
@@ -25,11 +28,12 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, device, p
 
     # Store the average loss for this epoch
     losses = []
+    batch_idx = 0
     for batch_idx, (example, status, label) in enumerate(loader):
 
         if plot_batch:
             name = "batch_%02i_%i_%04i" % (epoch, is_train, batch_idx)
-            derp.visualize.plot_batch(example, label, name)
+            derp.util.plot_batch(example, label, name)
 
         example = example.to(device)
         status = status.to(device)
@@ -49,19 +53,34 @@ def step(epoch, config, model, loader, optimizer, criterion, is_train, device, p
 
     return np.mean(losses), batch_idx + 1
 
-def main(args):
+def main():
+    """
+    Run a training instance over the supplied controller dataset. Stores a torch model in
+    the controller dataset folder every time the validation loss decreases.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--controller', type=str, required=True,
+                        help="Controller we wish to train")
+    parser.add_argument('--model', type=str, default="StarTree",
+                        help="Model to run. Default to Medium Sized")
+    parser.add_argument('--gpu', type=str, default='0', help="GPU to use")
+    parser.add_argument('--bs', type=int, default=32, help="Batch Size")
+    parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
+    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
+    parser.add_argument('--plot', default=False, action='store_true',
+                        help='save a plot of each batch for verification purposes')
+    args = parser.parse_args()
 
-    # Import configs that we wish to train for
     config_path = derp.util.get_controller_config_path(args.controller)
     controller_config = derp.util.load_config(config_path)
-    experiment_path = derp.util.get_experiment_path(controller_config['name'])  
+    experiment_path = derp.util.get_experiment_path(controller_config['name'])
 
-    # Prepare device we will train on 
+    # Prepare device we will train on
     device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
-    
+
     # Prepare model
-    tc = controller_config['thumb']
-    dim_in = np.array((tc['depth'], tc['height'], tc['width']))
+    thumb_config = controller_config['thumb']
+    dim_in = np.array((thumb_config['depth'], thumb_config['height'], thumb_config['width']))
     n_status = len(controller_config['status'])
     n_out = len(controller_config['predict'])
     model_class = derp.util.load_class('derp.models.' + args.model.lower(), args.model)
@@ -73,13 +92,13 @@ def main(args):
 
     # Prepare perturbation of example
     tlist = []
-    for td in controller_config['train']['prepare']:
-        if td['name'] == 'colorjitter':
-            t = transforms.ColorJitter(brightness=td['brightness'],
-                                       contrast=td['contrast'],
-                                       saturation=td['saturation'],
-                                       hue=td['hue'])
-            tlist.append(t)
+    for traind in controller_config['train']['prepare']:
+        if traind['name'] == 'colorjitter':
+            transform = transforms.ColorJitter(brightness=traind['brightness'],
+                                               contrast=traind['contrast'],
+                                               saturation=traind['saturation'],
+                                               hue=traind['hue'])
+            tlist.append(transform)
         tlist.append(transforms.ToTensor())
     transform = transforms.Compose(tlist)
 
@@ -87,21 +106,20 @@ def main(args):
     parts = ['train', 'val']
     loaders = {}
     for part in parts:
-        path = os.path.join(experiment_path, part)
-        fetcher = Fetcher(path, transform)
+        fetcher = Fetcher(experiment_path / part, transform)
         loaders[part] = DataLoader(fetcher, batch_size=args.bs, shuffle=True, num_workers=4)
 
     # Train
     min_loss = 1
-    for epoch in range(args.epochs + 1):        
+    for epoch in range(args.epochs + 1):
         durations = {}
         batch_durations = {}
         losses = {}
         for part in parts:
             start_time = time.time()
             is_train = epoch if 'train' in part else False
-            loss, count = step(epoch, controller_config, model, loaders[part], optimizer,
-                               criterion, is_train, device, args.plot)
+            loss, count = step(epoch, model, loaders[part], optimizer, criterion,
+                               is_train, device, args.plot)
             durations[part] = time.time() - start_time
             batch_durations[part] = 1000 * (time.time() - start_time) / count
             losses[part] = loss
@@ -109,13 +127,13 @@ def main(args):
         # Use the last loss to update the scheduler
         if epoch:
             scheduler.step(loss)
-            
+
         # Only save models that have a lower loss than ever seen before
         note = ''
         if losses[parts[-1]] < min_loss:
             min_loss = losses[parts[-1]]
             name = "%s_%03i_%.6f.pt" % (args.model, epoch, min_loss)
-            torch.save(model, os.path.join(experiment_path, name))
+            torch.save(model, experiment_path / name)
             note = '*'
 
         # Prepare
@@ -128,16 +146,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--controller', type=str, required=True,
-                        help="Controller we wish to train")
-    parser.add_argument('--model', type=str, default="StarTree",
-                        help="Model to run. Default to Medium Sized")
-    parser.add_argument('--gpu', type=str, default='0', help="GPU to use")
-    parser.add_argument('--bs', type=int, default=32, help="Batch Size")
-    parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
-    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
-    parser.add_argument('--plot', default=False, action='store_true',
-                        help='save a plot of each batch for verification purposes')
-    args = parser.parse_args()    
-    main(args)
+    main()

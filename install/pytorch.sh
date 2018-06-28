@@ -2,35 +2,34 @@
 
 PYTORCH_VERSION=v0.4.0
 
-# Install latest python pip and setuptools and openblas
-sudo apt-get install libopenblas-dev
-
-# Pytorch
+# Pull in the code if it's not already done so
 if ! [[ -e pytorch ]] ; then
     git clone --recursive https://github.com/pytorch/pytorch
-    cd pytorch
-else
-    cd pytorch
-    git pull
-    git submodule --update    
 fi
 
+# Prepare the right version of the code
+cd pytorch
+git pull
+git submodule update --init
 git checkout ${PYTORCH_VERSION}
+
+# Install requirements and then the package
+sudo apt-get install libopenblas-dev
 pip3 install --user -r requirements.txt
 python3 setup.py install --user
+cd ..
 
-
-# Torch Vision
+# Pull in the torchvision code for dataloaders and image manipulation.
 if ! [[ -e vision ]] ; then
     git clone --recursive  https://github.com/pytorch/vision
-    cd vision
-else
-    cd vision
-    git pull
 fi
+
+# Install requirements and then the package
+cd vision
+git pull
 pip3 install --user -r requirements.txt
 python3 setup.py install --user
-cd -
+cd ..
 
 # Cleanup after ourselves
 rm -rf pytorch vision

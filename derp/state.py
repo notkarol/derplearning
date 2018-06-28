@@ -2,7 +2,6 @@
 from collections.abc import Mapping
 import csv
 import numpy as np
-import os
 import yaml
 import time
 import derp.util
@@ -63,24 +62,19 @@ class State(Mapping):
     def initialize_recording(self):
         self.folder = derp.util.create_record_folder()
         self['frame_counter'] = 0
-        
-        dst_car_config_path = os.path.join(self.folder, 'car.yaml')
-        with open(dst_car_config_path, 'w') as f:
-            yaml.dump(self.car_config, f)
-
-        dst_controller_config_path = os.path.join(self.folder, 'controller.yaml')
-        with open(dst_controller_config_path, 'w') as f:
-            yaml.dump(self.controller_config, f)
+        with open(str(self.folder / 'car.yaml'), 'w') as fd:
+            yaml.dump(self.car_config, fd)
+        with open(str(self.folder / 'controller.yaml'), 'w') as fd:
+            yaml.dump(self.controller_config, fd)
 
         # Make a folder for every 2D or larger numpy array so we can store vectors/images
         for key in self.state:
             if self.is_multidimensional(key):
-                folder = os.path.join(self.folder, key)
+                folder = self.folder / key
                 os.mkdir(folder)
         
         # Create state csv
-        csv_path = os.path.join(self.folder, 'state.csv')
-        self.csv_fd = open(csv_path, 'w')
+        self.csv_fd = open(str(self.folder / 'state.csv'), 'w')
         self.csv_writer = csv.writer(self.csv_fd, delimiter=',', quotechar='"',
                                      quoting=csv.QUOTE_MINIMAL)
         self.csv_writer.writerow(self.csv_header)
