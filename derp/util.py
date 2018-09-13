@@ -1,77 +1,142 @@
+"""
+Common utilities for derp used by various classes.
+"""
 import csv
 import cv2
 from datetime import datetime
+import evdev
+import pathlib
 import numpy as np
 import os
 import re
 import scipy.misc
 import socket
+import subprocess
 import time
 import torch
 from torch.autograd import Variable
 import yaml
 
 
+ROOT = pathlib.Path(os.environ["DERP_ROOT"])
+
 class Bbox:
+    """
+    A bounding box is a 4-tuple of integers representing x, y, width, height
+    """
     def __init__(self, x, y, w, h):
+        """ Creates class x, y, w,h variables from the arguments. """
         self.x = int(x + 0.5) # first col
         self.y = int(y + 0.5) # first row
         self.w = int(w + 0.5) # width
         self.h = int(h + 0.5) # height
+
     def __repr__(self):
-        return str(self)
-    def __str__(self):
+        """
+        For this class's representation just use all the local class variables.
+        """
         return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
-    
-def get_patch_bbox(target_config, source_config):
-    """
-    Currently we assume that orientations and positions are identical
-    """
+    def __str__(self):
+        return str(self)
 
-    source_top = source_config['pitch'] + source_config['vfov'] / 2
-    source_bot = source_config['pitch'] - source_config['vfov'] / 2
-    target_top = target_config['pitch'] + target_config['vfov'] / 2
-    target_bot = target_config['pitch'] - target_config['vfov'] / 2
-    print("Top: %7.3f %7.3f" % (source_top, target_top))
-    print("Bot: %7.3f %7.3f" % (source_bot, target_bot))
-    
-    hfov_ratio = target_config['hfov'] / source_config['hfov']
-    vfov_ratio = target_config['vfov'] / source_config['vfov']
-    hfov_offset = source_config['yaw'] - target_config['yaw']
-    vfov_offset = source_config['pitch'] - target_config['pitch']
-    width = source_config['width'] * hfov_ratio
-    height = source_config['height'] * vfov_ratio
-    x_center = (source_config['width'] - width) // 2
-    y_center = (source_config['height'] - height) // 2
-    x_offset = (hfov_offset / source_config['hfov']) * source_config['width']
-    y_offset = (vfov_offset / source_config['vfov']) * source_config['height']
+def find_device(names):
+    """
+    Searches for an input devices. Assuming it is found that device is returned
+    """
+    for filename in sorted(evdev.list_devices()):
+        device = evdev.InputDevice(filename)
+        device_name = device.name.lower()
+        for name in names:
+            if name in device_name:
+                print("Using evdev:", device_name)
+                return device
+    return None
+
+
+def get_car_config_path(name):
+    return ROOT / "config" / "car" / (name + ".yaml")
+
+
+def get_controller_config_path(name):
+    return ROOT / "config" / "controller" / (name + ".yaml")
+
+
+def get_controller_models_path(name):
+    return ROOT / "models" / name
+
+
+def get_experiment_path(name):
+    return ROOT / "scratch" / name
+
+
+def encode_video(folder, name, suffix, fps=30):
+    cmd = " ".join(["gst-launch-1.0",
+                    "multifilesrc",
+                    "location='%s/%s/%%06d.%s'" % (folder, name, suffix),
+                    "!", "'image/jpeg,framerate=%i/1'" % fps,
+                    "!", "jpegparse",
+                    "!", "jpegdec",
+                    "!", "omxh264enc", "bitrate=8000000",
+                    "!", "'video/x-h264, stream-format=(string)byte-stream'",
+                    "!", "h264parse",
+                    "!", "mp4mux",
+                    "!", "filesink location='%s/%s.mp4'" % (folder, name)])
+    subprocess.Popen(cmd, shell=True)
+
+
+def print_image_config(config):
+    """ Prints some useful variables about the camera for debugging purposes """
+    top = config["pitch"] + config["vfov"] / 2
+    bot = config["pitch"] - config["vfov"] / 2
+    left = config["yaw"] - config["hfov"] / 2
+    right = config["yaw"] + config["hfov"] / 2
+    hppd = config["width"] / config["hfov"]
+    vppd = config["height"] / config["vfov"]
+    print("top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
+          (top, bot, left, right, hppd, vppd))
+
+
+def get_patch_bbox(target_config, source_config):
+    """ Currently we assume that orientations and positions are identical """
+    hfov_ratio = target_config["hfov"] / source_config["hfov"]
+    vfov_ratio = target_config["vfov"] / source_config["vfov"]
+    hfov_offset = source_config["yaw"] - target_config["yaw"]
+    vfov_offset = source_config["pitch"] - target_config["pitch"]
+    width = source_config["width"] * hfov_ratio
+    height = source_config["height"] * vfov_ratio
+    x_center = (source_config["width"] - width) // 2
+    y_center = (source_config["height"] - height) // 2
+    x_offset = (hfov_offset / source_config["hfov"]) * source_config["width"]
+    y_offset = (vfov_offset / source_config["vfov"]) * source_config["height"]
     x = x_center + x_offset
     y = y_center + y_offset
-    assert x >= 0 and x + width <= source_config['width']
-    assert y >= 0 and y + height <= source_config['height']
-    bbox = Bbox(x, y, width, height)
-    return bbox
+    assert x >= 0 and x + width <= source_config["width"]
+    assert y >= 0 and y + height <= source_config["height"]
+    return Bbox(x, y, width, height)
 
 
-def crop(image, bbox):
-    out = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
-    return out
+def crop(image, bbox, copy=False):
+    """ Crops the Bbox(x,y,w,h) from the image. Copy indicates to copy of the ROI"s memory"""
+    roi = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
+    if copy:
+        return roi.copy()
+    return roi
 
 
 def resize(image, size):
-    out = cv2.resize(image, size, interpolation=cv2.INTER_AREA)
-    return out
+    """ Resize the image to the target (w, h) """
+    return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
 
 
 def perturb(frame, config, perts):
 
     # Estimate how many pixels to rotate by, assuming fixed degrees per pixel
-    pixels_per_degree = config['width'] / config['hfov']
-    rotate_pixels = (perts['rotate'] if 'rotate' in perts else 0) * pixels_per_degree
+    pixels_per_degree = config["width"] / config["hfov"]
+    rotate_pixels = (perts["rotate"] if "rotate" in perts else 0) * pixels_per_degree
 
     # Figure out where the horizon is in the image
-    horizon_frac = ((config['vfov'] / 2) + config['pitch']) / config['vfov']
+    horizon_frac = ((config["vfov"] / 2) + config["pitch"]) / config["vfov"]
 
     # For each row in the frame shift/rotate it
     indexs = np.arange(len(frame))
@@ -84,11 +149,11 @@ def perturb(frame, config, perts):
         magnitude = rotate_pixels
 
         # based on the distance adjust for shift
-        if 'shift' in perts and vertical_frac > horizon_frac:
-            ground_angle = (vertical_frac - horizon_frac) * config['vfov']
-            ground_distance = config['z'] / np.tan(deg2rad(ground_angle))
-            ground_width = 2 * ground_distance * np.tan(deg2rad(config['hfov']) / 2)
-            shift_pixels = (perts['shift'] / ground_width) * config['width']
+        if "shift" in perts and vertical_frac > horizon_frac:
+            ground_angle = (vertical_frac - horizon_frac) * config["vfov"]
+            ground_distance = config["z"] / np.tan(deg2rad(ground_angle))
+            ground_width = 2 * ground_distance * np.tan(deg2rad(config["hfov"]) / 2)
+            shift_pixels = (perts["shift"] / ground_width) * config["width"]
             magnitude += shift_pixels
 
         # Find the nearest integer
@@ -119,13 +184,8 @@ def save_image(path, image):
 
 
 def get_name(path):
-    """
-    The name of a script is it's filename without the extension
-    """
-    clean_path = path.rstrip('/')
-    bn = os.path.basename(clean_path)
-    name, ext = os.path.splitext(bn)
-    return name
+    """ The name of a script is it"s filename without the extension """
+    return pathlib.Path(path.rstrip("/")).name.stem
 
 
 def get_hostname():
@@ -133,152 +193,139 @@ def get_hostname():
 
 
 def create_record_folder():
-    """
-    Generate the name of the record folder and created it
-    """
+    """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
-    path = os.path.join(os.environ['DERP_ROOT'], "data", "%s-%s" % (dt, hn))
-    print("Creating", path)
-    os.mkdir(path)
+    path = ROOT / "data" / "%s-%s" % (dt, hn)
+    path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
-    #passes a single config dict entry as a return value so it can be used by a shell script.
-    with open(config_path) as f:
-        config = yaml.load(f)
+    """
+    Passes a single config dict entry as a return value so it can be used by a shell script.
+    """
+    with open(str(config_path)) as config_fd:
+        config = yaml.load(config_fd)
 
-    if(dict_3 != 0):
+    if dict_3 != 0:
         value = config[dict_0][list_ind][dict_1][dict_2][dict_3]
-    elif(dict_2 != 0):
+    elif dict_2 != 0:
         value = config[dict_0][list_ind][dict_1][dict_2]
-    elif(dict_1 != 0):
+    elif dict_1 != 0:
         value = config[dict_0][list_ind][dict_1]
     else:
         value = config[dict_0]
-    
+
     return value
 
 
 def load_config(config_path):
-    """ 
-    Loads the vehicle config and all requisite components configs
-    """
 
-    # Make sure we have a path to a file
-    if os.path.isdir(config_path):
-        config_path  = os.path.join(config_path, 'config.yaml')
-    
-    # First load the car's config
-    with open(config_path) as f:
-        config = yaml.load(f)
+    # First load the car"s config
+    with open(str(config_path)) as config_fd:
+        config = yaml.load(config_fd)
 
     # Make sure we set the name and path of the config stored
-    if 'name' not in config:
-        config['name'] = get_name(config_path)
-    if 'path' not in config:
-        config['path'] = config_path
+    if "name" not in config:
+        config["name"] = get_name(config_path)
+    if "path" not in config:
+        config["path"] = config_path
 
-    # Then load the each component
-    dirname = os.path.dirname(config_path)
-    for component_config in config['components']:
+    # Load component configs recursively if they exist, and eventually return the full config
+    if "components" not in config:
+        return config
+    for component_config in config["components"]:
 
         # Check if we need to load more parameters from elsewhere
-        if 'path' in component_config:
-            component_path = os.path.join(os.environ['DERP_ROOT'], 'config', component_config['path'])
-            with open(component_path) as f:
-                default_component_config = yaml.load(f)
+        if "path" in component_config:
+            component_path = ROOT / "config" / component_config["path"]
+            with open(str(component_path)) as component_fd:
+                default_component_config = yaml.load(component_fd)
 
-            # Load paramters only if they're not found in default
+            # Load paramters only if they"re not found in default
             for key in default_component_config:
                 if key not in component_config:
                     component_config[key] = default_component_config[key]
 
             # Make sure we have a name for this component
-            if 'name' not in component_config:
-                component_config['name'] = os.path.basename(os.path.dirname(component_config['path']))
+            if "name" not in component_config:
+                component_config["name"] = pathlib.Path(component_config["path"]).parent.name
 
         # Make sure we were able to find a name
-        if 'name' not in component_config:
+        if "name" not in component_config:
             raise ValueError("load_config: all components must have a name or a path")
 
         # Make sure we were able to find a class
-        if 'class' not in component_config:
+        if "class" not in component_config:
             raise ValueError("load_config: all components must have a class in components/")
-
-    # Make sure we also have a state
-    if 'state' not in config:
-        config['state'] = {}
-        
     return config
 
 
-def load_component(component_config, config):
-
-    # Load the component from its module
-    module_name = "derp.components." + component_config['class'].lower()
-    class_fn = load_class(module_name, component_config['class'])
-    component = class_fn(component_config, config)
-
-    # If we're ready, add it, otherwise make sure it's required
-    if not component.ready and component_config['required']:
-        raise ValueError("load_components: missing required", component_config['name'])
-
-    print("Loaded component", module_name)
-    return component
+def load_component(config, state):
+    module_name = "derp.components.%s" % (config["class"].lower())
+    class_fn = load_class(module_name, config["class"])
+    script = class_fn(config, state)
+    if not script.ready and config["required"]:
+        raise ValueError("load_script: failed", config["name"])
+    print("Loaded %s" % module_name)
+    return script
 
 
-def load_components(config):
-    """
-    Load the class of each component by its name and initialize all state keys.
-    """
-    from derp.state import State
-    state = State(config['state'], config)
-    components = [state]
+def load_controller(config, car_config, state):
+    module_name = "derp.controllers.%s" % (config["class"].lower())
+    print(module_name)
+    class_fn = load_class(module_name, config["class"])
+    script = class_fn(config, car_config, state)
+    if not script.ready:
+        raise ValueError("load_controller: failed")
+    print("Loaded %s" % module_name)
+    return script
 
-    # Initialize components
-    for component_config in config['components']:
+
+def load_components(config, state):
+    # Load the class of each component by its name and initialize all state keys.
+    components = []
+    for component_config in config:
 
         # Load the component object
-        component = load_component(component_config, config)
+        component = load_component(component_config, state)
 
-        # Skip a non-ready component. Raise an error if it's required as we can't continue
+        # Skip a non-ready component. Raise an error if it"s required as we can"t continue
         if not component.ready:
-            if component_config['required']:
+            if component_config["required"]:
                 raise ValueError("load_components: required component [%s] not available"
-                                 % component_config['name'])
-            print("load_components: skipping", component_config['name'])
+                                 % component_config["name"])
+            print("load_components: skipping", component_config["name"])
             continue
-        
-        # if we survived the cull, add the component to 
+
+        # if we survived the cull, add the component to
         components.append(component)
 
         # Preset all state keys
-        if 'state' in component_config:
-            for key in component_config['state']:
+        if "state" in component_config:
+            for key in component_config["state"]:
 
-                # Don't set the key if it's already set and the proposed value is None
+                # Don"t set the key if it"s already set and the proposed value is None
                 # This allows us to have components request fields, but have a master
                 # initializer. Useful for servo or car-specific steer_offset
-                val = component_config['state'][key]
+                val = component_config["state"][key]
                 if key not in state or state[key] is None:
                     state[key] = val
-
-    return state, components
+    return components
 
 
 def find_component_config(full_config, name):
     """
     Finds the matching component by name of the component and script if needed
     """
-    for component_config in full_config['components']:
-        if name in component_config['name']:
+    for component_config in full_config["components"]:
+        if name in component_config["name"]:
             return component_config
-    
+
 
 def load_class(path, name):
-    """ 
+    """
     Loads the class "name" at relative path (period separated) "path" and returns it
     """
     from importlib import import_module
@@ -290,12 +337,12 @@ def load_class(path, name):
 def read_csv(path, floats=True):
     """
     Read through the state file and get our timestamps and recorded values.
-    Returns the non-timestamp headers, timestamps as 
+    Returns the non-timestamp headers, timestamps as numpy arrays.
     """
     timestamps = []
     states = []
-    with open(path) as f:
-        reader = csv.reader(f)
+    with open(str(path)) as csv_fd:
+        reader = csv.reader(csv_fd)
         headers = next(reader)[1:]
         for line in reader:
             if not len(line):
@@ -304,7 +351,8 @@ def read_csv(path, floats=True):
             timestamps.append(float(line[0]))
             for value in line[1:]:
                 try:
-                    value = float(value) if floats else value
+                    if floats:
+                        value = float(value)
                 except:
                     value = 0
                 state.append(value)
@@ -335,10 +383,10 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
-    if os.path.exists(path):        
-        for filename in os.listdir(path):
+    if path.exists():
+        for filename in path.glob('*'):
             if pattern.search(filename) is not None:
-                return os.path.join(path, filename)
+                return path / filename
     return None
 
 
@@ -347,8 +395,8 @@ def extractList(config, state):
         return
     vector = np.zeros(len(config), dtype=np.float32)
     for i, d in enumerate(config):
-        scale = d['scale'] if 'scale' in d else 1
-        vector[i] = state[d['field']] * scale
+        scale = d["scale"] if "scale" in d else 1
+        vector[i] = state[d["field"]] * scale
     return vector
 
 
@@ -357,10 +405,10 @@ def unscale(config, vector):
         return
     state = {}
     for i, d in enumerate(config):
-        scale = d['scale'] if 'scale' in d else 1
+        scale = d["scale"] if "scale" in d else 1
         vector[i] /= scale
     return vector
-    
+
 
 def unbatch(batch):
     if torch.cuda.is_available():
@@ -377,7 +425,7 @@ def prepareVectorBatch(vector, cuda=True):
     if vector is None:
         return
 
-    # Treat it as if it's a row in a larger batch
+    # Treat it as if it"s a row in a larger batch
     if len(vector.shape) == 1:
         vector = np.reshape(vector, [1] + list(vector.shape))
 
@@ -407,8 +455,19 @@ def prepareImageBatch(image, cuda=True):
         batch /= 256
 
     return batch
-    
-    
-        
-    
-    
+
+
+def plot_batch(example, label, name):
+    import matplotlib.pyplot as plt
+    dim = int(np.sqrt(len(example))) + 1
+    fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
+    for i in range(len(example)):
+        x = i % dim
+        y = int(i // dim)
+        # change from CHW to HWC and only show first three channels
+        img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
+        axs[y, x].imshow(img)
+        axs[y, x].set_title(" ".join(["%.2f" % x for x in label[i]]))
+
+    plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
+    print("Saved batch [%s]" % name)

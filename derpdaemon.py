@@ -58,10 +58,15 @@ class Daemon:
         self.__creation_time = 0
         self.sendController(None)
 
-        
+    def __del__(self):
+        """ Close all of our sockets and file descriptors """
+        self.__ctrl_socket.close()
+        self.__intr_socket.close()
+        if self.__claimed and os.path.exists(self.__pid_path):
+            os.unlink(self.__pid_path)
+
     def paired(self):
-        return self.__paired            
-    
+        return self.__paired    
 
     def verifyUnique(self):
         """ If we're not the only ones running """
@@ -84,7 +89,6 @@ class Daemon:
         # Otherwise, it probably doesn't exist so
         return False
 
-
     def pair(self, max_attempts=5):
         """ Try pairing with the controller """
         if not self.__claimed:
@@ -105,15 +109,6 @@ class Daemon:
                     # Does not receive packets properly until we send it at least one command
                     return True
         return False
-
-
-    def __del__(self):
-        """ Close all of our sockets and file descriptors """
-        self.__ctrl_socket.close()
-        self.__intr_socket.close()
-        if self.__claimed and os.path.exists(self.__pid_path):
-            os.unlink(self.__pid_path)
-
 
     def decodeController(self, buf):
         """
@@ -159,14 +154,12 @@ class Daemon:
                   "mic" : (buf[33] & 64) != 0}
         return status
 
-    
     def encodeController(self, val):
         val = float(val) * 255 # normalize from 0->1 to 0->255
         val = int(val + 0.5) # round it to nearest int
         if val < 0: val = 0 # bound it
         if val > 255: val = 255 # bound it
         return val
-
 
     def sendClient(self):
         with self.__mutex:
@@ -176,11 +169,9 @@ class Daemon:
             self.__client_queue.clear()
         return True
 
-
     def recvClient(self):
         self.__last_msg = self.__client_socket.recv_json()
         return self.__last_msg
-
 
     def sendController(self, msg=None):
         if type(msg) is not dict:
@@ -188,7 +179,7 @@ class Daemon:
                    'red': 0.2 if msg is False else 0.05,
                    'green': 0.2 if msg is True else 0.05,
                    'blue': 0.2 if msg is None else 0.05,
-                   'light_on': 1, 'light_off': 1}
+                   'light_on': 0, 'light_off': 0}
         self.__packet[7] = self.encodeController(msg['rumble_high'])
         self.__packet[8] = self.encodeController(msg['rumble_low'])
         self.__packet[9] = self.encodeController(msg['red'])
@@ -198,7 +189,6 @@ class Daemon:
         self.__packet[13] = self.encodeController(msg['light_off'])
         self.__ctrl_socket.sendall(self.__packet)
         return True
-
 
     def recvController(self):
         buf = bytearray(self.__report_size - 2)
@@ -221,36 +211,25 @@ class Daemon:
                     self.__creation_time = time()
                     cmd = ["python3", "%s/drive.py" % os.environ['DERP_ROOT'], "--quiet"]
                     if byte8 & 16:
-                        config = derp.util.get_hostname() + '-square'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "square")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'square'])
                     elif byte8 & 32:
-                        config = derp.util.get_hostname() + '-cross'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "cross")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        pass
                     elif byte8 & 64:
-                        config = derp.util.get_hostname() + '-circle'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "circle")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'circle'])
                     elif byte8 & 128:
-                        config = derp.util.get_hostname() + '-triangle'
-                        model_path = os.path.join(os.environ['DERP_ROOT'], "model", "triangle")
-                        cmd.extend(["--model_dir", model_path, '--config', config])
+                        cmd.extend(['--controller', 'triangle'])
                     print(cmd)
                     Popen(cmd)
         return True
 
-
     def loop(self):
         threading.Thread(target=self.loopController).start()
         threading.Thread(target=self.loopClient).start()
-        
-    
+
     def loopController(self):
         while True:
             sleep(0.01)
-            self.recvController()      
-
+            self.recvController()
 
     def loopClient(self):
         while True:

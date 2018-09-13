@@ -1,12 +1,9 @@
-# Which script to load from derp.scripts
-script: 'Clone'
-required: True
-class: 'Inferer'
 name: 'clone'
+class: 'Clone'
 
 # Dataset creation parameters
 create:
-  data_folders: ['train']
+  data_folders: ['train-lights']
   train_chance: 0.9
   n_perts: 3
   perts:

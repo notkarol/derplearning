@@ -1,55 +1,71 @@
 #!/usr/bin/env python3
-
+"""
+Builds cloning datasets for use in the clone_train.py script.
+"""
 import argparse
+import multiprocessing
+import pathlib
+
 import imageio
 import numpy as np
-import multiprocessing
-import os
-import sys
 import derp.util
 
 def prepare_state(config, frame_id, state_headers, states, frame):
+    """
+    Prepares the state dictionary with the state of the machine frame index
+    """
     state = {}
     for header, value in zip(state_headers, states[frame_id]):
         state[header] = value
-    state = {config['thumb']['component']: frame}
+    state[config['thumb']['component']] = frame
     return state
 
 
 def prepare_predict(config, frame_id, state_headers, state_ts, states, perts):
+    """
+    Prepares the output that the model needs to predict at the current frame, depending on
+    perturbations and the delay.
+    """
     predict = np.zeros(len(config['predict']), dtype=np.float)
-    for pos, pd in enumerate(config['predict']):
-        if pd['field'] in state_headers:
-            state_pos = state_headers.index(pd['field'])
-            timestamp = state_ts[frame_id] + pd['delay']
+    for pos, predictd in enumerate(config['predict']):
+        if predictd['field'] in state_headers:
+            state_pos = state_headers.index(predictd['field'])
+            timestamp = state_ts[frame_id] + predictd['delay']
             predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
-        elif pd['field'] in perts:
-            predict[pos] = perts[pd['field']]
-            if 'delay' in pd:
+        elif predictd['field'] in perts:
+            predict[pos] = perts[predictd['field']]
+            if 'delay' in predictd:
                 print("Delay is not implemented for fields in perts")
                 return False
         else:
-            print("Unable to find field [%s] in perts or states" % pd['field'])
+            print("Unable to find field [%s] in perts or states" % predictd['field'])
             return False
-        predict[pos] *= pd['scale']
+        predict[pos] *= predictd['scale']
     return predict
 
 
 def prepare_status(config, frame_id, state_headers, state_ts, states):
+    """
+    Prepares the status array, which is a vector of inputs that gets attached to the fully
+    connected layer of a model.
+    """
     status = np.zeros(len(config['status']), dtype=np.float)
-    for pos, sd in enumerate(config['status']):
-        if sd['field'] not in state_headers:
-            print("Unable to find field [%s]" % sd['field'])
+    for pos, statusd in enumerate(config['status']):
+        if statusd['field'] not in state_headers:
+            print("Unable to find field [%s]" % statusd['field'])
             return False
 
-        state_pos = state_headers.index(sd['field'])
+        state_pos = state_headers.index(statusd['field'])
         timestamp = state_ts[frame_id]
         status[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
-        status[pos] *= sd['scale']
+        status[pos] *= statusd['scale']
     return status
 
 
-def prepare_pert_magnitudes(config, zero):
+def prepare_pert_magnitudes(config, zero=False):
+    """
+    For each perturbation we uniformly sample its range to generate a perturbation.
+    """
     perts = {}
     for pert in sorted(config):
         if zero:
@@ -60,6 +76,9 @@ def prepare_pert_magnitudes(config, zero):
 
 
 def prepare_store_name(frame_id, pert_id, perts, predict):
+    """
+    Build the name of the image by conjoining the perturbations and predicted values.
+    """
     store_name = "%06i_%02i" % (frame_id, pert_id)
     for pert in sorted(perts):
         store_name += "_%s%05.2f" % (pert[0], perts[pert])
@@ -70,92 +89,105 @@ def prepare_store_name(frame_id, pert_id, perts, predict):
 
 
 def write_thumb(thumb, data_dir, store_name):
-    store_path = os.path.join(data_dir, store_name)
-    imageio.imwrite(store_path, thumb)
+    """
+    Write our image to di sk.
+    """
+    store_path = data_dir / store_name
+    imageio.imwrite(str(store_path), thumb)
 
 
 def write_csv(writer, array, data_dir, store_name):
-    recording_name = os.path.basename(data_dir)
-    writer.write(os.path.join(recording_name, store_name))
+    """
+    Write a CSV file to disk.
+    """
+    writer.write(str(data_dir.name / store_name))
     for val in array:
         writer.write(',%f' % val)
     writer.write("\n")
     writer.flush()
 
 
-def perturb(component_config, frame_config, frame, predict, status, perts):
+def perturb(config, frame_config, frame, predict, status, perts):
+    """
+    Apply perturbations to the frame so that the frame appears to be located
+    - shift: at a parallel offset with respect to its current heading
+    - rotate: at heading in a different direction with respect to its current position
+    """
 
     # figure out steer correction based on perturbations
     steer_correction = 0
     for pert in perts:
-        pd = component_config['create']['perts'][pert]
-        steer_correction += pd['fudge'] * perts[pert]
+        pertd = config['create']['perts'][pert]
+        steer_correction += pertd['fudge'] * perts[pert]
 
     # skip if we have nothing to correct
     if steer_correction == 0:
         return
-        
+
     # apply steer corrections
-    for i, d in enumerate(component_config['status']):
-        if d['field'] == 'steer':
-            status[i] += steer_correction * (1 - min(d['delay'], 1))
+    for i, statusd in enumerate(config['status']):
+        if statusd['field'] == 'steer':
+            status[i] += steer_correction * (1 - min(statusd['delay'], 1))
             status[i] = min(1, status[i])
             status[i] = max(-1, status[i])
-    for i, d in enumerate(component_config['predict']):
-        if d['field'] == 'steer':
-            predict[i] += steer_correction * (1 - min(d['delay'], 1))
+    for i, predictd in enumerate(config['predict']):
+        if predictd['field'] == 'steer':
+            predict[i] += steer_correction * (1 - min(predictd['delay'], 1))
             predict[i] = min(1, predict[i])
             predict[i] = max(-1, predict[i])
 
-    # Manipulate image
+    # Apply perturbation to pixel values
     derp.util.perturb(frame, frame_config, perts)
 
 
 def process_recording(args):
-    component_config, recording_path, folders = args
-    component_name = component_config['thumb']['component']
-    recording_name = os.path.basename(recording_path)
-    
+    """
+    For each frame in the video generate frames and perturbations to save into a dataset.
+    """
+    config, recording_path, folders = args
+    component_name = config['thumb']['component']
+    recording_name = recording_path.name
+
     # Prepare our data input
-    states_path = os.path.join(recording_path, 'state.csv')
+    states_path = recording_path / 'state.csv'
     state_ts, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
     # Skip if there are no labels
-    labels_path = os.path.join(recording_path, 'label.csv')
-    if not os.path.exists(labels_path):
+    labels_path = recording_path / 'label.csv'
+    if not labels_path.exists():
         print("Unable to open [%s]" % labels_path)
         return False
     label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
 
     # Prepare configs
-    source_config = derp.util.load_config(recording_path)
+    source_config_path = recording_path / 'car.yaml'
+    source_config = derp.util.load_config(source_config_path)
     frame_config = derp.util.find_component_config(source_config, component_name)
-    try:
-        inferer = derp.util.load_component(component_config, source_config).script
-    except AssertionError:
-        print("Unable to process [%s] because of AssertionError" % recording_path)
-        return
+
+    # Load controller off of the first state entry
+    state = prepare_state(config, 0, state_headers, states, None)
+    controller = derp.util.load_controller(config, source_config, state)
 
     # Perturb our arrays
     n_perts = 1
-    if frame_config['hfov'] > component_config['thumb']['hfov']:
-        n_perts = component_config['create']['n_perts']
+    if frame_config['hfov'] > config['thumb']['hfov']:
+        n_perts = config['create']['n_perts']
     print("Processing", recording_path, n_perts)
 
     # Prepare directories and writers
     predict_fds = {}
     status_fds = {}
     for part in folders:
-        out_path = os.path.join(folders[part], recording_name)
-        if os.path.exists(out_path):
+        out_path = folders[part] / recording_name
+        if out_path.exists():
             print("unable to create this recording's dataset as it was already started")
             return False
-        os.mkdir(out_path)
-        predict_fds[part] = open(os.path.join(out_path, 'predict.csv'), 'a')
-        status_fds[part] = open(os.path.join(out_path, 'status.csv'), 'a')
-    
+        out_path.mkdir(parents=True, exist_ok=True)
+        predict_fds[part] = open(str(out_path / 'predict.csv'), 'a')
+        status_fds[part] = open(str(out_path / 'status.csv'), 'a')
+
     # load video
-    video_path = os.path.join(recording_path, '%s.mp4' % component_config['thumb']['component'])
+    video_path = recording_path / ('%s.mp4' % config['thumb']['component'])
     reader = imageio.get_reader(video_path)
 
     # Loop through video and add frames into dataset
@@ -167,30 +199,30 @@ def process_recording(args):
             continue
 
         # Prepare attributes regardless of perturbation
-        if np.random.rand() < component_config['create']['train_chance']:
+        if np.random.rand() < config['create']['train_chance']:
             part = 'train'
         else:
             part = 'val'
-        data_dir = os.path.join(folders[part], recording_name)
+        data_dir = folders[part] / recording_name
         frame = reader.get_data(frame_id)
 
         # Create each perturbation for dataset
         for pert_id in range(n_perts if part == 'train' else 1):
 
             # Prepare variables to store for this example
-            state = prepare_state(component_config, frame_id, state_headers, states, frame)
-            perts = prepare_pert_magnitudes(component_config['create']['perts'], pert_id == 0)
-            predict = prepare_predict(component_config, frame_id, state_headers, state_ts, states,
+            controller.state = prepare_state(config, frame_id, state_headers, states, frame)
+            perts = prepare_pert_magnitudes(config['create']['perts'], pert_id == 0)
+            predict = prepare_predict(config, frame_id, state_headers, state_ts, states,
                                       perts)
-            status = prepare_status(component_config, frame_id, state_headers, state_ts, states)
+            status = prepare_status(config, frame_id, state_headers, state_ts, states)
 
             # Perturb the image and status/predictions
-            frame = state[component_name]            
-            perturb(component_config, frame_config, frame, predict, status, perts)
+            frame = controller.state[component_name]
+            perturb(config, frame_config, frame, predict, status, perts)
 
             # Get thumbnail
-            thumb = inferer.prepare_thumb(state)
-            
+            thumb = controller.prepare_thumb()
+
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts, predict)
             write_thumb(thumb, data_dir, store_name)
@@ -202,42 +234,52 @@ def process_recording(args):
     return True
 
 
-def main(args):
-    
+def main():
+    """
+    Builds cloning datasets for use in the clone_train.py script.
+    """
+    # Make sure we got arguments correctly processed
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--controller', type=str, required=True,
+                        help="car controller we wish to train for")
+    parser.add_argument('--count', type=int, default=4,
+                        help='Number of processes to run in parallel')
+    args = parser.parse_args()
+
     # Import configs that we wish to train for
-    config_path = os.path.join(os.environ['DERP_ROOT'], 'config', args.config + '.yaml')
-    full_config = derp.util.load_config(config_path)
-    component_config = derp.util.find_component_config(full_config, 'clone')
-    experiment_path = os.path.join(os.environ['DERP_ROOT'], 'scratch', full_config['name'])
+    config_path = derp.util.get_controller_config_path(args.controller)
+    controller_config = derp.util.load_config(config_path)
+    experiment_path = derp.util.get_experiment_path(controller_config['name'])
 
     # Create folders
-    if not os.path.exists(experiment_path):
+    if not experiment_path.exists():
         print("Created", experiment_path)
-        os.mkdir(experiment_path)
+        experiment_path.mkdir(parents=True, exist_ok=True)
 
     # Prepare folders and file descriptors
     parts = ['train', 'val']
     folders = {}
     for part in parts:
-        folders[part] = os.path.join(experiment_path, part)
-        if not os.path.exists(folders[part]):
+        folders[part] = experiment_path / part
+        if not folders[part].exists():
             print("Created", folders[part])
-            os.mkdir(folders[part])
+            folders[part].mkdir(parents=True, exist_ok=True)
 
     # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in component_config['create']['data_folders']:
+    for data_folder in controller_config['create']['data_folders']:
+        data_folder = pathlib.Path(data_folder)
 
         # If we don't have an absolute path, prepend derp_data folder
-        if not os.path.isabs(data_folder):
-            data_folder = os.path.join(os.environ['DERP_ROOT'], 'data', data_folder)
+        if not data_folder.is_absolute():
+            data_folder = derp.util.ROOT / 'data' / data_folder
 
         # If we have the recording path, process what's in it
-        for filename in os.listdir(data_folder):
-            recording_path = os.path.join(data_folder, filename)
-            if os.path.isdir(recording_path):
-                process_args.append([component_config, recording_path, folders])
-                
+        for filename in data_folder.glob('*'):
+            recording_path = data_folder / filename
+            if recording_path.is_dir():
+                process_args.append([controller_config, recording_path, folders])
+
     # Prepare pool of workers
     if args.count <= 0:
         for arg in process_args:
@@ -249,11 +291,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, required=True,
-                        help="car components and setup we wish to train for")
-    parser.add_argument('--count', type=int, default=4,
-                        help='Number of processes to run in parallel')
-    args = parser.parse_args()
-    main(args)
+    main()

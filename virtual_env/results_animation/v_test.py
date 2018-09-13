@@ -3,6 +3,11 @@ import numpy as np
 from pylab import *
 
 
+'''
+test of a script to create an animation using the Moviewriter class and animation submodule.
+'''
+
+
 dpi = 100
 
 def ani_frame():

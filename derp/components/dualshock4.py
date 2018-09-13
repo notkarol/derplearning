@@ -13,8 +13,8 @@ import derp.util as util
 
 class Dualshock4(Component):
 
-    def __init__(self, config, full_config):
-        super(Dualshock4, self).__init__(config, full_config)
+    def __init__(self, config, state):
+        super(Dualshock4, self).__init__(config, state)
         
         # The deadzone of the analog sticks to ignore them
         self.__timeout = self.config['timeout']
@@ -38,7 +38,6 @@ class Dualshock4(Component):
 
         # Reset the message queue
         self.__server_socket.send_json(True)
-
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
@@ -46,40 +45,36 @@ class Dualshock4(Component):
         self.__server_socket.send_json(False)
         sleep(0.1)
         self.__server_socket.disconnect(self.__server_addr)
-        super(Dualshock4, self).__del__()
 
-
-    def in_deadzone(self, value):
+    def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
         return 128 - self.__deadzone < value <= 128 + self.__deadzone
 
-
-    def normalize_stick(self, value, deadzone):
+    def __normalize_stick(self, value, deadzone):
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
 
+    def __process(self, status, out):
 
-    def process(self, status, state, out):
-
-        # Insensitive steering
-        if self.in_deadzone(status['right_analog_x']):
+        # linear steering
+        if self.__in_deadzone(status['right_analog_x']):
             if self.right_analog_active:
                 self.right_analog_active = False
                 out['steer'] = 0
         else:
             self.right_analog_active = True
-            out['steer'] = self.normalize_stick(status['right_analog_x'], self.__deadzone)
+            out['steer'] = self.__normalize_stick(status['right_analog_x'], self.__deadzone)
 
-        # Sensitive steering
-        if self.in_deadzone(status['left_analog_x']):
+        # parabolic steering
+        if self.__in_deadzone(status['left_analog_x']):
             if self.left_analog_active:
                 self.left_analog_active = False
                 out['steer'] = 0
         else:
             self.left_analog_active = True
-            steer = self.normalize_stick(status['left_analog_x'], self.__deadzone)
+            steer = self.__normalize_stick(status['left_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
             steer *= self.config['steer_normalizer'][1]
@@ -93,12 +88,21 @@ class Dualshock4(Component):
         # Forward
         if status['left_trigger']:
             self.left_trigger_active = True
-            z, x, y = self.config['speed_elbow']
+            min_speed, inflect_pt, speed_at_inflect = self.config['speed_elbow']
             speed = status['left_trigger'] / 256
-            if speed < x:
-                speed = z + speed * (y - z) / x
+            if speed < inflect_pt:
+                speed = (min_speed
+                         + speed
+                         * (speed_at_inflect - min_speed) 
+                         / inflect_pt 
+                        )
             else:
-                speed = (y + (speed - x) * (1 - y) / (1 - x))
+                speed = (speed_at_inflect
+                         + ( (speed - inflect_pt)
+                            * (1 - speed_at_inflect)
+                            / (1 - inflect_pt)
+                           )
+                        )
             out['speed'] = -speed
         elif self.left_trigger_active:
             self.left_trigger_active = False
@@ -107,12 +111,20 @@ class Dualshock4(Component):
         # Reverse
         if status['right_trigger']:
             self.right_trigger_active = True
-            z, x, y = self.config['speed_elbow']
+            min_speed, inflect_pt, speed_at_inflect = self.config['speed_elbow']
             speed = status['right_trigger'] / 256
-            if speed < x:
-                speed = z + speed * (y - z) / x
+            if speed < inflect_pt:
+                speed = (min_speed
+                         + speed
+                         * (speed_at_inflect - min_speed) 
+                         / inflect_pt
+                        )
             else:
-                speed = (y + (speed - x) * (1 - y) / (1 - x))
+                speed = (speed_at_inflect
+                         + (speed - inflect_pt)
+                         * (1 - speed_at_inflect)
+                         / (1 - inflect_pt)
+                        )
             out['speed'] = speed
         elif self.right_trigger_active:
             self.right_trigger_active = False
@@ -133,7 +145,7 @@ class Dualshock4(Component):
         if status['button_square']:
             out['record'] = False
         if status['button_circle']:
-            if not state['record']:
+            if not self.state['record']:
                 out['record'] = True
 
         # Change wheel offset
@@ -141,24 +153,24 @@ class Dualshock4(Component):
             self.left_active = True
         elif self.left_active:
             self.left_active = False
-            out['offset_steer'] = state['offset_steer'] - 1 / 128
+            out['offset_steer'] = self.state['offset_steer'] - 0.015625
         if status['right']:
             self.right_active = True
         elif self.right_active:
             self.right_active = False
-            out['offset_steer'] = state['offset_steer'] + 1 / 128
+            out['offset_steer'] = self.state['offset_steer'] + 0.015625
 
         # Fixed speed modifications using arrows
         if status['up']:
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['offset_speed'] = state['offset_speed'] + 0.01
+            out['offset_speed'] = self.state['offset_speed'] + 0.015625
         if status['down']:
             self.down_active = True
         elif self.down_active:
             self.down_active = False
-            out['offset_speed'] = state['offset_speed'] - 0.01
+            out['offset_speed'] = self.state['offset_speed'] - 0.015625
 
         # Close down
         if status['button_trackpad'] or status['button_share'] or status['button_options']:
@@ -166,10 +178,9 @@ class Dualshock4(Component):
             out['steer'] = 0
             out['record'] = False
             out['auto'] = False
-            state.close()
+            self.state.close()
 
-
-    def act(self, state):
+    def act(self):
         out = {'red': 0,
                'green': 0,
                'blue': 0,
@@ -179,28 +190,39 @@ class Dualshock4(Component):
                'rumble_low': 0}
                
         # Base color
-        if not state['record'] and not state['auto']:
+        if not self.state['record'] and not self.state['auto']:
             out['red'] = 0.130
             out['green'] = 0.085
             out['blue'] = 0.034
             
         # Update based on state
-        if state['record']:
+        if self.state['record']:
             out['green'] = 1
-        if state['use_offset_speed']:
+        if self.state['use_offset_speed']:
             out['blue'] = 1
-        if state['auto']:
+        if self.state['auto']:
             out['red'] = 1
-
-        if state['warn']:
-            out['light_on'] = 0.1
-            out['light_off'] = 0.1
+        out['light_on'] = self.state['warn']
+        out['light_off'] = self.state['warn']
             
         self.__server_socket.send_json(out)
+
+        # Clear out outstanding messages
+        while len(self.poll()):
+            pass
         return True
 
+    def poll(self):
+        poller = zmq.Poller()
+        poller.register(self.__server_socket, zmq.POLLIN)
+        msg = dict(poller.poll(10))
+        if len(msg) > 0:
+            msgs = self.__server_socket.recv_json()
+            self.__last_recv_time = time()
+            return msgs
+        return []
 
-    def sense(self, state):
+    def sense(self):
         out = {'record' : None,
                'auto' : None,
                'speed' : None,
@@ -209,26 +231,18 @@ class Dualshock4(Component):
                'offset_speed' : None,
                'offset_steer' : None}
 
-        # Ask the controller for messages
-        poller = zmq.Poller()
-        poller.register(self.__server_socket, zmq.POLLIN)
-        msg = dict(poller.poll(10))
-        if len(msg) > 0:
-            msgs = self.__server_socket.recv_json()
-            self.__last_recv_time = time()
-        else:
-            msgs = []
-
+        msgs = self.poll()
+        
         # For each message, process the fields we want to set a new desired value
         for msg in msgs:
-            self.process(msg, state, out)
+            self.__process(msg, out)
 
         # Kill car if we're out of range
         if (time() - self.__last_recv_time) > self.__timeout:
-            state.close()
+            self.state.close()
             
-        # After all messages have been processed, update the state
+        # After all messages have been process, update the state
         for field in out:
             if out[field] is not None:
-                state[field] = out[field]
+                self.state[field] = out[field]
         return True

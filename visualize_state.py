@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as signal
 
+#Creates an array of plots describing the state data
+# of different sensors and control outputs as a function of time 
+
 def main(args):
 
     # Prepare path to and load state csv

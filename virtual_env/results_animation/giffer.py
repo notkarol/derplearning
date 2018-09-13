@@ -2,6 +2,10 @@
 import sys
 import imageio
 
+'''
+creates a gif out of image files from a specified source directory
+'''
+
 import yaml
 with open("config/line_model.yaml", 'r') as yamlfile:
         cfg = yaml.load(yamlfile)

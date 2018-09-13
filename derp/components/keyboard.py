@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
 
-import evdev
 import os
 from time import time
+
 from derp.component import Component
 import derp.util
 
-
-def find_device(names):
-    for filename in sorted(evdev.list_devices()):
-        device = evdev.InputDevice(filename)
-        device_name = device.name.lower()
-        for name in names:
-            if name in device_name:
-                return device
-    return None  
-
 class Keyboard(Component):
 
-    def __init__(self, config, full_config):
-        super(Keyboard, self).__init__(config, full_config)
+    def __init__(self, config, state):
+        super(Keyboard, self).__init__(config, state)
         self.device = None
+        self.__connect()
 
         # Prepare key code
         self.code_map = {1: 'escape',
@@ -123,17 +114,16 @@ class Keyboard(Component):
                          125: 'super',
                      }
 
-        self.device = find_device(['keyboard', 'kbd'])
-        self.ready = self.device is not None
-
     def __del__(self):
-        super(Keyboard, self).__del__()
         if self.device is not None:
             self.device.close()
-            self.device = None
 
+    def __connect(self):
+        self.device = derp.util.find_device(self.config['device_names'])
+        self.ready = self.device is not None
+        return self.ready
 
-    def process(self, state, out, event):
+    def __process(self, out, event):
 
         # Skip events that I don't know what they mean, but appear all the time
         if event.code == 0 or event.code == 4:
@@ -141,26 +131,26 @@ class Keyboard(Component):
 
         # Set steer
         if self.code_map[event.code] == 'arrow_left' and event.value:
-            out['steer'] = state['steer'] - 0.1
+            out['steer'] = self.state['steer'] - 0.015625
             return
         if self.code_map[event.code] == 'arrow_right' and event.value:
-            out['steer'] = state['steer'] + 0.1
+            out['steer'] = self.state['steer'] + 0.015625
             return
 
         # Set speed
         if self.code_map[event.code] == 'arrow_up' and event.value:
-            out['speed'] = state['speed'] + 0.01
+            out['speed'] = self.state['speed'] + 0.015625
             return
         if self.code_map[event.code] == 'arrow_down' and event.value:
-            out['speed'] = state['speed'] - 0.01
+            out['speed'] = self.state['speed'] - 0.015625
             return
         
         # set steer offset
         if self.code_map[event.code] == '[' and event.value:
-            out['offset_steer'] = state['offset_steer'] - 0.00390625
+            out['offset_steer'] = self.state['offset_steer'] - 0.00390625
             return
         if self.code_map[event.code] == ']' and event.value:
-            out['offset_steer'] = state['offset_steer'] + 0.00390625
+            out['offset_steer'] = self.state['offset_steer'] + 0.00390625
             return
 
         # set speed offset
@@ -208,7 +198,6 @@ class Keyboard(Component):
             out['use_offset_speed'] = True
             return
 
-
         # Stop car and recording, but keep running program
         if self.code_map[event.code] == 'q' and event.value:
             out['speed'] = 0
@@ -224,11 +213,13 @@ class Keyboard(Component):
             out['record'] = False
             out['auto'] = False
             out['use_offset_speed'] = False
-            state.close()
+            self.state.close()
             return
 
+    def sense(self):
+        if not self.ready:
+            self.__connect()
 
-    def sense(self, state):
         out = {'record' : None,
                'speed' : None,
                'steer' : None,
@@ -240,12 +231,15 @@ class Keyboard(Component):
         # Process every action we received until there are no more left
         try:
             for event in self.device.read():
-                self.process(state, out, event)
+                self.__process(out, event)
         except BlockingIOError:
             pass
+        except Exception as e:
+            print("keyboard sense:", e)
+            self.ready = False
 
         # Process 'out' into 'state'
         for field in out:
             if out[field] is not None:
-                state[field] = out[field]
+                self.state[field] = out[field]
         return True
