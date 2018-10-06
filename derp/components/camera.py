@@ -6,7 +6,6 @@ import re
 import select
 import sys
 from time import time, sleep
-import v4l2capture
 import subprocess
 from derp.component import Component
 import derp.util as util
@@ -25,25 +24,17 @@ class Camera(Component):
 
     def __del__(self):
         if self.cap is not None:
-            self.cap.close()
+            self.cap.release()
 
     def __connect(self):
         if self.cap:
             del self.cap
             self.cap = None
         self.ready = self.__find()
-        if not self.ready:
-            return False
-        try:
-            w, h = self.cap.set_format(self.config['width'], self.config['height'], fourcc='MJPG')
-            fps = self.cap.set_fps(self.config['fps'])
-            self.cap.create_buffers(2)
-            self.cap.queue_all_buffers()
-            self.cap.start()
-            self.ready = True
-        except Exception as e:
-            print("Could not initialize capture:", e)
-            self.ready = False
+        if self.ready:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
+            #self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         return self.ready
             
     def __find(self):
@@ -60,16 +51,11 @@ class Camera(Component):
 
         # Connect to camera, exit if we can't
         try:
-            self.cap = v4l2capture.Video_device("/dev/video%i" % self.index)
+            self.cap = cv2.VideoCapture(self.index)
         except:
-            print("Camera index [%i] not found. Trying next." % self.index)
-            self.index += 1
-            try:
-                self.cap = v4l2capture.Video_device("/dev/video%i" % self.index)
-            except:
-                print("Camera index [%i] not found. Failing." % self.index)
-                self.cap = None
-                return False
+            print("Camera index [%i] not found. Failing." % self.index)
+            self.cap = None
+            return False
         return True
             
     def sense(self):
@@ -79,19 +65,11 @@ class Camera(Component):
 
         if self.ready:
             frame = None
-            counter = 1
-            while frame is None and counter:
-                counter -= 1
-                select.select((self.cap,), (), ())
-                try:
-                    self.image_bytes = self.cap.read_and_queue()
-                    image_array = np.fromstring(self.image_bytes, np.uint8)
-                    frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-                    self.state[self.config['name']] = frame
-                except Exception as e:
-                    print("Camera: Unable to get frame. Retrying", e)
-                    self.ready = False
-                    break
-        
+            ret, frame = self.cap.read()
+            if ret:
+                self.state[self.config['name']] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            else:
+                print("Camera: Unable to get frame")
+                self.ready = False
         return self.ready
 

@@ -185,7 +185,7 @@ def save_image(path, image):
 
 def get_name(path):
     """ The name of a script is it"s filename without the extension """
-    return pathlib.Path(path.rstrip("/")).name.stem
+    return pathlib.Path(str(path).rstrip("/")).stem
 
 
 def get_hostname():
@@ -196,7 +196,7 @@ def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
-    path = ROOT / "data" / "%s-%s" % (dt, hn)
+    path = ROOT / "data" / ("%s-%s" % (dt, hn))
     path.mkdir(parents=True, exist_ok=True)
     return path
 
