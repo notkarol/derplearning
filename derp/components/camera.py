@@ -34,7 +34,7 @@ class Camera(Component):
         if self.ready:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
-            #self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         return self.ready
             
     def __find(self):
@@ -67,7 +67,8 @@ class Camera(Component):
             frame = None
             ret, frame = self.cap.read()
             if ret:
-                self.state[self.config['name']] = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                sensor_name = self.config['name']
+                self.state[sensor_name] = frame
             else:
                 print("Camera: Unable to get frame")
                 self.ready = False

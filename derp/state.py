@@ -154,3 +154,14 @@ class State(Mapping):
         for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value
+
+    def print(self):
+        """
+        Print a short summary of the state for debugging purposes.
+        """
+        print("%.3f %.2f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+              (self.state['timestamp'], self.state['warn'],
+               'R' if self.state['record'] else '_', 'A' if self.state['auto'] else '_',
+               self.state['speed'], self.state['offset_speed'], self.state['use_offset_speed'],
+               self.state['steer'], self.state['offset_steer'], self.state['use_offset_steer']))
+            
