@@ -20,4 +20,5 @@ __pycache__/
 /dist
 
 # Web App
-/rsia/venv
+/rsia/env
+
