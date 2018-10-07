@@ -11,3 +11,17 @@ __pycache__/
 *~
 
 .idea
+
+#superflous directories
+/config
+/data
+/data.bak
+/defunct
+/doc
+/install
+/scratch
+sensors.png
+/virtual_env/data
+
+# Web App
+/rsia/venv
