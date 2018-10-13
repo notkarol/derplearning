@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTORCH_VERSION=v0.4.0
+PYTORCH_VERSION=v0.4.1
 
 # Pull in the code if it's not already done so
 if ! [[ -e pytorch ]] ; then

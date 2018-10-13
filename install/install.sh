@@ -52,9 +52,6 @@ else
 fi
 source ~/.derprc
 
-# Install v4l2capture, a python&C library for interfacing with cameras
-bash v4l2capture.sh
-
 # Compile OpenCV from source
 bash opencv.sh
 
