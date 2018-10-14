@@ -3,15 +3,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def hello():
-    return "Hello World!"
+  return "Hello World!"
 
-@app.route('/dashboard_broken')
+@app.route('/dashboard_hello_world')
 def dashboard():
-    return render_template('dashboard_broken.html')
-
-@app.route('/dashboard_small')
-def dashboard2():
-    return render_template('dashboard_small.html')
+  return render_template('dashboard_hello_world.html')
 
 if __name__ == '__main__':
-    app.run()
+  app.run()
