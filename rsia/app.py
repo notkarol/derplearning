@@ -5,9 +5,13 @@ app = Flask(__name__)
 def hello():
     return "Hello World!"
 
-@app.route('/dashboard')
+@app.route('/dashboard_broken')
 def dashboard():
-    return render_template('dashboard.html')
+    return render_template('dashboard_broken.html')
+
+@app.route('/dashboard_small')
+def dashboard2():
+    return render_template('dashboard_small.html')
 
 if __name__ == '__main__':
     app.run()
