@@ -5,8 +5,6 @@ Builds cloning datasets for use in the clone_train.py script.
 import argparse
 import multiprocessing
 import pathlib
-
-import imageio
 import numpy as np
 import derp.util
 
@@ -93,7 +91,7 @@ def write_thumb(thumb, data_dir, store_name):
     Write our image to di sk.
     """
     store_path = data_dir / store_name
-    imageio.imwrite(str(store_path), thumb)
+    cv2.imwrite(str(store_path), thumb)
 
 
 def write_csv(writer, array, data_dir, store_name):
@@ -188,7 +186,7 @@ def process_recording(args):
 
     # load video
     video_path = recording_path / ('%s.mp4' % config['thumb']['component'])
-    reader = imageio.get_reader(video_path)
+    reader = cv2.VideoCapture(video_path)
 
     # Loop through video and add frames into dataset
     frame_id = 0
@@ -204,7 +202,11 @@ def process_recording(args):
         else:
             part = 'val'
         data_dir = folders[part] / recording_name
-        frame = reader.get_data(frame_id)
+
+        # Get the frame, exit if we can not
+        ret, frame = reader.read()
+        if not ret:
+            break
 
         # Create each perturbation for dataset
         for pert_id in range(n_perts if part == 'train' else 1):

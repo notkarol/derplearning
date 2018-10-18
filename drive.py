@@ -3,8 +3,7 @@
 The main driver program that loops the live internal state.
 """
 import argparse
-import os
-from time import time, sleep
+import time
 import derp.state
 import derp.util
 
@@ -14,7 +13,7 @@ def loop(state, controller, components):
     """
 
     # Reset variables
-    state['timestamp'] = time()
+    state['timestamp'] = time.time()
     state['warn'] = 0
 
     # Sense Plan Act Record loop where each component runs sequentially.
@@ -42,6 +41,7 @@ def prepare_arguments():
     args = parser.parse_args()
     return args
 
+
 def main():
     """
     Prepare ar guments, configurations, variables and tn start the event loop.
@@ -62,7 +62,6 @@ def main():
     # The program's running loop
     while not state.done():
         loop(state, controller, components)
-
         if not args.quiet:
             state.print()
 

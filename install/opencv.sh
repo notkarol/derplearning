@@ -26,6 +26,7 @@ sudo apt install -y \
      git \
      pkg-config \
      python3-dev \
+     python-numpy \
      python3-numpy \
      python3-py\
      python3-pytest
