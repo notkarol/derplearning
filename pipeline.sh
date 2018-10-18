@@ -1,25 +1,13 @@
 #!/bin/bash -x
 
 
-#batch move and label collected data
-#then create and train a model on this data
-
-
-# SET THESE VARIABLES. car should be an entry in ~/.ssh/config too
-#name of the vehicle the model will be deployed to
-name=$1
-#created from the name of the car refers to where the model will be deployed to 
-car=${name%%-*}
-#location where the data can be pulled from to the local train folder
-data_source=$2
-#which button you press on the DS4 to give the model control of the car
-button=$3
-
-#location where data is put for labling and training:
+name=$1 # Name of vehicle model (e.g. arkanine-fixspeed)
+car=${name%%-*} # component with car
+data_source=$2 # location to pull data
+button=$3 # which button on the ds4 we should deploy to
 train_folder=$(python3 -c "import derp.util as util; print(util.pass_config(\"$DERP_ROOT/config/${name}.yaml\", 'components', 6, 'create', 'data_folders')[0] )")
 #Note this will break when we split the model configs from the vehicle configs
 train_loc=$DERP_ROOT/data/$train_folder
-
 
 # Copy over training data from car
 if $data_source != $train_loc
