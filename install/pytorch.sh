@@ -10,8 +10,8 @@ fi
 # Prepare the right version of the code
 cd pytorch
 git pull
-git submodule update --init
 git checkout ${PYTORCH_VERSION}
+git submodule update --init
 
 # Install requirements and then the package
 sudo apt-get install libopenblas-dev
@@ -27,7 +27,6 @@ fi
 # Install requirements and then the package
 cd vision
 git pull
-pip3 install --user -r requirements.txt
 python3 setup.py install --user
 cd ..
 
