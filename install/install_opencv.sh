@@ -61,7 +61,7 @@ cmake \
     -D BUILD_JPEG=OFF \
     -D BUILD_JASPER=OFF \
     -D BUILD_ZLIB=OFF \
-    -D BUILD_EXAMPLES=ON \
+    -D BUILD_EXAMPLES=OFF \
     -D BUILD_opencv_java=OFF \
     -D BUILD_opencv_python2=OFF \
     -D BUILD_opencv_python3=ON \
