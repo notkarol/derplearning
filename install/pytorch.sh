@@ -31,4 +31,4 @@ python3 setup.py install --user
 cd ..
 
 # Cleanup after ourselves
-rm -rf pytorch vision
+# rm -rf pytorch vision

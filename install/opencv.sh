@@ -3,7 +3,7 @@
 OPENCV_VERSION=3.3.0
 ARCH=$(uname -i)
 PYTHON_VERSION=python3.5
-CUDA_VERSION=8.0
+CUDA_VERSION=9.0
 
 # Install requirements
 sudo apt install -y \
@@ -94,4 +94,4 @@ sudo make install
 cd -
 
 # Cleanup after ourselves
-rm -rf opencv opencv_extra
+#rm -rf opencv opencv_extra
