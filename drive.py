@@ -11,7 +11,6 @@ def loop(state, controller, components):
     """
     The Sense, Plan, Act, Record (SPAR) loop.
     """
-
     # Reset variables
     state['timestamp'] = time.time()
     state['warn'] = 0

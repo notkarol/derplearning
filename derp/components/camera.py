@@ -69,21 +69,12 @@ class Camera(Component):
             height, width = self.config['height'], self.config['width']
             resize, recrop = self.config['resize'], self.config['recrop']
             if ret:
-                if isinstance(recrop, list) and len(recrop) == 4 and recrop != [0, 0, 1, 1]:
-                    x = int(width * recrop[0])
-                    y = int(height * recrop[1])
-                    width = int(width * recrop[2])
-                    height = int(height * recrop[3])
-                    frame = util.crop(frame, bbox=util.Bbox(x, y, width, height))
-                if 0 < resize < 1:
-                    width = int(width * resize)
-                    height = int(height * resize)
-                    frame = util.resize(frame, (width, height))
-                if self.state['debug']:
-                    cv2.imshow('resize', frame)
-                    cv2.waitKey(2)
+                frame, _, _, _, _, _, _, _ = util.apply_cropresize(self.config)
                 sensor_name = self.config['name']
                 self.state[sensor_name] = frame
+                if self.state['debug']:
+                    cv2.imshow('resize', frame)
+                    cv2.waitKey(1)                
             else:
                 print("Camera: Unable to get frame")
                 self.ready = False

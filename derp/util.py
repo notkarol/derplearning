@@ -85,7 +85,7 @@ def encode_video(folder, name, suffix, fps=30):
     subprocess.Popen(cmd, shell=True)
 
 
-def print_image_config(config):
+def print_image_config(name, config):
     """ Prints some useful variables about the camera for debugging purposes """
     top = config["pitch"] + config["vfov"] / 2
     bot = config["pitch"] - config["vfov"] / 2
@@ -93,27 +93,71 @@ def print_image_config(config):
     right = config["yaw"] + config["hfov"] / 2
     hppd = config["width"] / config["hfov"]
     vppd = config["height"] / config["vfov"]
-    print("top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
-          (top, bot, left, right, hppd, vppd))
+    print("%s top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
+          (name, top, bot, left, right, hppd, vppd))
+
+
+def apply_cropresize(camera_config, frame=None):
+    """ 
+    Sometimes at recording time we do crop or resize to speed things up.
+    Apply those operations to our numbers, and frame if supplied.
+    """
+    recrop = camera_config['recrop'] if 'recrop' in camera_config else None
+    resize = camera_config['resize'] if 'resize' in camera_config else 1.0
+    height = camera_config['height']
+    width = camera_config['width']
+    vfov = camera_config['vfov']
+    hfov = camera_config['hfov']
+    yaw = camera_config['yaw']
+    pitch = camera_config['pitch']
+    roll = camera_config['roll']
+    if isinstance(recrop, list) and len(recrop) == 4 and recrop != [0, 0, 1, 1]:
+        x = int(width * recrop[0])
+        y = int(height * recrop[1])
+        crop_width = int(width * recrop[2])
+        crop_height = int(height * recrop[3])
+        print(yaw, pitch)
+        yaw += hfov * ((x + crop_width / 2) - (width / 2)) / width
+        pitch += vfov * ((y + crop_height / 2) - (height / 2)) / height
+        print(yaw, pitch, recrop)
+
+        hfov *= recrop[2]
+        vfov *= recrop[3]
+        if frame:
+            frame = util.crop(frame, bbox=util.Bbox(x, y, crop_width, crop_height))
+        height, width = crop_height, crop_width
+    if isinstance(resize, float) and 0 < resize < 1:
+        width = int(width * resize)
+        height = int(height * resize)
+        if frame:
+            frame = util.resize(frame, (width, height))
+    return frame, height, width, vfov, hfov, yaw, pitch, roll
 
 
 def get_patch_bbox(target_config, source_config):
-    """ Currently we assume that orientations and positions are identical """
-    hfov_ratio = target_config["hfov"] / source_config["hfov"]
-    vfov_ratio = target_config["vfov"] / source_config["vfov"]
-    hfov_offset = source_config["yaw"] - target_config["yaw"]
-    vfov_offset = source_config["pitch"] - target_config["pitch"]
-    width = source_config["width"] * hfov_ratio
-    height = source_config["height"] * vfov_ratio
-    x_center = (source_config["width"] - width) // 2
-    y_center = (source_config["height"] - height) // 2
-    x_offset = (hfov_offset / source_config["hfov"]) * source_config["width"]
-    y_offset = (vfov_offset / source_config["vfov"]) * source_config["height"]
-    x = x_center + x_offset
-    y = y_center + y_offset
-    assert x >= 0 and x + width <= source_config["width"]
-    assert y >= 0 and y + height <= source_config["height"]
-    return Bbox(x, y, width, height)
+    """
+    Currently we assume that orientations and positions are identical
+    """
+    _, height, width, vfov, hfov, yaw, pitch, roll = apply_cropresize(source_config)
+    print(height, width, vfov, hfov, yaw, pitch, roll)
+    hfov_ratio = target_config["hfov"] / hfov
+    vfov_ratio = target_config["vfov"] / vfov
+    hfov_offset = yaw - target_config["yaw"]
+    vfov_offset = pitch - target_config["pitch"]
+    patch_width = width * hfov_ratio
+    patch_height = height * vfov_ratio
+    x_center = (width - patch_width) // 2
+    y_center = (height - patch_height) // 2
+    x_offset = (hfov_offset / hfov) * width
+    y_offset = (vfov_offset / vfov) * height
+    x = int(x_center + x_offset + 0.5)
+    y = int(y_center + y_offset + 0.5)
+    patch_width = int(patch_width + 0.5)
+    patch_height = int(patch_height + 0.5)
+    print(x, y, patch_width, patch_height)
+    assert x >= 0 and x + patch_width <= width
+    assert y >= 0 and y + patch_height <= height
+    return Bbox(x, y, patch_width, patch_height)
 
 
 def crop(image, bbox, copy=False):

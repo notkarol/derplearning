@@ -5,6 +5,7 @@ Builds cloning datasets for use in the clone_train.py script.
 import argparse
 import multiprocessing
 import pathlib
+import cv2
 import numpy as np
 import derp.util
 
@@ -98,7 +99,7 @@ def write_csv(writer, array, data_dir, store_name):
     """
     Write a CSV file to disk.
     """
-    writer.write(str(data_dir.name / store_name))
+    writer.write(str(pathlib.Path(data_dir.name) / store_name))
     for val in array:
         writer.write(',%f' % val)
     writer.write("\n")
@@ -186,7 +187,7 @@ def process_recording(args):
 
     # load video
     video_path = recording_path / ('%s.mp4' % config['thumb']['component'])
-    reader = cv2.VideoCapture(video_path)
+    reader = cv2.VideoCapture(str(video_path))
 
     # Loop through video and add frames into dataset
     frame_id = 0
@@ -232,7 +233,7 @@ def process_recording(args):
             write_csv(status_fds[part], status, data_dir, store_name)
 
     # Cleanup and return
-    reader.close()
+    reader.release()
     return True
 
 
