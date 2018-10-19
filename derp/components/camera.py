@@ -66,8 +66,6 @@ class Camera(Component):
         if self.ready:
             frame = None
             ret, frame = self.cap.read()
-            height, width = self.config['height'], self.config['width']
-            resize, recrop = self.config['resize'], self.config['recrop']
             if ret:
                 frame, _, _, _, _, _, _, _ = util.apply_cropresize(self.config)
                 sensor_name = self.config['name']
