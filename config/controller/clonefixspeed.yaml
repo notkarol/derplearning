@@ -24,16 +24,16 @@ train:
 # What we expect for input from the camera
 thumb:
   component: 'camera_front'
-  hfov: 5
-  vfov: 5
-  height: 64
-  width: 64
+  hfov: 30
+  vfov: 15
+  height: 128
+  width: 256
   depth: 3
   x: -0.21
   y: 0.0
   z: 0.43
   roll: 0
-  pitch: -28
+  pitch: -20
   yaw: 0
 
 # The status we feed into the network
