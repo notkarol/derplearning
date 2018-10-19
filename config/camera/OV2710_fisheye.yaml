@@ -2,9 +2,9 @@ name: 'camera'
 required: True
 class: 'Camera'
 index: 0
-hfov: 100
-vfov: 56.25
-fps: 30
+hfov: 185
+vfov: 104.0625
+fps: 60
 height: 1080
 width: 1920
 depth: 3
@@ -14,3 +14,5 @@ z:  0.43 # meters up from floor
 roll:   0.0 # degrees left tilt. Assume zero for now
 pitch: -28.0 # degrees incline
 yaw:    0.0 # degrees left turn. Assume zero for now
+resize: 0.5
+recrop: [0.25, 0.25, 0.5, 0.667]

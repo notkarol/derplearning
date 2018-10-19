@@ -14,3 +14,5 @@ z:  0.43 # meters up from floor
 roll:   0.0 # degrees left tilt. Assume zero for now
 pitch: -28.0 # degrees incline
 yaw:    0.0 # degrees left turn. Assume zero for now
+resize: 1.0
+recrop: None

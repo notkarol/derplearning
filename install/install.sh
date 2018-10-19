@@ -45,9 +45,9 @@ fi
 if [[ $(uname -m) -eq "aarch64" ]] ; then
     bash sdcard.sh
     echo "Please add the following line to 'crontab -e'"
-    echo "* * * * * python3 $(dirname $PWD)/daemon_ds4.py >> /tmp/daemon_ds4.out 2>&1"
+    echo "* * * * * python3 ${PWD}/daemon_ds4.py >> /tmp/daemon_ds4.out 2>&1"
 else
-    echo "export DERP_ROOT=$(dirname $PWD)" >> ~/.derprc
+    echo "export DERP_ROOT=${PWD}" >> ~/.derprc
     echo "source ~/.derprc" >> ~/.bashrc
 fi
 source ~/.derprc

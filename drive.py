@@ -56,6 +56,7 @@ def main():
 
     # Prepare the car's major components
     state = derp.state.State(car_config, controller_config)
+    state['debug'] = args.debug
     components = derp.util.load_components(car_config['components'], state)
     controller = derp.util.load_controller(controller_config, car_config, state)
 
