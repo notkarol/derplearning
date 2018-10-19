@@ -20,30 +20,30 @@ def prepare_state(config, frame_id, state_headers, states, frame):
     return state
 
 
-def prepare_predict(config, frame_id, state_headers, state_ts, states, perts):
+def prepare_predict(config, frame_id, state_headers, state_timestamps, states, perts):
     """
     Prepares the output that the model needs to predict at the current frame, depending on
     perturbations and the delay.
     """
     predict = np.zeros(len(config['predict']), dtype=np.float)
-    for pos, predictd in enumerate(config['predict']):
-        if predictd['field'] in state_headers:
-            state_pos = state_headers.index(predictd['field'])
-            timestamp = state_ts[frame_id] + predictd['delay']
-            predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
-        elif predictd['field'] in perts:
-            predict[pos] = perts[predictd['field']]
-            if 'delay' in predictd:
+    for pos, predict_dict in enumerate(config['predict']):
+        if predict_dict['field'] in state_headers:
+            state_pos = state_headers.index(predict_dict['field'])
+            timestamp = state_timestamps[frame_id] - predict_dict['delay']
+            predict[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
+        elif predict_dict['field'] in perts:
+            predict[pos] = perts[predict_dict['field']]
+            if 'delay' in predict_dict:
                 print("Delay is not implemented for fields in perts")
                 return False
         else:
-            print("Unable to find field [%s] in perts or states" % predictd['field'])
+            print("Unable to find field [%s] in perts or states" % predict_dict['field'])
             return False
-        predict[pos] *= predictd['scale']
+        predict[pos] *= predict_dict['scale']
     return predict
 
 
-def prepare_status(config, frame_id, state_headers, state_ts, states):
+def prepare_status(config, frame_id, state_headers, state_timestamps, states):
     """
     Prepares the status array, which is a vector of inputs that gets attached to the fully
     connected layer of a model.
@@ -55,8 +55,8 @@ def prepare_status(config, frame_id, state_headers, state_ts, states):
             return False
 
         state_pos = state_headers.index(statusd['field'])
-        timestamp = state_ts[frame_id]
-        status[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
+        timestamp = state_timestamps[frame_id]
+        status[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
         status[pos] *= statusd['scale']
     return status
 
@@ -149,7 +149,7 @@ def process_recording(args):
 
     # Prepare our data input
     states_path = recording_path / 'state.csv'
-    state_ts, state_headers, states = derp.util.read_csv(states_path, floats=True)
+    state_timestamps, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
     # Skip if there are no labels
     labels_path = recording_path / 'label.csv'
@@ -215,9 +215,9 @@ def process_recording(args):
             # Prepare variables to store for this example
             controller.state = prepare_state(config, frame_id, state_headers, states, frame)
             perts = prepare_pert_magnitudes(config['create']['perts'], pert_id == 0)
-            predict = prepare_predict(config, frame_id, state_headers, state_ts, states,
+            predict = prepare_predict(config, frame_id, state_headers, state_timestamps, states,
                                       perts)
-            status = prepare_status(config, frame_id, state_headers, state_ts, states)
+            status = prepare_status(config, frame_id, state_headers, state_timestamps, states)
 
             # Perturb the image and status/predictions
             frame = controller.state[component_name]

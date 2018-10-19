@@ -5,6 +5,7 @@ the controller dataset folder every time the validation loss decreases.
 """
 import argparse
 import time
+from subprocess import call
 
 import numpy as np
 import torch
@@ -66,7 +67,7 @@ def main():
     parser.add_argument('--gpu', type=str, default='0', help="GPU to use")
     parser.add_argument('--bs', type=int, default=32, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
-    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
+    parser.add_argument('--epochs', type=int, default=32, help="Number of epochs to run for")
     parser.add_argument('--plot', default=False, action='store_true',
                         help='save a plot of each batch for verification purposes')
     args = parser.parse_args()
@@ -75,6 +76,10 @@ def main():
     controller_config = derp.util.load_config(config_path)
     experiment_path = derp.util.get_experiment_path(controller_config['name'])
 
+    # If we don't have the experiment file created, make sure we try creating it
+    if not experiment_path.exists():
+        call(["python3", "clone_build.py", '--controller', args.controller])
+    
     # Prepare device we will train on
     device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
 
@@ -87,8 +92,8 @@ def main():
     model = model_class(dim_in, n_status, n_out).to(device)
     criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=8,
-                                                     factor=0.5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=args.epochs // 8,
+                                                     factor=0.25, verbose=True)
 
     # Prepare perturbation of example
     tlist = []

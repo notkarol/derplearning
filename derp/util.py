@@ -220,11 +220,11 @@ def rad2deg(val):
 
 
 def load_image(path):
-    return cv2.imread(path)
+    return cv2.imread(str(path))
 
 
 def save_image(path, image):
-    return cv2.imwrite(path, image)
+    return cv2.imwrite(str(path), image)
 
 
 def get_name(path):
