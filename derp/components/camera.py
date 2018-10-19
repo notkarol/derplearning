@@ -75,9 +75,6 @@ class Camera(Component):
                     width = int(width * recrop[2])
                     height = int(height * recrop[3])
                     frame = util.crop(frame, bbox=util.Bbox(x, y, width, height))
-                if self.state['debug']:
-                    cv2.imshow('crop', frame)
-                    cv2.waitKey(2)
                 if 0 < resize < 1:
                     width = int(width * resize)
                     height = int(height * resize)
