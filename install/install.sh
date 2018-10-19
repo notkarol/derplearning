@@ -16,7 +16,8 @@ sudo apt install \
      python3-pip \
      python3-seaborn \
      python3-scipy \
-     python3-zmq
+     python3-zmq \
+     python3-pandas
 
 # Install Python Packages
 pip3 install --user --upgrade Adafruit-BNO055 evdev pybluez pyserial pyusb

@@ -107,9 +107,9 @@
   var myChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: {{timeStamps}},
+      labels: {{x_axis}},
       datasets: [{
-        data: {{dataSet0}},
+        data: {{data_set}},
         lineTension: 0,
         backgroundColor: 'transparent',
         borderColor: '#007bff',
@@ -118,6 +118,11 @@
       }]
     },
     options: {
+      elements: {
+        point:{
+          radius: 0
+        }
+      },
       scales: {
         yAxes: [{
           ticks: {
