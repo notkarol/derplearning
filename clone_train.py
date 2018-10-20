@@ -18,8 +18,7 @@ from derp.fetcher import Fetcher
 import derp.util
 
 
-def step(epoch, model, loader, optimizer, criterion,
-         is_train, device, experiment_path, plot_batch):
+def step(epoch, model, loader, optimizer, criterion, is_train, device, experiment_path):
     """
     Run through dataset to complete a single epoch
     """
@@ -43,7 +42,7 @@ def step(epoch, model, loader, optimizer, criterion,
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        elif plot_batch and batch_index == 0 and epoch % 10 == 0:
+        elif batch_index == 0 and epoch % 10 == 0:
             path = experiment_path / ("batch_%02i_%04i" % (epoch, batch_index))
             derp.util.plot_batch(path, batch[0].numpy(), batch[1].numpy(), batch[2].numpy(),
                                  guess_batch.detach().cpu().numpy())
@@ -64,8 +63,6 @@ def main():
     parser.add_argument('--bs', type=int, default=32, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
     parser.add_argument('--epochs', type=int, default=50, help="Number of epochs to run for")
-    parser.add_argument('--plot', default=False, action='store_true',
-                        help='save a plot of each batch for verification purposes')
     args = parser.parse_args()
 
     # Prepare config and paths
@@ -124,7 +121,7 @@ def main():
             start_time = time.time()
             is_train = epoch if 'train' in part else False
             loss, count = step(epoch, model, loaders[part], optimizer, criterion,
-                               is_train, device, experiment_path, args.plot)
+                               is_train, device, experiment_path)
             durations[part] = time.time() - start_time
             batch_durations[part] = 1000 * (time.time() - start_time) / count
             losses[part] = loss
@@ -135,7 +132,7 @@ def main():
         if losses[parts[-1]] < min_loss:
             min_loss = losses[parts[-1]]
             name = "%s_%03i_%.6f.pt" % (args.model, epoch, min_loss)
-            torch.save(model, experiment_path / name)
+            torch.save(model, str(experiment_path / name))
             note = '*'
 
         # Prepare

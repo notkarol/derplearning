@@ -101,26 +101,29 @@ def get_patch_bbox(target_config, source_config):
     """
     Currently we assume that orientations and positions are identical
     """
-    width = int(source_config['width'] * source_config['resize'] + 0.5)
-    height = int(source_config['height'] * source_config['resize'] + 0.5)
+    if 'resize' not in source_config:
+        source_config['resize'] = 1
+    source_width = int(source_config['width'] * source_config['resize'] + 0.5)
+    source_height = int(source_config['height'] * source_config['resize'] + 0.5)
     hfov_ratio = target_config["hfov"] / source_config['hfov']
     vfov_ratio = target_config["vfov"] / source_config['vfov']
     hfov_offset = source_config['yaw'] - target_config["yaw"]
     vfov_offset = source_config['pitch'] - target_config["pitch"]
-    patch_width = width * hfov_ratio
-    patch_height = height * vfov_ratio
-    x_center = (width - patch_width) // 2
-    y_center = (height - patch_height) // 2
-    x_offset = (hfov_offset / source_config['hfov']) * width
-    y_offset = (vfov_offset / source_config['vfov']) * height
+    patch_width = source_width * hfov_ratio
+    patch_height = source_height * vfov_ratio
+    x_center = (source_width - patch_width) // 2
+    y_center = (source_height - patch_height) // 2
+    x_offset = (hfov_offset / source_config['hfov']) * source_width
+    y_offset = (vfov_offset / source_config['vfov']) * source_height
     x = int(x_center + x_offset + 0.5)
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    print(x, y, patch_width, patch_height, 'in', width, height)
-    assert x >= 0 and x + patch_width <= width
-    assert y >= 0 and y + patch_height <= height
-    return Bbox(x, y, patch_width, patch_height)
+    print('Using bbox:', x, y, patch_width, patch_height, 'in', width, height)
+    if (x >= 0 and x + patch_width <= source_width
+        and y >= 0 and y + patch_height <= source_height):
+        return Bbox(x, y, patch_width, patch_height)
+    return None
 
 
 def crop(image, bbox, copy=False):

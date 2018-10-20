@@ -50,7 +50,7 @@ class Clone(Controller):
         if frame is not None:
             patch = derp.util.crop(frame, self.bbox)
             thumb = derp.util.resize(patch, self.size)
-            if self.state['debug']:
+            if 'debug' in self.state and self.state['debug']:
                 cv2.imshow('patch', patch)
                 cv2.waitKey(1)
         else:
