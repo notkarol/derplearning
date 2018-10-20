@@ -107,7 +107,7 @@ def get_patch_bbox(target_config, source_config):
     vfov_ratio = target_config["vfov"] / source_config['vfov']
     hfov_offset = source_config['yaw'] - target_config["yaw"]
     vfov_offset = source_config['pitch'] - target_config["pitch"]
-    patch_width = source_config['width'] * hfov_ratio
+    patch_width = width * hfov_ratio
     patch_height = height * vfov_ratio
     x_center = (width - patch_width) // 2
     y_center = (height - patch_height) // 2
@@ -117,7 +117,7 @@ def get_patch_bbox(target_config, source_config):
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    print(x, y, patch_width, patch_height)
+    print(x, y, patch_width, patch_height, 'in', width, height)
     assert x >= 0 and x + patch_width <= width
     assert y >= 0 and y + patch_height <= height
     return Bbox(x, y, patch_width, patch_height)
@@ -390,9 +390,10 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
+    path = pathlib.Path(path)
     if path.exists():
         for filename in path.glob('*'):
-            if pattern.search(filename) is not None:
+            if pattern.search(str(filename)) is not None:
                 return path / filename
     return None
 
