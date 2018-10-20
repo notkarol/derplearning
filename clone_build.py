@@ -29,12 +29,12 @@ def prepare_predict(config, frame_id, state_headers, state_timestamps, states, p
     for pos, predict_dict in enumerate(config['predict']):
         if predict_dict['field'] in state_headers:
             state_pos = state_headers.index(predict_dict['field'])
-            timestamp = state_timestamps[frame_id] - predict_dict['delay']
+            timestamp = state_timestamps[frame_id] + predict_dict['time_offset']
             predict[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
         elif predict_dict['field'] in perts:
             predict[pos] = perts[predict_dict['field']]
-            if 'delay' in predict_dict:
-                print("Delay is not implemented for fields in perts")
+            if 'time_offset' in predict_dict:
+                print("Time offset is not implemented for fields in perts")
                 return False
         else:
             print("Unable to find field [%s] in perts or states" % predict_dict['field'])
@@ -49,15 +49,15 @@ def prepare_status(config, frame_id, state_headers, state_timestamps, states):
     connected layer of a model.
     """
     status = np.zeros(len(config['status']), dtype=np.float)
-    for pos, statusd in enumerate(config['status']):
-        if statusd['field'] not in state_headers:
-            print("Unable to find field [%s]" % statusd['field'])
+    for pos, status_dict in enumerate(config['status']):
+        if status_dict['field'] not in state_headers:
+            print("Unable to find field [%s]" % status_dict['field'])
             return False
 
-        state_pos = state_headers.index(statusd['field'])
+        state_pos = state_headers.index(status_dict['field'])
         timestamp = state_timestamps[frame_id]
         status[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
-        status[pos] *= statusd['scale']
+        status[pos] *= status_dict['scale']
     return status
 
 
@@ -123,15 +123,15 @@ def perturb(config, frame_config, frame, predict, status, perts):
     if steer_correction == 0:
         return
 
-    # apply steer corrections
-    for i, statusd in enumerate(config['status']):
-        if statusd['field'] == 'steer':
-            status[i] += steer_correction * (1 - min(statusd['delay'], 1))
+    # apply steer corrections TODO is this doing what we think it is?
+    for i, status_dict in enumerate(config['status']):
+        if status_dict['field'] == 'steer':
+            status[i] += steer_correction * (1 - min(status_dict['time_offset'], 1))
             status[i] = min(1, status[i])
             status[i] = max(-1, status[i])
-    for i, predictd in enumerate(config['predict']):
-        if predictd['field'] == 'steer':
-            predict[i] += steer_correction * (1 - min(predictd['delay'], 1))
+    for i, predict_dict in enumerate(config['predict']):
+        if predict_dict['field'] == 'steer':
+            predict[i] += steer_correction * (1 - min(predict_dict['time_offset'], 1))
             predict[i] = min(1, predict[i])
             predict[i] = max(-1, predict[i])
 
