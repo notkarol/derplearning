@@ -38,6 +38,10 @@ class Dualshock4(Component):
 
         # Reset the message queue
         self.__server_socket.send_json(True)
+
+        # Previous steering angle (for filtering)
+        self.__previous_steer = 0
+        self.__filter_responsiveness = 0.7 #Percentage of new signal which is recorded
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
@@ -55,6 +59,14 @@ class Dualshock4(Component):
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
+
+    def __steering_filter(self, steering_input):
+        #smooths out steering angle inputs from controller
+        self.__previous_steer = steering_input * self.__filter_responsiveness + 
+            self.__previous_steer * (1 - self.__filter_responsiveness)
+        
+        return self.__previous_steer
+
 
     def __process(self, status, out):
 
@@ -244,5 +256,7 @@ class Dualshock4(Component):
         # After all messages have been process, update the state
         for field in out:
             if out[field] is not None:
-                self.state[field] = out[field]
+                if field is 'steer':
+                   self.state[field] = self.__steering_filter(out[field])
+                else self.state[field] = out[field]
         return True
