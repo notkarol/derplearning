@@ -5,8 +5,7 @@ Builds cloning datasets for use in the clone_train.py script.
 import argparse
 import multiprocessing
 import pathlib
-
-import imageio
+import cv2
 import numpy as np
 import derp.util
 
@@ -21,44 +20,44 @@ def prepare_state(config, frame_id, state_headers, states, frame):
     return state
 
 
-def prepare_predict(config, frame_id, state_headers, state_ts, states, perts):
+def prepare_predict(config, frame_id, state_headers, state_timestamps, states, perts):
     """
     Prepares the output that the model needs to predict at the current frame, depending on
     perturbations and the delay.
     """
     predict = np.zeros(len(config['predict']), dtype=np.float)
-    for pos, predictd in enumerate(config['predict']):
-        if predictd['field'] in state_headers:
-            state_pos = state_headers.index(predictd['field'])
-            timestamp = state_ts[frame_id] + predictd['delay']
-            predict[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
-        elif predictd['field'] in perts:
-            predict[pos] = perts[predictd['field']]
-            if 'delay' in predictd:
-                print("Delay is not implemented for fields in perts")
+    for pos, predict_dict in enumerate(config['predict']):
+        if predict_dict['field'] in state_headers:
+            state_pos = state_headers.index(predict_dict['field'])
+            timestamp = state_timestamps[frame_id] + predict_dict['time_offset']
+            predict[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
+        elif predict_dict['field'] in perts:
+            predict[pos] = perts[predict_dict['field']]
+            if 'time_offset' in predict_dict:
+                print("Time offset is not implemented for fields in perts")
                 return False
         else:
-            print("Unable to find field [%s] in perts or states" % predictd['field'])
+            print("Unable to find field [%s] in perts or states" % predict_dict['field'])
             return False
-        predict[pos] *= predictd['scale']
+        predict[pos] *= predict_dict['scale']
     return predict
 
 
-def prepare_status(config, frame_id, state_headers, state_ts, states):
+def prepare_status(config, frame_id, state_headers, state_timestamps, states):
     """
     Prepares the status array, which is a vector of inputs that gets attached to the fully
     connected layer of a model.
     """
     status = np.zeros(len(config['status']), dtype=np.float)
-    for pos, statusd in enumerate(config['status']):
-        if statusd['field'] not in state_headers:
-            print("Unable to find field [%s]" % statusd['field'])
+    for pos, status_dict in enumerate(config['status']):
+        if status_dict['field'] not in state_headers:
+            print("Unable to find field [%s]" % status_dict['field'])
             return False
 
-        state_pos = state_headers.index(statusd['field'])
-        timestamp = state_ts[frame_id]
-        status[pos] = derp.util.find_value(state_ts, timestamp, states[:, state_pos])
-        status[pos] *= statusd['scale']
+        state_pos = state_headers.index(status_dict['field'])
+        timestamp = state_timestamps[frame_id]
+        status[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
+        status[pos] *= status_dict['scale']
     return status
 
 
@@ -93,14 +92,14 @@ def write_thumb(thumb, data_dir, store_name):
     Write our image to di sk.
     """
     store_path = data_dir / store_name
-    imageio.imwrite(str(store_path), thumb)
+    cv2.imwrite(str(store_path), thumb)
 
 
 def write_csv(writer, array, data_dir, store_name):
     """
     Write a CSV file to disk.
     """
-    writer.write(str(data_dir.name / store_name))
+    writer.write(str(pathlib.Path(data_dir.name) / store_name))
     for val in array:
         writer.write(',%f' % val)
     writer.write("\n")
@@ -124,15 +123,15 @@ def perturb(config, frame_config, frame, predict, status, perts):
     if steer_correction == 0:
         return
 
-    # apply steer corrections
-    for i, statusd in enumerate(config['status']):
-        if statusd['field'] == 'steer':
-            status[i] += steer_correction * (1 - min(statusd['delay'], 1))
+    # apply steer corrections TODO is this doing what we think it is?
+    for i, status_dict in enumerate(config['status']):
+        if status_dict['field'] == 'steer':
+            status[i] += steer_correction * (1 - min(status_dict['time_offset'], 1))
             status[i] = min(1, status[i])
             status[i] = max(-1, status[i])
-    for i, predictd in enumerate(config['predict']):
-        if predictd['field'] == 'steer':
-            predict[i] += steer_correction * (1 - min(predictd['delay'], 1))
+    for i, predict_dict in enumerate(config['predict']):
+        if predict_dict['field'] == 'steer':
+            predict[i] += steer_correction * (1 - min(predict_dict['time_offset'], 1))
             predict[i] = min(1, predict[i])
             predict[i] = max(-1, predict[i])
 
@@ -150,7 +149,7 @@ def process_recording(args):
 
     # Prepare our data input
     states_path = recording_path / 'state.csv'
-    state_ts, state_headers, states = derp.util.read_csv(states_path, floats=True)
+    state_timestamps, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
     # Skip if there are no labels
     labels_path = recording_path / 'label.csv'
@@ -188,7 +187,7 @@ def process_recording(args):
 
     # load video
     video_path = recording_path / ('%s.mp4' % config['thumb']['component'])
-    reader = imageio.get_reader(video_path)
+    reader = cv2.VideoCapture(str(video_path))
 
     # Loop through video and add frames into dataset
     frame_id = 0
@@ -204,7 +203,11 @@ def process_recording(args):
         else:
             part = 'val'
         data_dir = folders[part] / recording_name
-        frame = reader.get_data(frame_id)
+
+        # Get the frame, exit if we can not
+        ret, frame = reader.read()
+        if not ret:
+            break
 
         # Create each perturbation for dataset
         for pert_id in range(n_perts if part == 'train' else 1):
@@ -212,9 +215,9 @@ def process_recording(args):
             # Prepare variables to store for this example
             controller.state = prepare_state(config, frame_id, state_headers, states, frame)
             perts = prepare_pert_magnitudes(config['create']['perts'], pert_id == 0)
-            predict = prepare_predict(config, frame_id, state_headers, state_ts, states,
+            predict = prepare_predict(config, frame_id, state_headers, state_timestamps, states,
                                       perts)
-            status = prepare_status(config, frame_id, state_headers, state_ts, states)
+            status = prepare_status(config, frame_id, state_headers, state_timestamps, states)
 
             # Perturb the image and status/predictions
             frame = controller.state[component_name]
@@ -230,7 +233,7 @@ def process_recording(args):
             write_csv(status_fds[part], status, data_dir, store_name)
 
     # Cleanup and return
-    reader.close()
+    reader.release()
     return True
 
 

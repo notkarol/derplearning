@@ -1,16 +1,21 @@
 #!/usr/bin/env/python3
+"""
+The main driver program that loops the live internal state.
+"""
 import argparse
-import os
-from time import time, sleep
-
+import time
 import derp.state
 import derp.util
 
 def loop(state, controller, components):
-    state['timestamp'] = time()
+    """
+    The Sense, Plan, Act, Record (SPAR) loop.
+    """
+    # Reset variables
+    state['timestamp'] = time.time()
     state['warn'] = 0
 
-    # Sense Plan Act Record loop
+    # Sense Plan Act Record loop where each component runs sequentially.
     for component in components:
         component.sense()
     controller.plan()
@@ -19,28 +24,10 @@ def loop(state, controller, components):
     state.record()
 
 
-def main(args):
-    car_config_path = derp.util.get_car_config_path(args.car)
-    car_config = derp.util.load_config(car_config_path)
-    controller_config_path = derp.util.get_controller_config_path(args.controller)
-    controller_config = derp.util.load_config(controller_config_path)
-
-    state = derp.state.State(car_config, controller_config)
-    components = derp.util.load_components(car_config['components'], state)
-    controller = derp.util.load_controller(controller_config, car_config, state)
-
-    while not state.done():
-        loop(state, controller, components)
-
-        if not args.quiet:
-            print("%.3f %.2f %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
-                  (state['timestamp'], state['warn'],
-                   'R' if state['record'] else '_', 'A' if state['auto'] else '_',
-                   state['speed'], state['offset_speed'], state['use_offset_speed'],
-                   state['steer'], state['offset_steer'], state['use_offset_steer']))
-
-
-if __name__ == "__main__":
+def prepare_arguments():
+    """
+    Prepare the arguments from the user.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--car', type=str, default=derp.util.get_hostname(),
                         help="location of config file for vehicle")
@@ -51,4 +38,33 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true', default=False,
                         help="don't encapsulate everything in a try-except")
     args = parser.parse_args()
-    main(args)
+    return args
+
+
+def main():
+    """
+    Prepare ar guments, configurations, variables and tn start the event loop.
+    """
+    args = prepare_arguments()
+
+    # Prepare the configs from the arguments
+    car_config_path = derp.util.get_car_config_path(args.car)
+    car_config = derp.util.load_config(car_config_path)
+    controller_config_path = derp.util.get_controller_config_path(args.controller)
+    controller_config = derp.util.load_config(controller_config_path)
+
+    # Prepare the car's major components
+    state = derp.state.State(car_config, controller_config)
+    state['debug'] = args.debug
+    components = derp.util.load_components(car_config['components'], state)
+    controller = derp.util.load_controller(controller_config, car_config, state)
+
+    # The program's running loop
+    while not state.done():
+        loop(state, controller, components)
+        if not args.quiet:
+            state.print()
+
+
+if __name__ == "__main__":
+    main()

@@ -10,12 +10,13 @@ class Clone(Controller):
 
     def __init__(self, config, car_config, state):
         super(Clone, self).__init__(config, car_config, state)
-        self.camera_config = derp.util.find_component_config(car_config, config['thumb']['component'])
+        self.camera_config = derp.util.find_component_config(car_config,
+                                                             config['thumb']['component'])
 
         # Show the user what we're working with
-        derp.util.print_image_config(self.camera_config)
-        derp.util.print_image_config(self.config['thumb'])
-        
+        derp.util.print_image_config('Source', self.camera_config)
+        derp.util.print_image_config('Target', self.config['thumb'])
+
         # Prepare camera inputs
         self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
         self.size = (config['thumb']['width'], config['thumb']['height'])

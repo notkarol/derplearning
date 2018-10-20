@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-version=pycuda-2017.1.1
+version=pycuda-2018.1.1
 
 sudo apt-get install -y \
      build-essential \
@@ -9,7 +9,7 @@ sudo apt-get install -y \
      libboost-python-dev \
      libboost-thread-dev
 
-wget https://pypi.python.org/packages/b3/30/9e1c0a4c10e90b4c59ca7aa3c518e96f37aabcac73ffe6b5d9658f6ef843/${version}.tar.gz
+wget https://files.pythonhosted.org/packages/58/33/cced4891eddd1a3ac561ff99081019fddc7838a07cace272c941e3c2f915/pycuda-2018.1.1.tar.gz
 
 tar xzvf ${version}.tar.gz
 
@@ -30,3 +30,4 @@ python3 setup.py install --user
 cd ..
 
 rm -rf ${version}
+

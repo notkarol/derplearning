@@ -45,22 +45,14 @@ fi
 if [[ $(uname -m) -eq "aarch64" ]] ; then
     bash sdcard.sh
     echo "Please add the following line to 'crontab -e'"
-    echo '* * * * * /bin/bash -x /mnt/sdcard/derplearning/ds4daemon.sh'
+    echo "* * * * * python3 ${PWD}/daemon_ds4.py >> /tmp/daemon_ds4.out 2>&1"
 else
-    echo "export DERP_ROOT=$(dirname $PWD)" >> ~/.derprc
+    echo "export DERP_ROOT=${PWD}" >> ~/.derprc
     echo "source ~/.derprc" >> ~/.bashrc
 fi
 source ~/.derprc
 
-# Install v4l2capture, a python&C library for interfacing with cameras
-bash v4l2capture.sh
-
-# Compile OpenCV from source
-bash opencv.sh
-
-# Compile PyCuda from source
-bash pycuda.sh
-
-# Compile PyTorch from source
-bash pytorch.sh
-
+# Compile and install other useful packages
+bash install_opencv.sh
+bash install_pycuda.sh
+bash install_pytorch.sh
