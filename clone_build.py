@@ -8,6 +8,7 @@ import pathlib
 import cv2
 import numpy as np
 import derp.util
+import scipy.signal
 
 def prepare_state(config, frame_id, state_headers, states, frame):
     """
@@ -151,6 +152,11 @@ def process_recording(args):
     states_path = recording_path / 'state.csv'
     state_timestamps, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
+    # Apply butterworth filter
+    steer_index = state_headers.index('steer')
+    b, a = scipy.signal.butter(3, 0.05, output='ba')
+    states[steer_index, :] = scipy.signal.filtfilt(b, a, states[steer_index, :])
+    
     # Skip if there are no labels
     labels_path = recording_path / 'label.csv'
     if not labels_path.exists():
@@ -193,8 +199,7 @@ def process_recording(args):
 
     # Loop through video and add frames into dataset
     frame_id = 0
-    for frame_id in range(len(label_ts)):
-
+    for frame_id in range(len(label_ts)):        
         # Skip if label isn't good
         if labels[frame_id][label_headers.index('status')] != 'good':
             continue
