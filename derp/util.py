@@ -119,7 +119,8 @@ def get_patch_bbox(target_config, source_config):
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    print('Using bbox:', x, y, patch_width, patch_height, 'in', width, height)
+    print('Using bbox:', x, y, patch_width, patch_height,
+          'in', source_width, source_height)
     if (x >= 0 and x + patch_width <= source_width
         and y >= 0 and y + patch_height <= source_height):
         return Bbox(x, y, patch_width, patch_height)
