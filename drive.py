@@ -31,8 +31,10 @@ def prepare_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--car', type=str, default=derp.util.get_hostname(),
                         help="location of config file for vehicle")
-    parser.add_argument('--controller', type=str, default='manual',
-                        help="location of controller folder")
+    parser.add_argument('--controller', type=str, default='cross',
+                        help="Name of the controller we are using for both "
+                        "config yaml (config/controller/NAME.yaml and "
+                        "models/NAME/cline.pt")
     parser.add_argument('--quiet', action='store_true', default=False,
                         help="do not print speed/steer")
     parser.add_argument('--debug', action='store_true', default=False,
