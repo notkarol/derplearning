@@ -1,9 +1,8 @@
-name: 'clonefixspeed'
-class: 'CloneFixSpeed'
+class: 'CloneAdaSpeed'
 
 # Training related parameters
 create:
-  data_folders: ['train']
+  data_folders: ['train-2017-oakland']
   train_chance: 0.9
   n_perts: 1
   perts:
@@ -24,8 +23,8 @@ train:
 # What we expect for input from the camera
 thumb:
   component: 'camera_front'
-  vfov: 18.75
   hfov: 75
+  vfov: 18.75
   height: 32
   width: 128
   depth: 3
@@ -33,7 +32,7 @@ thumb:
   y: 0.0
   z: 0.43
   roll: 0
-  pitch: -20
+  pitch: -10
   yaw: 0
 
 # The status we feed into the network
@@ -42,3 +41,9 @@ status: []
 # States we will predict
 predict:
   - {name: 'steer', field: 'steer', time_offset: -0.2, scale: 1 }
+  - {name: 'speed_modulator', field: 'steer', time_offset:  1.8, scale: 1 }
+
+# Other parameters that will affect things during autonomous mode
+scale: 0.5
+power: 2
+use_min_for_speed: true
