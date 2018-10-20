@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import cv2
 import numpy as np
 import os
 import torch
@@ -16,7 +17,7 @@ class Clone(Controller):
         # Show the user what we're working with
         derp.util.print_image_config('Source', self.camera_config)
         derp.util.print_image_config('Target', self.config['thumb'])
-
+        
         # Prepare camera inputs
         self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
         self.size = (config['thumb']['width'], config['thumb']['height'])
@@ -28,6 +29,7 @@ class Clone(Controller):
             self.model = torch.load(self.model_path)
             self.model.eval()
         else:
+            self.model = None
             print("Clone: Unable to find model path [%s]" % self.model_path)
 
         # Useful variables for params
@@ -39,8 +41,18 @@ class Clone(Controller):
  
     def prepare_thumb(self):
         frame = self.state[self.config['thumb']['component']]
-        patch = derp.util.crop(frame, self.bbox)
-        thumb = derp.util.resize(patch, self.size)
+        if frame is not None:
+            patch = derp.util.crop(frame, self.bbox)
+            thumb = derp.util.resize(patch, self.size)
+            if self.state['debug']:
+                cv2.imshow('patch', patch)
+                cv2.waitKey(1)
+        else:
+            dim = [self.config['thumb']['height'],
+                   self.config['thumb']['width']]
+            if self.config['thumb']['depth'] > 1:
+                dim += [self.config['thumb']['depth']]
+            thumb = np.zeros(dim, dtype=np.float32)
         return thumb
 
     def predict(self):

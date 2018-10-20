@@ -2,6 +2,7 @@
 The bno055 is an IMU sensor. This class lets us communicate with it
 in the derp way through the Adafruit BNO055 class.
 """
+import pathlib
 import yaml
 import Adafruit_BNO055.BNO055
 from derp.component import Component
@@ -72,7 +73,7 @@ class BNO055(Component):
                                     z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
 
             self.calibration_saved = False
-            if self.config['calibration_path'].exists():
+            if pathlib.Path(self.config['calibration_path']).exists():
                 print("Existing:", self.bno.get_calibration(), self.bno.get_calibration_status())
                 with open(self.config['calibration_path']) as f:
                     calibration = yaml.load(f)

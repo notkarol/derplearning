@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+"""
+The Camera component manages the camera interface.
+"""
 import cv2
 import numpy as np
 import os
@@ -11,6 +13,9 @@ from derp.component import Component
 import derp.util as util
 
 class Camera(Component):
+    """
+    The Camera component manages the camera interface.
+    """
 
     def __init__(self, config, state):
         super(Camera, self).__init__(config, state)
@@ -21,6 +26,8 @@ class Camera(Component):
         self.image_bytes = b''
         self.state[self.config['name']] = None
         self.__connect()
+        self.width = int(self.config['width'] * self.config['resize'] + 0.5)
+        self.height = int(self.config['height'] * self.config['resize'] + 0.5)
 
     def __del__(self):
         if self.cap is not None:
@@ -67,11 +74,11 @@ class Camera(Component):
             frame = None
             ret, frame = self.cap.read()
             if ret:
-                frame, _, _, _, _, _, _, _ = util.apply_cropresize(self.config)
+                frame = util.resize(frame, (self.width, self.height))
                 sensor_name = self.config['name']
                 self.state[sensor_name] = frame
                 if self.state['debug']:
-                    cv2.imshow('resize', frame)
+                    cv2.imshow('frame', frame)
                     cv2.waitKey(1)                
             else:
                 print("Camera: Unable to get frame")
