@@ -166,6 +166,8 @@ def process_recording(args):
     # Load controller off of the first state entry
     state = prepare_state(config, 0, state_headers, states, None)
     controller = derp.util.load_controller(config, source_config, state)
+    if controller.bbox is None:
+        return False
 
     # Perturb our arrays
     n_perts = 1
@@ -234,6 +236,7 @@ def process_recording(args):
 
     # Cleanup and return
     reader.release()
+    print('Finished', recording_path)
     return True
 
 

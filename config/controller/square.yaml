@@ -2,8 +2,8 @@ class: 'CloneFixSpeed'
 
 # Training related parameters
 create:
-  data_folders: ['train-2017-oakland']
-  train_chance: 0.8
+  data_folders: ['train-2018']
+  train_chance: 0.9
   n_perts: 1
   perts:
     shift:
@@ -18,7 +18,7 @@ create:
 # Training related parameters
 train:
   prepare:
-    - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
+    - {name: 'colorjitter', brightness: 0.67, contrast: 0.67, saturation: 0.67, hue: 0.2}
 
 # What we expect for input from the camera
 thumb:

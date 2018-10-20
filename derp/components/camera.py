@@ -26,6 +26,8 @@ class Camera(Component):
         self.image_bytes = b''
         self.state[self.config['name']] = None
         self.__connect()
+        if 'resize' not in self.config:
+            source_config['resize'] = 1
         self.width = int(self.config['width'] * self.config['resize'] + 0.5)
         self.height = int(self.config['height'] * self.config['resize'] + 0.5)
 
