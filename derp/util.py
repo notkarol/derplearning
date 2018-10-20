@@ -6,6 +6,7 @@ import cv2
 from datetime import datetime
 import evdev
 import pathlib
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
@@ -501,17 +502,24 @@ def prepareImageBatch(image, cuda=True):
     return batch
 
 
-def plot_batch(example, label, name):
-    import matplotlib.pyplot as plt
-    dim = int(np.sqrt(len(example))) + 1
+def plot_batch(path, example, status, label, guess):
+    dim = int(len(example) ** 0.5)
+    if (dim * dim) < len(example):
+        dim += 1
     fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
-    for i in range(len(example)):
-        x = i % dim
-        y = int(i // dim)
-        # change from CHW to HWC and only show first three channels
-        img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
-        axs[y, x].imshow(img)
-        axs[y, x].set_title(" ".join(["%.2f" % x for x in label[i]]))
 
-    plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
-    print("Saved batch [%s]" % name)
+    # Change from CHW to HWC, and move RGB to GBR
+    example = np.transpose(example, (0, 2, 3, 1))[...,[2,1,0]]
+    for i in range(len(example)):
+        x, y = i % dim, int(i // dim)
+        axs[y, x].imshow(example[i])
+
+        # Prepare Title
+        label_str = " ".join(["%5.2f" % x for x in label[i]])
+        guess_str = " ".join(["%5.2f" % x for x in guess[i]])
+        axs[y, x].set_title('L: %s\nG: %s' % (label_str, guess_str), fontsize=8)
+        axs[y, x].set_xticks([])
+        axs[y, x].set_yticks([])
+
+    plt.savefig("%s.png" % str(path), bbox_inches='tight', dpi=160)
+    print("Saved batch %s" % path)
