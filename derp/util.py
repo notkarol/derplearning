@@ -6,7 +6,6 @@ import cv2
 from datetime import datetime
 import evdev
 import pathlib
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
@@ -503,6 +502,7 @@ def prepareImageBatch(image, cuda=True):
 
 
 def plot_batch(path, example, status, label, guess):
+    import matplotlib.pyplot as plt
     dim = int(len(example) ** 0.5)
     if (dim * dim) < len(example):
         dim += 1
