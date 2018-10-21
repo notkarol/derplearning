@@ -1,9 +1,15 @@
 #!/bin/bash
 
-OPENCV_VERSION=3.3.0
+OPENCV_VERSION=3.4.3
 ARCH=$(uname -i)
 PYTHON_VERSION=python3.5
 CUDA_VERSION=9.0
+
+# Make sure we're installed
+python3 -c "import cv2"
+if [[ "$?" == "0" ]]
+   exit
+fi
 
 # Install requirements
 sudo apt install -y \

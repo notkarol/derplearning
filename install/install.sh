@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Location where we should install our software
+install_path=/mnt/sdcard
+install_sdcard_device=/dev/mmcblk1p1
+
 # Make sure we're working off of latest packages
 sudo apt update
 sudo apt upgrade -y
 sudo apt install \
+     git \
      cmake \
+     ffmpeg \
      libatlas-base-dev \
      libbluetooth-dev \
      libffi-dev \
@@ -41,18 +47,37 @@ if [[ -e $(groups | grep netdev) ]] ; then
     sudo usermod -a -G netdev $USER # bluetooth
 fi
 
-# Setup SD card if we're a car otherwise just the derp variables
-if [[ $(uname -m) -eq "aarch64" ]] ; then
-    bash sdcard.sh
-    echo "Please add the following line to 'crontab -e'"
-    echo "* * * * * /bin/bash /mnt/sdcard/derplearning/dameon_ds4.sh"
-else
-    echo "export DERP_ROOT=${PWD}" >> ~/.derprc
-    echo "source ~/.derprc" >> ~/.bashrc
+# Setup SD card if we're a car otherwise it's the s
+DERP_ROOT=${PWD}
+if [[ $(uname -m) -eq "aarch64" ]] && [[ -e $install_sdcard_device ]] && ! [[ -e $install_path ]]; then
+
+    # Assume existing disk is already partitioned to ext4. Create an fstab entry and mount it
+    sudo mkdir -p $install_path
+    echo "$install_sdcard_device $install_path ext4 auto,nofail,errors=remount-ro 0 0" | sudo tee -a /etc/fstab
+    sudo mount $install_path
+    sudo chown -R ${USER}:${USER} $install_path
+
+    # Move our current folder onto the sdcard
+    DERP_ROOT=${install_path}/derplearning
+    cd ../..
+    mv derplearning ${install_path}
+    cd $DERP_ROOT
+
+    # Prepare daemon for the background
+    echo "* * * * * su $USER -c '/bin/bash $DERP_ROOT/dameon_ds4.sh'" | sudo tee -a /etc/cron.d/daemon_ds4
 fi
-source ~/.derprc
+
+# Set up our script with sourcing instructions
+if ! [[ -e ~/.derprc ]] ; then 
+    echo "export DERP_ROOT=${DERP_ROOT}" >> ~/.derprc
+    echo "source ~/.derprc" >> ~/.bashrc
+    source ~/.derprc
+fi
+
+# Prepare useful folders
+mkdir -p ../models ../scratch ../data
 
 # Compile and install other useful packages
+
 bash install_opencv.sh
-bash install_pycuda.sh
 bash install_pytorch.sh
