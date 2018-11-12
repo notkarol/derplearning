@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import cv2
 import numpy as np
 import os
 import torch
@@ -9,12 +10,19 @@ import derp.util
 class Clone(Controller):
 
     def __init__(self, config, car_config, state):
+
         super(Clone, self).__init__(config, car_config, state)
-        self.camera_config = derp.util.find_component_config(car_config, config['thumb']['component'])
+        self.camera_config = derp.util.find_component_config(car_config,
+                                                             config['thumb']['component'])
 
         # Show the user what we're working with
-        derp.util.print_image_config(self.camera_config)
-        derp.util.print_image_config(self.config['thumb'])
+        derp.util.print_image_config('Source', self.camera_config)
+        derp.util.print_image_config('Target', self.config['thumb'])
+        for key in sorted(self.camera_config):
+            print("Camera %s: %s" % (key, self.camera_config[key]))
+        for key in sorted(self.config['thumb']):
+            print("Target %s: %s" % (key, self.config['thumb'][key]))
+
         
         # Prepare camera inputs
         self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
@@ -23,10 +31,11 @@ class Clone(Controller):
         # Prepare model
         self.model_dir = derp.util.get_controller_models_path(self.config['name'])
         self.model_path = derp.util.find_matching_file(self.model_dir, 'clone.pt$')
-        if self.model_path is not None and os.path.exists(self.model_path):
-            self.model = torch.load(self.model_path)
+        if self.model_path is not None and self.model_path.exists():
+            self.model = torch.load(str(self.model_path))
             self.model.eval()
         else:
+            self.model = None
             print("Clone: Unable to find model path [%s]" % self.model_path)
 
         # Useful variables for params
@@ -38,8 +47,18 @@ class Clone(Controller):
  
     def prepare_thumb(self):
         frame = self.state[self.config['thumb']['component']]
-        patch = derp.util.crop(frame, self.bbox)
-        thumb = derp.util.resize(patch, self.size)
+        if frame is not None:
+            patch = derp.util.crop(frame, self.bbox)
+            thumb = derp.util.resize(patch, self.size)
+            if 'debug' in self.state and self.state['debug']:
+                cv2.imshow('patch', patch)
+                cv2.waitKey(1)
+        else:
+            dim = [self.config['thumb']['height'],
+                   self.config['thumb']['width']]
+            if self.config['thumb']['depth'] > 1:
+                dim += [self.config['thumb']['depth']]
+            thumb = np.zeros(dim, dtype=np.float32)
         return thumb
 
     def predict(self):

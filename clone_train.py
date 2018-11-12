@@ -5,6 +5,7 @@ the controller dataset folder every time the validation loss decreases.
 """
 import argparse
 import time
+from subprocess import call
 
 import numpy as np
 import torch
@@ -17,7 +18,7 @@ from derp.fetcher import Fetcher
 import derp.util
 
 
-def step(epoch, model, loader, optimizer, criterion, is_train, device, plot_batch):
+def step(epoch, model, loader, optimizer, criterion, is_train, device, experiment_path):
     """
     Run through dataset to complete a single epoch
     """
@@ -28,30 +29,25 @@ def step(epoch, model, loader, optimizer, criterion, is_train, device, plot_batc
 
     # Store the average loss for this epoch
     losses = []
-    batch_idx = 0
-    for batch_idx, (example, status, label) in enumerate(loader):
+    for batch_index, batch in enumerate(loader):
 
-        if plot_batch:
-            name = "batch_%02i_%i_%04i" % (epoch, is_train, batch_idx)
-            derp.util.plot_batch(example, label, name)
-
-        example = example.to(device)
-        status = status.to(device)
-        label = label.to(device)
-
-        if is_train:
-            optimizer.zero_grad()
-
-        out = model(example, status)
-        loss = criterion(out, label)
-
+        example_batch = batch[0].to(device)
+        status_batch = batch[1].to(device)
+        label_batch = batch[2].to(device)
+        guess_batch = model(example_batch, status_batch)
+        loss = criterion(guess_batch, label_batch)
         losses.append(loss.item())
 
         if is_train:
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        elif batch_index == 0 and epoch % 10 == 0:
+            path = experiment_path / ("batch_%02i_%04i" % (epoch, batch_index))
+            derp.util.plot_batch(path, batch[0].numpy(), batch[1].numpy(), batch[2].numpy(),
+                                 guess_batch.detach().cpu().numpy())
 
-    return np.mean(losses), batch_idx + 1
+    return np.mean(losses), batch_index + 1
 
 def main():
     """
@@ -66,15 +62,18 @@ def main():
     parser.add_argument('--gpu', type=str, default='0', help="GPU to use")
     parser.add_argument('--bs', type=int, default=32, help="Batch Size")
     parser.add_argument('--lr', type=float, default=1E-3, help="Learning Rate")
-    parser.add_argument('--epochs', type=int, default=100, help="Number of epochs to run for")
-    parser.add_argument('--plot', default=False, action='store_true',
-                        help='save a plot of each batch for verification purposes')
+    parser.add_argument('--epochs', type=int, default=50, help="Number of epochs to run for")
     args = parser.parse_args()
 
+    # Prepare config and paths
     config_path = derp.util.get_controller_config_path(args.controller)
     controller_config = derp.util.load_config(config_path)
     experiment_path = derp.util.get_experiment_path(controller_config['name'])
 
+    # If we don't have the experiment file created, make sure we try creating it
+    if not experiment_path.exists():
+        call(["python3", "clone_build.py", '--controller', args.controller])
+    
     # Prepare device we will train on
     device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
 
@@ -87,8 +86,8 @@ def main():
     model = model_class(dim_in, n_status, n_out).to(device)
     criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=8,
-                                                     factor=0.5, verbose=True)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.25,
+                                                     verbose=True,  patience=8)
 
     # Prepare perturbation of example
     tlist = []
@@ -105,9 +104,12 @@ def main():
     # prepare data loaders
     parts = ['train', 'val']
     loaders = {}
+    fetchers = {}
     for part in parts:
-        fetcher = Fetcher(experiment_path / part, transform)
-        loaders[part] = DataLoader(fetcher, batch_size=args.bs, shuffle=True, num_workers=4)
+        fetchers[part] = Fetcher(experiment_path / part, transform)
+        loaders[part] = DataLoader(fetchers[part], batch_size=args.bs, shuffle=True, num_workers=2)
+        print("Part %6s #examples: %6i  #batches: %4i"
+              % (part, len(fetchers[part]), len(fetchers[part]) / args.bs + 0.9999))
 
     # Train
     min_loss = 1
@@ -119,25 +121,22 @@ def main():
             start_time = time.time()
             is_train = epoch if 'train' in part else False
             loss, count = step(epoch, model, loaders[part], optimizer, criterion,
-                               is_train, device, args.plot)
+                               is_train, device, experiment_path)
             durations[part] = time.time() - start_time
             batch_durations[part] = 1000 * (time.time() - start_time) / count
             losses[part] = loss
-
-        # Use the last loss to update the scheduler
-        if epoch:
-            scheduler.step(loss)
+        scheduler.step(loss)
 
         # Only save models that have a lower loss than ever seen before
         note = ''
         if losses[parts[-1]] < min_loss:
             min_loss = losses[parts[-1]]
             name = "%s_%03i_%.6f.pt" % (args.model, epoch, min_loss)
-            torch.save(model, experiment_path / name)
+            torch.save(model, str(experiment_path / name))
             note = '*'
 
         # Prepare
-        print("epoch %03i" % epoch, end=" ")
+        print("Epoch %5i" % epoch, end=" ")
         total_duration = 0
         for part in parts:
             total_duration += durations[part]

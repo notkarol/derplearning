@@ -1,9 +1,15 @@
 #!/bin/bash
 
-OPENCV_VERSION=3.3.0
+OPENCV_VERSION=3.4.3
 ARCH=$(uname -i)
 PYTHON_VERSION=python3.5
-CUDA_VERSION=8.0
+CUDA_VERSION=9.0
+
+# Make sure we're installed
+python3 -c "import cv2"
+if [[ "$?" == "0" ]]
+   exit
+fi
 
 # Install requirements
 sudo apt install -y \
@@ -26,6 +32,7 @@ sudo apt install -y \
      git \
      pkg-config \
      python3-dev \
+     python-numpy \
      python3-numpy \
      python3-py\
      python3-pytest
@@ -60,7 +67,7 @@ cmake \
     -D BUILD_JPEG=OFF \
     -D BUILD_JASPER=OFF \
     -D BUILD_ZLIB=OFF \
-    -D BUILD_EXAMPLES=ON \
+    -D BUILD_EXAMPLES=OFF \
     -D BUILD_opencv_java=OFF \
     -D BUILD_opencv_python2=OFF \
     -D BUILD_opencv_python3=ON \
@@ -94,4 +101,4 @@ sudo make install
 cd -
 
 # Cleanup after ourselves
-rm -rf opencv opencv_extra
+#rm -rf opencv opencv_extra

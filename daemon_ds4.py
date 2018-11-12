@@ -251,7 +251,7 @@ if __name__ == "__main__":
                         help="location of pid path to verify that other daemons are not running")
     parser.add_argument('--port', type=int, default=2455,
                         help="port number that the client will be connecting to")
-    parser.add_argument('--buffer_max', type=int, default=100,
+    parser.add_argument('--buffer_max', type=int, default=10,
                         help="max number of messages from the controller to store at any one time")
     args = parser.parse_args()
     main(args)

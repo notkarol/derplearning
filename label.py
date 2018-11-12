@@ -7,10 +7,10 @@ import yaml
 import argparse
 import derp.util
 import matplotlib.pyplot as plt
+import scipy.signal as signal
 from scipy.interpolate import interp1d
 from skimage.draw import line_aa
 import derp.util as util
-
 
 class Labeler:
 
@@ -152,6 +152,7 @@ class Labeler:
         self.draw_bar_status()
         self.draw_graph(data_vector=self.speeds, color=self.cyan)
         self.draw_graph(data_vector=self.steers, color=self.green)
+        self.draw_graph(data_vector=self.steers_butter, color=self.white)
 
         if self.model:
             self.draw_graph(data_vector=self.m_speeds, color=self.blue)
@@ -233,6 +234,8 @@ class Labeler:
         self.timestamps, self.state_headers, self.states = derp.util.read_csv(self.state_path)
         self.speeds = self.states[:, self.state_headers.index('speed')]
         self.steers = self.states[:, self.state_headers.index('steer')]
+        b, a = signal.butter(3, 0.05, output='ba')
+        self.steers_butter = signal.filtfilt(b, a, self.steers)
 
     def init_camera(self):
         self.video_path = os.path.join(self.recording_path, 'camera_front.mp4')

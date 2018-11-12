@@ -1,23 +1,37 @@
-#!/usr/bin/env python3
-
-import os
-from time import time
+"""
+The bno055 is an IMU sensor. This class lets us communicate with it
+in the derp way through the Adafruit BNO055 class.
+"""
+import pathlib
 import yaml
-
 import Adafruit_BNO055.BNO055
-
 from derp.component import Component
 
 class BNO055(Component):
+    """
+    The bno055 is an IMU sensor. This class lets us communicate with it
+    in the derp way through the Adafruit BNO055 class.
+    """
 
     def __init__(self, config, state):
+        """
+        Args:
+            config (dict): The configuration file for the sensor.
+            state (State): The an object with the state of the car.
+        """
         super(BNO055, self).__init__(config, state)
 
+        # BNO055 object from adafruit
         self.bno = None
+
+        # Whether we are connected. Don't do anything if we can't connect.
         self.ready = self.__connect()
         if not self.ready:
             return
-        
+
+        # A tuple of the sensor, its output values, and callback function
+        # This stores the callbacks and strings to easily programmatically
+        # print out the data
         self.sensors = (('calibration', ('system', 'gyro', 'accel', 'mag'),
                          self.bno.get_calibration_status),
                         ('quaternion', 'wxyz', self.bno.read_quaternion),
@@ -28,6 +42,9 @@ class BNO055(Component):
                         ('accel', 'xyz', self.bno.read_linear_acceleration))
 
     def __is_calibrated(self):
+        """
+        Is the device calibrated? Only true if it's fully calibrated.
+        """
         try:
             return self.bno.get_calibration_status() == (3, 3, 3, 3)
         except:
@@ -35,6 +52,11 @@ class BNO055(Component):
             return False
 
     def __connect(self):
+        """
+        Are we connected to the BNO055 device through the provided
+        vendor's object. If so, update the object and return true.
+        Otherwise return False.
+        """
         if self.bno:
             del self.bno
             self.bno = None
@@ -51,7 +73,7 @@ class BNO055(Component):
                                     z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
 
             self.calibration_saved = False
-            if os.path.exists(self.config['calibration_path']):
+            if pathlib.Path(self.config['calibration_path']).exists():
                 print("Existing:", self.bno.get_calibration(), self.bno.get_calibration_status())
                 with open(self.config['calibration_path']) as f:
                     calibration = yaml.load(f)
@@ -67,7 +89,8 @@ class BNO055(Component):
             return False
         
     def sense(self):
-        """ Reinitialize IMU if it's failed to get data at any point. 
+        """
+        Reinitialize IMU if it's failed to get data at any point. 
         Otherwise get data from the IMU to update state variable.
         """
         if not self.ready:

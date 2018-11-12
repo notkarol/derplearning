@@ -1,6 +1,9 @@
 #!/bin/bash
 
-PYTORCH_VERSION=v0.4.0
+PYTORCH_VERSION=0.4.1
+if [[ -z $(pip3 freeze | grep "torch==${PYTORCH_VERSION}") ]] ; then
+   exit 0
+fi   
 
 # Pull in the code if it's not already done so
 if ! [[ -e pytorch ]] ; then
@@ -10,8 +13,8 @@ fi
 # Prepare the right version of the code
 cd pytorch
 git pull
+git checkout v${PYTORCH_VERSION}
 git submodule update --init
-git checkout ${PYTORCH_VERSION}
 
 # Install requirements and then the package
 sudo apt-get install libopenblas-dev
@@ -27,9 +30,8 @@ fi
 # Install requirements and then the package
 cd vision
 git pull
-pip3 install --user -r requirements.txt
 python3 setup.py install --user
 cd ..
 
 # Cleanup after ourselves
-rm -rf pytorch vision
+# rm -rf pytorch vision

@@ -131,10 +131,10 @@ class Keyboard(Component):
 
         # Set steer
         if self.code_map[event.code] == 'arrow_left' and event.value:
-            out['steer'] = self.state['steer'] - 0.015625
+            out['steer'] = self.state['steer'] - 0.1
             return
         if self.code_map[event.code] == 'arrow_right' and event.value:
-            out['steer'] = self.state['steer'] + 0.015625
+            out['steer'] = self.state['steer'] + 0.1
             return
 
         # Set speed

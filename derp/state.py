@@ -27,6 +27,7 @@ class State(Mapping):
         self.csv_fd = None
         self.csv_writer = None
         self.csv_header = []
+        self.previous_timestamp = 0
 
         # Prepare default state variables
         self['timestamp'] = time.time()
@@ -40,7 +41,7 @@ class State(Mapping):
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
         self['frame_counter'] = 0
-
+        
     def __getitem__(self, key):
         return self.state[key]
 
@@ -131,12 +132,12 @@ class State(Mapping):
             if not self.is_multidimensional(key):
                 continue
 
-            path_stem = self.folder / key / ("%06i." % self['frame_counter'])
+            path_stem = str(self.folder / key / ("%06i." % self['frame_counter']))
             if self.is_image(key):
                 path = path_stem + self.get_image_suffix(key)
                 derp.util.save_image(path, self[key])
             else:
-                np.save(path_stem, self[key], allow_pickle=False)
+                np.save(path_stem + '.npy', self[key], allow_pickle=False)
 
         self['frame_counter'] += 1
         return True
@@ -154,3 +155,16 @@ class State(Mapping):
         for subname, value in zip(subnames, values):
             name = '%s_%s' % (basename, subname)
             self[name] = value
+
+    def print(self):
+        """
+        Print a short summary of the state for debugging purposes.
+        """
+        fps = 1 / (self.state['timestamp'] - self.previous_timestamp)
+        print("%.3f %.2f %2i %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+              (self.state['timestamp'], self.state['warn'], fps, 
+               'R' if self.state['record'] else '_', 'A' if self.state['auto'] else '_',
+               self.state['speed'], self.state['offset_speed'], self.state['use_offset_speed'],
+               self.state['steer'], self.state['offset_steer'], self.state['use_offset_steer']))
+        self.previous_timestamp = self.state['timestamp']
+            

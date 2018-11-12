@@ -38,7 +38,7 @@ class Bbox:
         return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
 
     def __str__(self):
-        return str(self)
+        return repr(self)
 
 def find_device(names):
     """
@@ -85,7 +85,7 @@ def encode_video(folder, name, suffix, fps=30):
     subprocess.Popen(cmd, shell=True)
 
 
-def print_image_config(config):
+def print_image_config(name, config):
     """ Prints some useful variables about the camera for debugging purposes """
     top = config["pitch"] + config["vfov"] / 2
     bot = config["pitch"] - config["vfov"] / 2
@@ -93,27 +93,38 @@ def print_image_config(config):
     right = config["yaw"] + config["hfov"] / 2
     hppd = config["width"] / config["hfov"]
     vppd = config["height"] / config["vfov"]
-    print("top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
-          (top, bot, left, right, hppd, vppd))
+    print("%s top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
+          (name, top, bot, left, right, hppd, vppd))
 
 
 def get_patch_bbox(target_config, source_config):
-    """ Currently we assume that orientations and positions are identical """
-    hfov_ratio = target_config["hfov"] / source_config["hfov"]
-    vfov_ratio = target_config["vfov"] / source_config["vfov"]
-    hfov_offset = source_config["yaw"] - target_config["yaw"]
-    vfov_offset = source_config["pitch"] - target_config["pitch"]
-    width = source_config["width"] * hfov_ratio
-    height = source_config["height"] * vfov_ratio
-    x_center = (source_config["width"] - width) // 2
-    y_center = (source_config["height"] - height) // 2
-    x_offset = (hfov_offset / source_config["hfov"]) * source_config["width"]
-    y_offset = (vfov_offset / source_config["vfov"]) * source_config["height"]
-    x = x_center + x_offset
-    y = y_center + y_offset
-    assert x >= 0 and x + width <= source_config["width"]
-    assert y >= 0 and y + height <= source_config["height"]
-    return Bbox(x, y, width, height)
+    """
+    Currently we assume that orientations and positions are identical
+    """
+    if 'resize' not in source_config:
+        source_config['resize'] = 1
+    source_width = int(source_config['width'] * source_config['resize'] + 0.5)
+    source_height = int(source_config['height'] * source_config['resize'] + 0.5)
+    hfov_ratio = target_config["hfov"] / source_config['hfov']
+    vfov_ratio = target_config["vfov"] / source_config['vfov']
+    hfov_offset = source_config['yaw'] - target_config["yaw"]
+    vfov_offset = source_config['pitch'] - target_config["pitch"]
+    patch_width = source_width * hfov_ratio
+    patch_height = source_height * vfov_ratio
+    x_center = (source_width - patch_width) // 2
+    y_center = (source_height - patch_height) // 2
+    x_offset = (hfov_offset / source_config['hfov']) * source_width
+    y_offset = (vfov_offset / source_config['vfov']) * source_height
+    x = int(x_center + x_offset + 0.5)
+    y = int(y_center + y_offset + 0.5)
+    patch_width = int(patch_width + 0.5)
+    patch_height = int(patch_height + 0.5)
+    print('Using bbox:', x, y, patch_width, patch_height,
+          'in', source_width, source_height)
+    if (x >= 0 and x + patch_width <= source_width
+        and y >= 0 and y + patch_height <= source_height):
+        return Bbox(x, y, patch_width, patch_height)
+    return None
 
 
 def crop(image, bbox, copy=False):
@@ -176,16 +187,16 @@ def rad2deg(val):
 
 
 def load_image(path):
-    return cv2.imread(path)
+    return cv2.imread(str(path))
 
 
 def save_image(path, image):
-    return cv2.imwrite(path, image)
+    return cv2.imwrite(str(path), image)
 
 
 def get_name(path):
     """ The name of a script is it"s filename without the extension """
-    return pathlib.Path(path.rstrip("/")).name.stem
+    return pathlib.Path(str(path).rstrip("/")).stem
 
 
 def get_hostname():
@@ -196,7 +207,7 @@ def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
-    path = ROOT / "data" / "%s-%s" % (dt, hn)
+    path = ROOT / "data" / ("%s-%s" % (dt, hn))
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -383,9 +394,10 @@ def find_matching_file(path, name_pattern):
     Finds a file that matches the given name regex
     """
     pattern = re.compile(name_pattern)
+    path = pathlib.Path(path)
     if path.exists():
         for filename in path.glob('*'):
-            if pattern.search(filename) is not None:
+            if pattern.search(str(filename)) is not None:
                 return path / filename
     return None
 
@@ -457,17 +469,25 @@ def prepareImageBatch(image, cuda=True):
     return batch
 
 
-def plot_batch(example, label, name):
+def plot_batch(path, example, status, label, guess):
     import matplotlib.pyplot as plt
-    dim = int(np.sqrt(len(example))) + 1
+    dim = int(len(example) ** 0.5)
+    if (dim * dim) < len(example):
+        dim += 1
     fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
-    for i in range(len(example)):
-        x = i % dim
-        y = int(i // dim)
-        # change from CHW to HWC and only show first three channels
-        img = np.transpose(example[i].numpy(), (1, 2, 0))[:, :, :3]
-        axs[y, x].imshow(img)
-        axs[y, x].set_title(" ".join(["%.2f" % x for x in label[i]]))
 
-    plt.savefig("%s.png" % name, bbox_inches='tight', dpi=160)
-    print("Saved batch [%s]" % name)
+    # Change from CHW to HWC, and move RGB to GBR
+    example = np.transpose(example, (0, 2, 3, 1))[...,[2,1,0]]
+    for i in range(len(example)):
+        x, y = i % dim, int(i // dim)
+        axs[y, x].imshow(example[i])
+
+        # Prepare Title
+        label_str = " ".join(["%5.2f" % x for x in label[i]])
+        guess_str = " ".join(["%5.2f" % x for x in guess[i]])
+        axs[y, x].set_title('L: %s\nG: %s' % (label_str, guess_str), fontsize=8)
+        axs[y, x].set_xticks([])
+        axs[y, x].set_yticks([])
+
+    plt.savefig("%s.png" % str(path), bbox_inches='tight', dpi=160)
+    print("Saved batch %s" % path)
