@@ -3,11 +3,10 @@
 OPENCV_VERSION=3.4.3
 ARCH=$(uname -i)
 PYTHON_VERSION=python3.5
-CUDA_VERSION=9.0
 
 # Make sure we're installed
 python3 -c "import cv2"
-if [[ "$?" == "0" ]]
+if [[ "$?" == "0" ]] ; then
    exit
 fi
 
@@ -17,8 +16,7 @@ sudo apt install -y \
      libtiff5-dev \
      zlib1g-dev \
      libjpeg-dev \
-     libpng12-dev \
-     libjasper-dev \
+     libpng-dev \
      libavcodec-dev \
      libavformat-dev \
      libavutil-dev \
@@ -89,7 +87,7 @@ cmake \
     -D WITH_1394=OFF \
     -D WITH_OPENEXR=OFF \
     -D WITH_LIBV4L=ON \
-    -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-${CUDA_VERSION} \
+    -D CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda \
     -D CUDA_ARCH_BIN=5.3,6.2 \
     -D CUDA_ARCH_PTX="" \
     -D INSTALL_C_EXAMPLES=OFF \
