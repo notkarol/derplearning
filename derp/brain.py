@@ -1,13 +1,52 @@
-#!/usr/bin/env python3
-
+"""
+The root class of any object that manipulate's the car state based on some heuristic.
+"""
 import cv2
 import numpy as np
 import os
 import torch
-from derp.controller import Controller
 import derp.util
 
-class Clone(Controller):
+class Brain:
+    """
+    The root class of any object that manipulate's the car state based on some heuristic.
+    """
+
+    def __init__(self, config, car_config, state):
+        """
+        Preset some common constructor parameters.
+        """
+        self.config = config
+        self.car_config = car_config
+        self.state = state
+        self.ready = True
+
+    def __repr__(self):
+        """
+        Unique instances should not really exist so just use the class name.
+        """
+        return self.__class__.__name__.lower()
+
+    def __str__(self):
+        """
+        Just use the representation.
+        """
+        return repr(self)
+
+    def plan(self):
+        """
+        By default if a child does not override this, do nothing to update the state.
+        """
+        return True
+
+
+class Manual(Brain):
+    def __init__(self, config, car_config, state):
+        super(Manual, self).__init__(config, car_config, state)
+        self.ready = True
+
+
+class Clone(Brain):
 
     def __init__(self, config, car_config, state):
 
@@ -29,7 +68,7 @@ class Clone(Controller):
         self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
-        self.model_dir = derp.util.get_controller_models_path(self.config['name'])
+        self.model_dir = derp.util.get_brain_models_path(self.config['name'])
         self.model_path = derp.util.find_matching_file(self.model_dir, 'clone.pt$')
         if self.model_path is not None and self.model_path.exists():
             self.model = torch.load(str(self.model_path))
@@ -81,3 +120,37 @@ class Clone(Controller):
         if self.state['auto']:
             self.state['speed'] = float(self.state['prediction'][0])
             self.state['steer'] = float(self.state['prediction'][1])
+        
+
+class CloneAdaSpeed(Clone):
+
+    def __init__(self, config, car_config, state):
+        super(CloneAdaSpeed, self).__init__(config, car_config, state)
+
+    def plan(self):
+        self.predict()
+        if self.state['auto']:
+            return
+    
+        # Future steering angle magnitude dictates speed
+        if self.config['use_min_for_speed']:
+            future_steer = float(min(self.state['prediction']))
+        else:
+            future_steer = float(self.state['prediction'][1])
+        multiplier = 1 + self.config['scale'] * (1 - abs(future_steer)) ** self.config['power']
+
+        self.state['speed'] = self.state['offset_speed'] * multiplier
+        self.state['steer'] = float(self.state['predictions'][0])
+
+
+class CloneFixSpeed(Clone):
+
+    def __init__(self, config, car_config, state):
+        super(CloneFixSpeed, self).__init__(config, car_config, state)
+
+    def plan(self):
+        self.predict()
+        if not self.state['auto']:
+            return        
+        self.state['speed'] = self.state['offset_speed']
+        self.state['steer'] = float(self.state['prediction'][0])

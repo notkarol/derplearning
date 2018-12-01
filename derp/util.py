@@ -58,12 +58,8 @@ def get_car_config_path(name):
     return ROOT / "config" / "car" / (name + ".yaml")
 
 
-def get_controller_config_path(name):
-    return ROOT / "config" / "controller" / (name + ".yaml")
-
-
-def get_controller_models_path(name):
-    return ROOT / "models" / name
+def get_brain_config_path(name):
+    return ROOT / "config" / "brain" / (name + ".yaml")
 
 
 def get_experiment_path(name):
@@ -276,22 +272,21 @@ def load_config(config_path):
 def load_component(config, state):
     module_name = "derp.components.%s" % (config["class"].lower())
     class_fn = load_class(module_name, config["class"])
-    script = class_fn(config, state)
-    if not script.ready and config["required"]:
-        raise ValueError("load_script: failed", config["name"])
+    component = class_fn(config, state)
+    if not component.ready and config["required"]:
+        raise ValueError("load_component: failed", config["name"])
     print("Loaded %s" % module_name)
-    return script
+    return component
 
 
-def load_controller(config, car_config, state):
-    module_name = "derp.controllers.%s" % (config["class"].lower())
-    print(module_name)
+def load_brain(config, car_config, state):
+    module_name = "derp.brain"
     class_fn = load_class(module_name, config["class"])
-    script = class_fn(config, car_config, state)
-    if not script.ready:
-        raise ValueError("load_controller: failed")
+    brain = class_fn(config, car_config, state)
+    if not brain.ready:
+        raise ValueError("load_brain: failed")
     print("Loaded %s" % module_name)
-    return script
+    return brain
 
 
 def load_components(config, state):

@@ -15,14 +15,14 @@ class State(Mapping):
     A class that carries the state of the car through time.
     """
 
-    def __init__(self, car_config, controller_config):
+    def __init__(self, car_config, brain_config, debug=False):
         """
         Create the dict that is this is this class and pre-set some defaults.
         """
         self.exit = False
         self.folder = None
         self.car_config = car_config
-        self.controller_config = controller_config
+        self.brain_config = brain_config
         self.state = {'record': False}
         self.csv_fd = None
         self.csv_writer = None
@@ -41,7 +41,8 @@ class State(Mapping):
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
         self['frame_counter'] = 0
-        
+        self['debug'] = debug
+
     def __getitem__(self, key):
         return self.state[key]
 
@@ -75,8 +76,8 @@ class State(Mapping):
         self['frame_counter'] = 0
         with open(str(self.folder / 'car.yaml'), 'w') as car_fd:
             yaml.dump(self.car_config, car_fd)
-        with open(str(self.folder / 'controller.yaml'), 'w') as controller_fd:
-            yaml.dump(self.controller_config, controller_fd)
+        with open(str(self.folder / 'brain.yaml'), 'w') as brain_fd:
+            yaml.dump(self.brain_config, brain_fd)
 
         # Make a folder for every 2D or larger numpy array so we can store vectors/images
         for key in self.state:
