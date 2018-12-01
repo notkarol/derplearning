@@ -8,6 +8,6 @@ setup(name='derp',
       tests_require=["pytest"],
       include_package_data=True,
       zip_safe=False,
-      packages=['derp'],
+      packages=['derp', 'derp.controllers', 'derp.components', 'derp.models'],
       install_requires=find_packages()
 )
