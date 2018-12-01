@@ -16,7 +16,7 @@ import torchvision.transforms as transforms
 
 from derp.fetcher import Fetcher
 import derp.util
-
+import derp.model
 
 def step(epoch, model, loader, optimizer, criterion, is_train, device, experiment_path):
     """
@@ -82,7 +82,7 @@ def main():
     dim_in = np.array((thumb_config['depth'], thumb_config['height'], thumb_config['width']))
     n_status = len(controller_config['status'])
     n_out = len(controller_config['predict'])
-    model_class = derp.util.load_class('derp.models.' + args.model.lower(), args.model)
+    model_class = derp.util.load_class('derp.model', args.model)
     model = model_class(dim_in, n_status, n_out).to(device)
     criterion = nn.MSELoss().to(device)
     optimizer = optim.Adam(model.parameters(), args.lr)
