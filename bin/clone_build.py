@@ -169,10 +169,10 @@ def process_recording(args):
     source_config = derp.util.load_config(source_config_path)
     frame_config = derp.util.find_component_config(source_config, component_name)
 
-    # Load controller off of the first state entry
+    # Load brian off of the first state entry
     state = prepare_state(config, 0, state_headers, states, None)
-    controller = derp.util.load_controller(config, source_config, state)
-    if controller.bbox is None:
+    brian = derp.util.load_brian(config, source_config, state)
+    if brian.bbox is None:
         return False
 
     # Perturb our arrays
@@ -220,18 +220,18 @@ def process_recording(args):
         for pert_id in range(n_perts if part == 'train' else 1):
 
             # Prepare variables to store for this example
-            controller.state = prepare_state(config, frame_id, state_headers, states, frame)
+            brian.state = prepare_state(config, frame_id, state_headers, states, frame)
             perts = prepare_pert_magnitudes(config['create']['perts'], pert_id == 0)
             predict = prepare_predict(config, frame_id, state_headers, state_timestamps, states,
                                       perts)
             status = prepare_status(config, frame_id, state_headers, state_timestamps, states)
 
             # Perturb the image and status/predictions
-            frame = controller.state[component_name]
+            frame = brian.state[component_name]
             perturb(config, frame_config, frame, predict, status, perts)
 
             # Get thumbnail
-            thumb = controller.prepare_thumb()
+            thumb = brian.prepare_thumb()
 
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts, predict)
@@ -251,16 +251,16 @@ def main():
     """
     # Make sure we got arguments correctly processed
     parser = argparse.ArgumentParser()
-    parser.add_argument('--controller', type=str, required=True,
-                        help="car controller we wish to train for")
+    parser.add_argument('--brian', type=str, required=True,
+                        help="car brian we wish to train for")
     parser.add_argument('--count', type=int, default=4,
                         help='Number of processes to run in parallel')
     args = parser.parse_args()
 
     # Import configs that we wish to train for
-    config_path = derp.util.get_controller_config_path(args.controller)
-    controller_config = derp.util.load_config(config_path)
-    experiment_path = derp.util.get_experiment_path(controller_config['name'])
+    config_path = derp.util.get_brian_config_path(args.brian)
+    brian_config = derp.util.load_config(config_path)
+    experiment_path = derp.util.get_experiment_path(brian_config['name'])
 
     # Create folders
     if not experiment_path.exists():
@@ -278,7 +278,7 @@ def main():
 
     # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in controller_config['create']['data_folders']:
+    for data_folder in brian_config['create']['data_folders']:
         data_folder = pathlib.Path(data_folder)
 
         # If we don't have an absolute path, prepend derp_data folder
@@ -289,7 +289,7 @@ def main():
         for filename in data_folder.glob('*'):
             recording_path = data_folder / filename
             if recording_path.is_dir():
-                process_args.append([controller_config, recording_path, folders])
+                process_args.append([brian_config, recording_path, folders])
 
     # Prepare pool of workers
     if args.count <= 0:
