@@ -51,12 +51,31 @@ class Dualshock4(Component):
         return 128 - self.__deadzone < value <= 128 + self.__deadzone
 
     def __normalize_stick(self, value, deadzone):
+        """
+        Normalize stick value from [0, 255] to [0, 1]
+        Ignore a 128-centered deadzone
+        """
         value -= 128
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
 
+    def __poll(self):
+        """ Request a message from the daemon """
+        poller = zmq.Poller()
+        poller.register(self.__server_socket, zmq.POLLIN)
+        msg = dict(poller.poll(10))
+        if len(msg) > 0:
+            msgs = self.__server_socket.recv_json()
+            self.__last_recv_time = time()
+            return msgs
+        return []
+
     def __process(self, status, out):
+        """
+        For the given status input, figure out how we should affect the state
+        and put that into out.
+        """
 
         # linear steering
         if self.__in_deadzone(status['right_analog_x']):
@@ -206,21 +225,7 @@ class Dualshock4(Component):
         out['light_off'] = self.state['warn']
             
         self.__server_socket.send_json(out)
-
-        # Clear out outstanding messages
-        while len(self.poll()):
-            pass
         return True
-
-    def poll(self):
-        poller = zmq.Poller()
-        poller.register(self.__server_socket, zmq.POLLIN)
-        msg = dict(poller.poll(10))
-        if len(msg) > 0:
-            msgs = self.__server_socket.recv_json()
-            self.__last_recv_time = time()
-            return msgs
-        return []
 
     def sense(self):
         out = {'record' : None,
@@ -231,11 +236,13 @@ class Dualshock4(Component):
                'offset_speed' : None,
                'offset_steer' : None}
 
-        msgs = self.poll()
-        
-        # For each message, process the fields we want to set a new desired value
-        for msg in msgs:
-            self.__process(msg, out)
+        # Process all outstanding messages
+        while True:
+            msgs = self.__poll()            
+            if len(msgs) == 0:
+                break
+            for msg in msgs:
+                self.__process(msg, out)
 
         # Kill car if we're out of range
         if (time() - self.__last_recv_time) > self.__timeout:
