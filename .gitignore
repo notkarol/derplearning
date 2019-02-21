@@ -17,6 +17,9 @@ __pycache__/
 /models
 /scratch
 /virtual_env/data
+/build
+/derp.egg-info
+/dist
 
 # Web App
 /rsia/venv
