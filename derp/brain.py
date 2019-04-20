@@ -134,10 +134,11 @@ class CloneAdaSpeed(Clone):
     
         # Future steering angle magnitude dictates speed
         if self.config['use_min_for_speed']:
-            future_steer = float(min(self.state['prediction']))
+            # predict is assumed to be a list of present and future stearing values
+            future_steer = float(min(abs(self.state['prediction'])))
         else:
-            future_steer = float(self.state['prediction'][1])
-        multiplier = 1 + self.config['scale'] * (1 - abs(future_steer)) ** self.config['power']
+            future_steer = float(abs(self.state['prediction'][1]))
+        multiplier = 1 + self.config['scale'] * (1 - future_steer) ** self.config['power']
 
         self.state['speed'] = self.state['offset_speed'] * multiplier
         self.state['steer'] = float(self.state['predictions'][0])
