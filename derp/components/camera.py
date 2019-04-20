@@ -79,9 +79,6 @@ class Camera(Component):
                 frame = util.resize(frame, (self.width, self.height))
                 sensor_name = self.config['name']
                 self.state[sensor_name] = frame
-                if self.state['debug']:
-                    cv2.imshow('frame', frame)
-                    cv2.waitKey(1)                
             else:
                 print("Camera: Unable to get frame")
                 self.ready = False

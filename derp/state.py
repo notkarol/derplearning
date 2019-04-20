@@ -15,7 +15,7 @@ class State(Mapping):
     A class that carries the state of the car through time.
     """
 
-    def __init__(self, car_config, brain_config, debug=False):
+    def __init__(self, car_config, brain_config):
         """
         Create the dict that is this is this class and pre-set some defaults.
         """
@@ -31,7 +31,6 @@ class State(Mapping):
 
         # Prepare default state variables
         self['timestamp'] = time.time()
-        self['warn'] = False
         self['error'] = False
         self['auto'] = False
         self['speed'] = 0
@@ -41,7 +40,6 @@ class State(Mapping):
         self['use_offset_speed'] = False
         self['use_offset_steer'] = True
         self['frame_counter'] = 0
-        self['debug'] = debug
 
     def __getitem__(self, key):
         return self.state[key]
@@ -53,7 +51,7 @@ class State(Mapping):
         return len(self.state)
 
     def __repr__(self):
-        return self.__class__.__name__.lower()
+        return self.__str__()
 
     def __setitem__(self, key, item):
 
@@ -103,6 +101,9 @@ class State(Mapping):
 
     def get_image_suffix(self, key):
         return 'jpg' if 'camera' in key else 'png'
+
+    def reset(self):
+        self['timestamp'] = time.time()
 
     def record(self):
         # If we're not recording anymore, do post-processing and stop
@@ -157,13 +158,13 @@ class State(Mapping):
             name = '%s_%s' % (basename, subname)
             self[name] = value
 
-    def print(self):
+    def __str__(self):
         """
         Print a short summary of the state for debugging purposes.
         """
         fps = 1 / (self.state['timestamp'] - self.previous_timestamp)
-        print("%.3f %.2f %2i %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
-              (self.state['timestamp'], self.state['warn'], fps, 
+        print("%.3f %2i %s %s | speed %6.3f + %6.3f %i | steer %6.3f + %6.3f %i" %
+              (self.state['timestamp'], fps, 
                'R' if self.state['record'] else '_', 'A' if self.state['auto'] else '_',
                self.state['speed'], self.state['offset_speed'], self.state['use_offset_speed'],
                self.state['steer'], self.state['offset_steer'], self.state['use_offset_steer']))

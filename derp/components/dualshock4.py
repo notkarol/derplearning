@@ -221,8 +221,6 @@ class Dualshock4(Component):
             out['blue'] = 1
         if self.state['auto']:
             out['red'] = 1
-        out['light_on'] = self.state['warn']
-        out['light_off'] = self.state['warn']
             
         self.__server_socket.send_json(out)
         return True
