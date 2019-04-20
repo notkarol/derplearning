@@ -9,6 +9,9 @@ from struct import Struct
 from collections import deque
 import threading
 import derp.util
+import logging
+import datetime
+
 
 class Daemon:
 
@@ -52,11 +55,20 @@ class Daemon:
         # Pair and send messages
         if not self.pair():
             print("Count not pair")
+            logging.debug("Could not pair")
             return
 
         self.__last_msg = None
         self.__creation_time = 0
         self.sendController(None)
+        
+        # define logger file
+        logging.basicConfig(
+          filename="../data/logs/daemon_ds4_"+datetime.now(),
+          format='%(created)s %(levelname)-8s %(message)s',
+          level=logging.INFO
+          # datefmt='%Y-%m-%d %H:%M:%S'
+        )
 
     def __del__(self):
         """ Close all of our sockets and file descriptors """
@@ -165,6 +177,7 @@ class Daemon:
         with self.__mutex:
             out = [self.decodeController(d) for d in self.__client_queue]
         self.__client_socket.send_json(out)
+        logging.info("daemon-to-client: %s" % out)
         with self.__mutex:
             self.__client_queue.clear()
         return True
@@ -198,9 +211,10 @@ class Daemon:
                     ret = self.__intr_socket.recv_into(buf)
                     if ret == len(buf) and buf[1] == self.__report_id:
                         self.__client_queue.append(buf)
+                        logging.info("controller-to-daemon: %s" % buf)
                         if len(self.__client_queue) > self.__buffer_max:
                             self.__client_queue.popleft()                    
-                except BlockingIOError as e:
+                except BlockingIOError as e: # question: does this fire when recv_into is empty?
                     break
 
             # Check to see what the last message was and what the user typed

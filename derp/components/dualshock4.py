@@ -10,6 +10,8 @@ import zmq
 from time import time, sleep
 from derp.component import Component
 import derp.util as util
+import logging
+
 
 class Dualshock4(Component):
 
@@ -38,6 +40,14 @@ class Dualshock4(Component):
 
         # Reset the message queue
         self.__server_socket.send_json(True)
+
+        # define logger file
+        logging.basicConfig(
+            filename="../../data/logs/dualshock4_component_" + datetime.now(),
+            format='%(created)s %(levelname)-8s %(message)s',
+            level=logging.INFO
+            # datefmt='%Y-%m-%d %H:%M:%S'
+        )
         
     def __del__(self):
         """ Close all of our sockets and file descriptors """
@@ -226,13 +236,13 @@ class Dualshock4(Component):
         return True
 
     def sense(self):
-        out = {'record' : None,
-               'auto' : None,
-               'speed' : None,
-               'steer' : None,
-               'use_offset_speed' : None,
-               'offset_speed' : None,
-               'offset_steer' : None}
+        out = {'record': None,
+               'auto': None,
+               'speed': None,
+               'steer': None,
+               'use_offset_speed': None,
+               'offset_speed': None,
+               'offset_steer': None}
 
         # Process all outstanding messages
         while True:
@@ -241,13 +251,19 @@ class Dualshock4(Component):
                 # question:If our polling + processing is slower than the stream generation this function might not reach a conclusion, is this possible?
                 break
             for msg in msgs:
+                logging.info("received_from_daemon: %s" % msg)
                 self.__process(msg, out)
 
         # Kill car if we're out of range
         if (time() - self.__last_recv_time) > self.__timeout:
+            logging.debug(
+                "controller timeout after %s"
+                % (time() - self.__last_recv_time)
+            )
             self.state.close()
-            
+        
         # After all messages have been process, update the state
+        logging.info("write_to_state: %s" % out)
         for field in out:
             if out[field] is not None:
                 self.state[field] = out[field]

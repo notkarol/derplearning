@@ -6,9 +6,18 @@ import argparse
 import time
 import derp.state
 import derp.util
+import logging
 
 
 def main():
+    # define logger file
+    logging.basicConfig(
+        filename="../data/logs/drive_" + datetime.now(),
+        format='%(created)s %(levelname)-8s %(message)s',
+        level=logging.INFO
+        # datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
     """ Prepare arguments, configurations, variables and run the event loop. """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--car', type=str, default=derp.util.get_hostname(),
@@ -28,14 +37,18 @@ def main():
 
         for component in components:
             component.sense()
+        logging.info("step: %s sensing complete" % state['timestamp'])
 
         brain.plan()
+        logging.info("step: %s planning complete" % state['timestamp'])
 
         for component in components:
             component.act()
+        logging.info("step: %s acting complete" % state['timestamp'])
 
         state.record()
-
+        logging.info("step: %s recording complete" % state['timestamp'])
+        logging.info(state)
 
 if __name__ == "__main__":
     main()
