@@ -101,7 +101,7 @@ class Clone(Brain):
 
     def predict(self):
         status = derp.util.extractList(self.config['status'], self.state)
-        frame = self.state[self.config['thumb']['component']])
+        frame = self.state[self.config['thumb']['component']]
         self.state['thumb'] = self.prepare_thumb(frame)
         status_batch = derp.util.prepareVectorBatch(status)
         thumb_batch = derp.util.prepareImageBatch(self.state['thumb'])

@@ -1,13 +1,25 @@
 from setuptools import setup, find_packages
 
 setup(name='derp',
-      version='0.1',
+      version='2019-04',
       description='Race your RC car autonomously',
       long_description=__doc__,
       license='MIT',
-      tests_require=["pytest"],
       include_package_data=True,
       zip_safe=False,
       packages=['derp', 'derp.components'],
-      install_requires=find_packages()
-)
+      install_requires=[
+          'opencv-python>=4.0',
+          'matplotlib>=3.0',
+          'numpy>=1.16',
+          'pillow>=6.0',
+          'pylint>=2.2',
+          'pytest>=4.4',
+          'torch>=1.0',
+          'torchvision>=0.2',
+          'scipy',
+          'bezier',
+          'scikit-image',
+          'Adafruit_BNO055',
+          'evdev',
+          'zmq'])
