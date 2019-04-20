@@ -209,7 +209,7 @@ class Daemon:
                 byte8 = self.__client_queue[0][8]
                 if byte8 >= 16:
                     self.__creation_time = time()
-                    cmd = ["python3", "%s/drive.py" % os.environ['DERP_ROOT'], "--quiet"]
+                    cmd = ["python3", "%s/bin/drive.py" % os.environ['DERP_ROOT'], "--quiet"]
                     if byte8 & 16:
                         cmd.extend(['--controller', 'square'])
                     elif byte8 & 32:
