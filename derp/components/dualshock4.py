@@ -96,8 +96,8 @@ class Dualshock4(Component):
             steer = self.__normalize_stick(status['left_analog_x'], self.__deadzone)
             sign = np.sign(steer)
             steer = abs(steer)
-            steer *= self.config['steer_normalizer'][1]
             steer **= self.config['steer_normalizer'][2]
+            steer *= self.config['steer_normalizer'][1]
             steer += self.config['steer_normalizer'][0]
             steer = max(0, min(1, steer))
             steer *= sign
@@ -240,6 +240,7 @@ class Dualshock4(Component):
         while True:
             msgs = self.__poll()            
             if len(msgs) == 0:
+                # question:If our polling + processing is slower than the stream generation this function might not reach a conclusion, is this possible?
                 break
             for msg in msgs:
                 self.__process(msg, out)
