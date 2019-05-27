@@ -68,7 +68,7 @@ class Clone(Brain):
         self.size = (config['thumb']['width'], config['thumb']['height'])
 
         # Prepare model
-        self.model_dir = derp.util.get_brain_models_path(self.config['name'])
+        self.model_dir = derp.util.get_brain_config_path(self.config['name'])
         self.model_path = derp.util.find_matching_file(self.model_dir, 'clone.pt$')
         if self.model_path is not None and self.model_path.exists():
             self.model = torch.load(str(self.model_path))

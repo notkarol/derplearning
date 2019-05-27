@@ -2,7 +2,7 @@ class: 'CloneFixSpeed'
 
 # Training related parameters
 create:
-  data_folders: ['train-2018']
+  data_folders: ['train-2017-oakland']
   train_chance: 0.9
   n_perts: 1
   perts:

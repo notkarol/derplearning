@@ -154,8 +154,8 @@ def process_recording(args):
 
     # Apply butterworth filter
     steer_index = state_headers.index('steer')
-    b, a = scipy.signal.butter(3, 0.05, output='ba')
-    states[steer_index, :] = scipy.signal.filtfilt(b, a, states[steer_index, :])
+    #b, a = scipy.signal.butter(3, 0.05, output='ba')
+    #states[steer_index, :] = scipy.signal.filtfilt(b, a, states[steer_index, :])
     
     # Skip if there are no labels
     labels_path = recording_path / 'label.csv'
@@ -231,7 +231,7 @@ def process_recording(args):
             perturb(config, frame_config, frame, predict, status, perts)
 
             # Get thumbnail
-            thumb = brain.prepare_thumb()
+            thumb = brain.prepare_thumb(frame)
 
             # Prepare store name
             store_name = prepare_store_name(frame_id, pert_id, perts, predict)

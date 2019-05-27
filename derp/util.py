@@ -213,7 +213,7 @@ def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
     Passes a single config dict entry as a return value so it can be used by a shell script.
     """
     with open(str(config_path)) as config_fd:
-        config = yaml.load(config_fd)
+        config = yaml.load(config_fd, Loader=yaml.FullLoader)
 
     if dict_3 != 0:
         value = config[dict_0][list_ind][dict_1][dict_2][dict_3]
@@ -231,7 +231,7 @@ def load_config(config_path):
 
     # First load the car"s config
     with open(str(config_path)) as config_fd:
-        config = yaml.load(config_fd)
+        config = yaml.load(config_fd, Loader=yaml.FullLoader)
 
     # Make sure we set the name and path of the config stored
     if "name" not in config:
