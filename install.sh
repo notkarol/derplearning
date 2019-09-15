@@ -29,7 +29,14 @@ sudo apt install -y \
 # Install Python Packages
 if [[ -z $(pip3 freeze | grep torch) ]] ; then
     wget https://nvidia.box.com/shared/static/06vlvedmqpqstu1dym49fo7aapgfyyu9.whl -O torch-1.2.0a0+8554416-cp36-cp36m-linux_aarch64.whl
-    pip3 install --user torch-1.2.0a0+8554416-cp36-cp36m-linux_aarch64.whl
+    pip3 install --user numpy torch-1.2.0a0+8554416-cp36-cp36m-linux_aarch64.whl
+
+    # Install torchvision directly
+    git clone -b v0.3.0 https://github.com/pytorch/vision torchvision
+    cd torchvision
+    python3 setup.py install --user
+    cd ..
+    rm -rf torchvision
 fi
     #pip3 install --user torchvision
 if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
