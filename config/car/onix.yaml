@@ -1,4 +1,0 @@
-components:
-  - path: "joystick/dualshock4.yaml"
-  - path: "camera/c720_60fov.yaml"
-    name: "camera_front"

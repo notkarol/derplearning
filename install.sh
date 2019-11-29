@@ -1,9 +1,5 @@
 #!/bin/bash -x
 
-DERP_CONFIG=$PWD/config
-DERP_BRAIN=$HOME/brain
-DERP_RECORDING=$HOME/recording
-
 # Make sure we're working off of latest packages
 sudo apt update
 sudo apt upgrade -y
@@ -26,19 +22,17 @@ sudo apt install -y \
      python3-zmq \
      zlib1g-dev
 
-# Install Python Packages
-if [[ -z $(pip3 freeze | grep torch) ]] ; then
-    wget https://nvidia.box.com/shared/static/06vlvedmqpqstu1dym49fo7aapgfyyu9.whl -O torch-1.2.0a0+8554416-cp36-cp36m-linux_aarch64.whl
-    pip3 install --user numpy torch-1.2.0a0+8554416-cp36-cp36m-linux_aarch64.whl
-
-    # Install torchvision directly
-    git clone -b v0.3.0 https://github.com/pytorch/vision torchvision
-    cd torchvision
-    python3 setup.py install --user
-    cd ..
-    rm -rf torchvision
+# Install Pytorch
+if [[ $(uname -m) == "x86_64" ]] ; then
+    pip3 install --user torch torchvision
+else
+    if [[ -z $(pip3 freeze | grep torch) ]] ; then
+	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
+	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
+    fi
 fi
-    #pip3 install --user torchvision
+
+# Install IMU software
 if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
     pip3 install --user --upgrade Adafruit-BNO055 evdev pybluez pyserial pyusb
 fi
@@ -67,10 +61,9 @@ fi
 # Set up our script with sourcing instructions
 if ! [[ -e ~/.derprc ]] ; then 
     mkdir -p $HOME/models $HOME/recordings
-    echo "export DERP_CONFIG=$DERP_CONFIG" >> ~/.derprc
-    echo "export DERP_BRAIN=$DERP_BRAIN" >> ~/.derprc
-    echo "export DERP_DATA=$DERP_DATA" >> ~/.derprc
-    echo "source ~/.derprc" >> ~/.bashrc
+    echo "export DERP_ROOT=$PWD" >> ~/.bashrc
     source ~/.derprc
 fi
 
+# Install the derp python package
+python3 setup.py install --user
