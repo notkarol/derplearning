@@ -23,8 +23,8 @@ sudo apt install -y \
      zlib1g-dev
 
 # Install Pytorch
-if [[ $(uname -m) == "x86_64" ]] ; then
-    pip3 install --user torch torchvision
+if [[ "$(uname -m)" == "x86_64" ]] ; then
+    pip3 install --user torch torchvision opencv-python
 else
     if [[ -z $(pip3 freeze | grep torch) ]] ; then
 	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
@@ -59,10 +59,10 @@ if [[ -e $(groups | grep netdev) ]] ; then
 fi
 
 # Set up our script with sourcing instructions
-if ! [[ -e ~/.derprc ]] ; then 
-    mkdir -p $HOME/models $HOME/recordings
+if ! [[ -e $PWD/recordings ]] ; then 
+    mkdir -p $PWD/models $PWD/recordings $PWD/scratch
     echo "export DERP_ROOT=$PWD" >> ~/.bashrc
-    source ~/.derprc
+    source ~/.bashrc
 fi
 
 # Install the derp python package

@@ -40,6 +40,7 @@ class Bbox:
     def __str__(self):
         return repr(self)
 
+
 def find_device(names):
     """
     Searches for an input devices. Assuming it is found that device is returned
@@ -54,12 +55,8 @@ def find_device(names):
     return None
 
 
-def get_car_config_path(name):
-    return ROOT / "config" / "car" / (name + ".yaml")
-
-
-def get_brain_config_path(name):
-    return ROOT / "config" / "brain" / (name + ".yaml")
+def get_config_path(name):
+    return ROOT / "config" / (name + ".yaml")
 
 
 def get_experiment_path(name):
@@ -270,7 +267,7 @@ def load_config(config_path):
 
 
 def load_component(config, state):
-    module_name = "derp.components.%s" % (config["class"].lower())
+    module_name = "derp.%s" % (config["class"].lower())
     class_fn = load_class(module_name, config["class"])
     component = class_fn(config, state)
     if not component.ready and config["required"]:
