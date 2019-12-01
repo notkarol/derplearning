@@ -41,6 +41,10 @@ class Bbox:
         return repr(self)
 
 
+def get_timestamp():
+    return time.time_ns() // 1000000 
+
+
 def find_device(names):
     """
     Searches for an input devices. Assuming it is found that device is returned
@@ -192,10 +196,6 @@ def get_name(path):
     return pathlib.Path(str(path).rstrip("/")).stem
 
 
-def get_hostname():
-    return socket.gethostname()
-
-
 def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
@@ -225,7 +225,6 @@ def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
 
 
 def load_config(config_path):
-
     # First load the car"s config
     with open(str(config_path)) as config_fd:
         config = yaml.load(config_fd, Loader=yaml.FullLoader)

@@ -1,30 +1,26 @@
 """
 The Camera component manages the camera interface.
 """
+import capnp
+import camera_capnp
 import cv2
-import numpy as np
 import os
 import re
-import select
-import sys
-from time import time, sleep
-import subprocess
-from derp.component import Component
-import derp.util as util
+import zmq
 
-class Camera(Component):
+import derp.util
+
+class Camera:
     """
     The Camera component manages the camera interface.
     """
 
-    def __init__(self, config, state):
-        super(Camera, self).__init__(config, state)
-
+    def __init__(self, config):
+        self.config = config
         self.cap = None
         self.frame_counter = 0
         self.start_time = 0
         self.image_bytes = b''
-        self.state[self.config['name']] = None
         self.__connect()
         if 'resize' not in self.config:
             source_config['resize'] = 1
@@ -39,15 +35,6 @@ class Camera(Component):
         if self.cap:
             del self.cap
             self.cap = None
-        self.ready = self.__find()
-        if self.ready:
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        return self.ready
-            
-    def __find(self):
-        """ Finds and connects to the camera """
         if self.config['index'] is None:
             devices = [int(f[-1]) for f in sorted(os.listdir('/dev'))
                        if re.match(r'^video[0-9]', f)]
@@ -64,23 +51,57 @@ class Camera(Component):
         except:
             print("Camera index [%i] not found. Failing." % self.index)
             self.cap = None
-            return False
-        return True
+        else:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
             
-    def sense(self):
+    def __find(self):
+        """ Finds and connects to the camera """
+            
+    def read(self):
+        #camera_state = capnpy.load_schema('camera_state')
         """ Read the next video frame. If we couldn't get it, use the previous one """
-        if not self.ready:
-           self.__connect()
+        ret, frame = self.cap.read()
+        if ret:
+            frame = derp.util.resize(frame, (self.width, self.height))
+            return frame
+        return None
 
-        if self.ready:
-            frame = None
-            ret, frame = self.cap.read()
-            if ret:
-                frame = util.resize(frame, (self.width, self.height))
-                sensor_name = self.config['name']
-                self.state[sensor_name] = frame
-            else:
-                print("Camera: Unable to get frame")
-                self.ready = False
-        return self.ready
+    def message(self, frame):
+        jpg_buffer = cv2.imencode('.jpg', frame)[1].tostring()
+        msg = camera_capnp.Camera.new_message(
+            timestamp=derp.util.get_timestamp(),
+            yaw=self.config['yaw'],
+            pitch=self.config['pitch'],
+            roll=self.config['roll'],
+            x=self.config['x'],
+            y=self.config['y'],
+            z=self.config['z'],
+            height=self.config['height'],
+            width=self.config['width'],
+            depth=self.config['depth'],
+            hfov=self.config['hfov'],
+            vfov=self.config['vfov'],
+            fps=self.config['fps'],
+            jpg=jpg_buffer)
+        return msg
+    
 
+def run(config):
+    camera = Camera(config)
+
+    context = zmq.Context()
+    publisher = context.socket(zmq.PUB)
+    publisher.bind("ipc:///tmp/derp")
+    
+    while True:
+        frame = camera.read()
+        if frame is None:
+            del camera
+            camera = Camera(config)
+            continue
+        frame = derp.util.resize(frame, (camera.width, camera.height))
+        msg = camera.message(frame)
+        publisher.send_multipart([b"camera", msg.to_bytes()])
+        
