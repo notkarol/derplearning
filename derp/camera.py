@@ -6,7 +6,6 @@ import camera_capnp
 import cv2
 import os
 import re
-import zmq
 
 import derp.util
 
@@ -55,18 +54,6 @@ class Camera:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config['width'])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-            
-    def __find(self):
-        """ Finds and connects to the camera """
-            
-    def read(self):
-        #camera_state = capnpy.load_schema('camera_state')
-        """ Read the next video frame. If we couldn't get it, use the previous one """
-        ret, frame = self.cap.read()
-        if ret:
-            frame = derp.util.resize(frame, (self.width, self.height))
-            return frame
-        return None
 
     def message(self, frame):
         jpg_buffer = cv2.imencode('.jpg', frame)[1].tostring()
@@ -86,22 +73,21 @@ class Camera:
             fps=self.config['fps'],
             jpg=jpg_buffer)
         return msg
-    
-
-def run(config):
-    camera = Camera(config)
-
-    context = zmq.Context()
-    publisher = context.socket(zmq.PUB)
-    publisher.bind("ipc:///tmp/derp")
-    
-    while True:
-        frame = camera.read()
-        if frame is None:
-            del camera
-            camera = Camera(config)
-            continue
-        frame = derp.util.resize(frame, (camera.width, camera.height))
-        msg = camera.message(frame)
-        publisher.send_multipart([b"camera", msg.to_bytes()])
         
+    def read(self):
+        """ Read the next video frame. If we couldn't get it, use the previous one """
+        ret, frame = self.cap.read()
+        if ret:
+            frame = derp.util.resize(frame, (self.width, self.height))
+            return frame
+        return None
+
+    def run(self):
+        frame = self.read()
+        if frame is None:
+            self.__connect()
+            return None
+        frame = derp.util.resize(frame, (self.width, self.height))
+        msg = self.message(frame)
+        return msg
+

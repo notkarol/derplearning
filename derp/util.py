@@ -14,8 +14,8 @@ import socket
 import subprocess
 import time
 import torch
-from torch.autograd import Variable
 import yaml
+import zmq
 
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
@@ -80,6 +80,35 @@ def encode_video(folder, name, suffix, fps=30):
                     "!", "mp4mux",
                     "!", "filesink location='%s/%s.mp4'" % (folder, name)])
     subprocess.Popen(cmd, shell=True)
+
+
+def publish(name, func, args):
+    if isinstance(name, str):
+        name = str.encode(name)
+    obj = func(*args)
+    context = zmq.Context()
+    publisher = context.socket(zmq.PUB)
+    publisher.bind("ipc:///tmp/derp")
+    while True:
+        msg = obj.run()
+        if msg is None:
+            continue
+        publisher.send_multipart([name, msg.to_bytes()])
+
+
+def subscribe(name, func, args):
+    if isinstance(name, str):
+        name = str.encode(name)
+    obj = func(*args)
+    context = zmq.Context()
+    subscriber = context.socket(zmq.SUB)
+    subscriber.setsockopt(zmq.SUBSCRIBE, name)
+    publisher.bind("ipc:///tmp/derp")
+    while True:
+        msg = obj.run()
+        if msg is None:
+            continue
+        publisher.send_multipart([name, msg.to_bytes()])
 
 
 def print_image_config(name, config):
@@ -433,7 +462,7 @@ def prepareVectorBatch(vector, cuda=True):
         vector = np.reshape(vector, [1] + list(vector.shape))
 
     # Pepare the torch representation
-    batch = Variable(torch.from_numpy(vector).float())
+    batch = torch.from_numpy(vector).float()
     if cuda:
         batch = batch.cuda()
     return batch
@@ -452,7 +481,7 @@ def prepareImageBatch(image, cuda=True):
     batch = batch.transpose((0, 3, 1, 2))
 
     # Normalize input to range [0, 1)
-    batch = Variable(torch.from_numpy(batch).float())
+    batch = torch.from_numpy(batch).float()
     if cuda:
         batch = batch.cuda()
         batch /= 256
