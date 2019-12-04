@@ -16,7 +16,7 @@ def main():
     car_config = derp.util.load_config(args.car)
     brain_config = derp.util.load_config(args.brain)
 
-    derp.camera.run(car_config)
+    derp.camera.run(car_config['camera'])
 
     
 

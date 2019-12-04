@@ -1,5 +1,4 @@
 name: 'input'
-required: False
 class: 'Keyboard'
 exact: False
 device_names:

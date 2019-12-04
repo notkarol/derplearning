@@ -1,5 +1,4 @@
 name: 'camera'
-required: True
 class: 'Camera'
 index: 0
 hfov: 100

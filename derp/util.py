@@ -82,33 +82,20 @@ def encode_video(folder, name, suffix, fps=30):
     subprocess.Popen(cmd, shell=True)
 
 
-def publish(name, func, args):
-    if isinstance(name, str):
-        name = str.encode(name)
-    obj = func(*args)
+def publisher():
     context = zmq.Context()
-    publisher = context.socket(zmq.PUB)
-    publisher.bind("ipc:///tmp/derp")
-    while True:
-        msg = obj.run()
-        if msg is None:
-            continue
-        publisher.send_multipart([name, msg.to_bytes()])
+    sock = context.socket(zmq.PUB)
+    sock.bind("ipc:///tmp/derp")
+    return sock
 
-
-def subscribe(name, func, args):
-    if isinstance(name, str):
-        name = str.encode(name)
-    obj = func(*args)
+def subscriber(message_names):
+    if isinstance(message_names, str):
+        message_names = [message_names]
     context = zmq.Context()
-    subscriber = context.socket(zmq.SUB)
-    subscriber.setsockopt(zmq.SUBSCRIBE, name)
-    publisher.bind("ipc:///tmp/derp")
-    while True:
-        msg = obj.run()
-        if msg is None:
-            continue
-        publisher.send_multipart([name, msg.to_bytes()])
+    sock = context.socket(zmq.SUB)
+    sock.connect("ipc:///tmp/derp")
+    sock.setsockopt(zmq.SUBSCRIBE, message_names)
+    return sock
 
 
 def print_image_config(name, config):
