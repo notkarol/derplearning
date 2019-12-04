@@ -88,7 +88,7 @@ class Camera:
             frame = self.read()
             if frame is None:
                 self.__connect()
-                return None
+                continue
             frame = derp.util.resize(frame, (self.width, self.height))
             msg = self.message(frame)
-            self.publisher.send_multipart([self.config['name'], msg.to_bytes()])
+            self.publisher.send_multipart(['camera', msg.to_bytes()])
