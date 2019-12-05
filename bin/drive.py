@@ -4,9 +4,9 @@ The main driver program that loops the live internal state.
 """
 import argparse
 import derp.util
-from derp.camera import Camera
-from derp.keyboard import Keyboard
-from derp.writer import Writer
+import derp.camera
+import derp.keyboard
+import derp.writer
 from multiprocessing import Process
 import time
 
@@ -24,17 +24,20 @@ def main():
     for component_name in sorted(car_config):
         component_parts = component_name.split('_')
         if 'camera' in component_parts:
-            func = Camera
+            func = derp.camera.run
         elif 'keyboard' in component_parts:
-            func = Keyboard
+            func = derp.keyboard.run
         elif 'writer' in component_parts:
-            func = Writer
-        processes[component_name] = Process(arget=func, args=(car_config[component_name],))
+            func = derp.writer.run
+        else:
+            continue
+        print("Starting", component_name)
+        processes[component_name] = Process(target=func, args=(car_config[component_name],))
         processes[component_name].start()
 
     time.sleep(5)
     for component_name in sorted(processes):
-        process.join();
+        processes[component_name].join()
 
 
 if __name__ == "__main__":

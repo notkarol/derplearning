@@ -56,6 +56,7 @@ def find_device(names):
             if name in device_name:
                 print("Using evdev:", device_name)
                 return device
+    print("Could not find devices", names, 'in', evdev.list_devices())
     return None
 
 
@@ -82,20 +83,20 @@ def encode_video(folder, name, suffix, fps=30):
     subprocess.Popen(cmd, shell=True)
 
 
-def publisher():
+def publisher(path):
     context = zmq.Context()
     sock = context.socket(zmq.PUB)
-    sock.bind("ipc:///tmp/derp")
+    sock.bind("ipc://" + path)
+    #sock.bind("tcp://*:%s" % port)
     return context, sock
 
-def subscriber(message_names=None):
+def subscriber(paths):
     context = zmq.Context()
     sock = context.socket(zmq.SUB)
-    sock.connect("ipc:///tmp/derp")
-    if message_names:
-        if isinstance(message_names, str):
-            message_names = [message_names]
-        sock.setsockopt(zmq.SUBSCRIBE, message_names)
+    #sock.connect("tcp://localhost:%s" % port)
+    for path in paths:
+        sock.connect("ipc://" + path)
+    sock.setsockopt(zmq.SUBSCRIBE, b'')
     return context, sock
 
 
@@ -222,164 +223,18 @@ def create_record_folder():
     return path
 
 
-def pass_config(config_path, dict_0, list_ind=0, dict_1=0, dict_2=0, dict_3=0):
-    """
-    Passes a single config dict entry as a return value so it can be used by a shell script.
-    """
-    with open(str(config_path)) as config_fd:
-        config = yaml.load(config_fd, Loader=yaml.FullLoader)
-
-    if dict_3 != 0:
-        value = config[dict_0][list_ind][dict_1][dict_2][dict_3]
-    elif dict_2 != 0:
-        value = config[dict_0][list_ind][dict_1][dict_2]
-    elif dict_1 != 0:
-        value = config[dict_0][list_ind][dict_1]
-    else:
-        value = config[dict_0]
-
-    return value
-
-
 def load_config(config_path):
-    # First load the car"s config
+    """ Load a configuration file, also reading any component configs """
     with open(str(config_path)) as config_fd:
         config = yaml.load(config_fd, Loader=yaml.FullLoader)
-
-    # Make sure we set the name and path of the config stored
-    if "name" not in config:
-        config["name"] = get_name(config_path)
-    if "path" not in config:
-        config["path"] = config_path
-
-    # Load component configs recursively if they exist, and eventually return the full config
-    if "components" not in config:
-        return config
-    for component_config in config["components"]:
-
-        # Check if we need to load more parameters from elsewhere
-        if "path" in component_config:
-            component_path = ROOT / "config" / component_config["path"]
+    for component in config:
+        if isinstance(config[component], dict) and "path" in config[component]:
+            component_path = ROOT / "config" / config[component]["path"]
             with open(str(component_path)) as component_fd:
-                default_component_config = yaml.load(component_fd)
-
-            # Load paramters only if they"re not found in default
-            for key in default_component_config:
-                if key not in component_config:
-                    component_config[key] = default_component_config[key]
-
-            # Make sure we have a name for this component
-            if "name" not in component_config:
-                component_config["name"] = pathlib.Path(component_config["path"]).parent.name
-
-        # Make sure we were able to find a name
-        if "name" not in component_config:
-            raise ValueError("load_config: all components must have a name or a path")
-
-        # Make sure we were able to find a class
-        if "class" not in component_config:
-            raise ValueError("load_config: all components must have a class in components/")
+                component_config = yaml.load(component_fd, Loader=yaml.FullLoader)
+            component_config.update(config[component])
+            config[component] = component_config
     return config
-
-
-def load_component(config, state):
-    module_name = "derp.%s" % (config["class"].lower())
-    class_fn = load_class(module_name, config["class"])
-    component = class_fn(config, state)
-    if not component.ready and config["required"]:
-        raise ValueError("load_component: failed", config["name"])
-    print("Loaded %s" % module_name)
-    return component
-
-
-def load_brain(config, car_config, state):
-    module_name = "derp.brain"
-    class_fn = load_class(module_name, config["class"])
-    brain = class_fn(config, car_config, state)
-    if not brain.ready:
-        raise ValueError("load_brain: failed")
-    print("Loaded %s" % module_name)
-    return brain
-
-
-def load_components(config, state):
-    # Load the class of each component by its name and initialize all state keys.
-    components = []
-    for component_config in config:
-
-        # Load the component object
-        component = load_component(component_config, state)
-
-        # Skip a non-ready component. Raise an error if it"s required as we can"t continue
-        if not component.ready:
-            if component_config["required"]:
-                raise ValueError("load_components: required component [%s] not available"
-                                 % component_config["name"])
-            print("load_components: skipping", component_config["name"])
-            continue
-
-        # if we survived the cull, add the component to
-        components.append(component)
-
-        # Preset all state keys
-        if "state" in component_config:
-            for key in component_config["state"]:
-
-                # Don"t set the key if it"s already set and the proposed value is None
-                # This allows us to have components request fields, but have a master
-                # initializer. Useful for servo or car-specific steer_offset
-                val = component_config["state"][key]
-                if key not in state or state[key] is None:
-                    state[key] = val
-    return components
-
-
-def find_component_config(full_config, name):
-    """
-    Finds the matching component by name of the component and script if needed
-    """
-    for component_config in full_config["components"]:
-        if name in component_config["name"]:
-            return component_config
-
-
-def load_class(path, name):
-    """
-    Loads the class "name" at relative path (period separated) "path" and returns it
-    """
-    from importlib import import_module
-    m = import_module(path)
-    c = getattr(m, name)
-    return c
-
-
-def read_csv(path, floats=True):
-    """
-    Read through the state file and get our timestamps and recorded values.
-    Returns the non-timestamp headers, timestamps as numpy arrays.
-    """
-    timestamps = []
-    states = []
-    with open(str(path)) as csv_fd:
-        reader = csv.reader(csv_fd)
-        headers = next(reader)[1:]
-        for line in reader:
-            if not len(line):
-                continue
-            state = []
-            timestamps.append(float(line[0]))
-            for value in line[1:]:
-                try:
-                    if floats:
-                        value = float(value)
-                except:
-                    value = 0
-                state.append(value)
-            states.append(state)
-    timestamps = np.array(timestamps, dtype=np.double)
-    if floats:
-        states = np.array(states, dtype=np.float)
-    return timestamps, headers, states
 
 
 def find_value(haystack, key, values, interpolate=False):
@@ -410,20 +265,9 @@ def find_matching_file(path, name_pattern):
     return None
 
 
-def extractList(config, state):
-    if len(config) == 0:
-        return
-    vector = np.zeros(len(config), dtype=np.float32)
-    for i, d in enumerate(config):
-        scale = d["scale"] if "scale" in d else 1
-        vector[i] = state[d["field"]] * scale
-    return vector
-
-
 def unscale(config, vector):
     if len(config) == 0:
         return
-    state = {}
     for i, d in enumerate(config):
         scale = d["scale"] if "scale" in d else 1
         vector[i] /= scale

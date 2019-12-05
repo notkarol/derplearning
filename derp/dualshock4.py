@@ -140,22 +140,15 @@ class Dualshock4:
         return val
 
     def sendController(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0,
-                       light_on_dur=0, light_off_dur):
-        if type(msg) is not dict:
-            msg = {'rumble_high': 0, 'rumble_low': 0,
-                   'red': 0.2 if msg is False else 0.05,
-                   'green': 0.2 if msg is True else 0.05,
-                   'blue': 0.2 if msg is None else 0.05,
-                   'light_on': 0, 'light_off': 0}
-        self.__packet[7] = self.encodeController(msg['rumble_high'])
-        self.__packet[8] = self.encodeController(msg['rumble_low'])
-        self.__packet[9] = self.encodeController(msg['red'])
-        self.__packet[10] = self.encodeController(msg['green'])
-        self.__packet[11] = self.encodeController(msg['blue'])
-        self.__packet[12] = self.encodeController(msg['light_on'])
-        self.__packet[13] = self.encodeController(msg['light_off'])
-        self.__ctrl_socket.sendall(self.__packet)
-        return True
+                       light_on_dur=0, light_off_dur=0):
+        self.__packet[7] = self.encodeController(rumble_high)
+        self.__packet[8] = self.encodeController(rumble_low)
+        self.__packet[9] = self.encodeController(red)
+        self.__packet[10] = self.encodeController(green)
+        self.__packet[11] = self.encodeController(blue)
+        self.__packet[12] = self.encodeController(light_on_dur)
+        self.__packet[13] = self.encodeController(light_off_dur)
+        return self.__ctrl_socket.sendall(self.__packet)
 
     def recvController(self):
         buf = bytearray(self.__report_size - 2)
@@ -164,7 +157,7 @@ class Dualshock4:
             if ret == len(buf) and buf[1] == self.__report_id:
                 return None
         except BlockingIOError as e:
-            break
+            return
         return self.decodeController(buf)
 
     def __in_deadzone(self, value):

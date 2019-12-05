@@ -2,7 +2,7 @@
 The Camera component manages the camera interface.
 """
 import capnp
-import camera_capnp
+import messages_capnp
 import cv2
 import os
 import re
@@ -25,7 +25,8 @@ class Camera:
             source_config['resize'] = 1
         self.width = int(self.config['width'] * self.config['resize'] + 0.5)
         self.height = int(self.config['height'] * self.config['resize'] + 0.5)
-        self.__context, self.__publisher = derp.util.publisher('camera')
+        self.__context, self.__publisher = derp.util.publisher('/tmp/derp_camera')
+        self.run()
         
     def __del__(self):
         if self.cap is not None:
@@ -60,7 +61,7 @@ class Camera:
 
     def message(self, frame):
         jpg_buffer = cv2.imencode('.jpg', frame)[1].tostring()
-        msg = camera_capnp.Camera.new_message(
+        msg = messages_capnp.Camera.new_message(
             timestamp=derp.util.get_timestamp(),
             yaw=self.config['yaw'],
             pitch=self.config['pitch'],
@@ -86,11 +87,16 @@ class Camera:
         return None
 
     def run(self):
-        while True:
-            frame = self.read()
-            if frame is None:
-                self.__connect()
-                continue
-            frame = derp.util.resize(frame, (self.width, self.height))
-            msg = self.message(frame)
-            self.__publisher.send_multipart(['camera_front', msg.to_bytes()])
+        frame = self.read()
+        if frame is None:
+            self.__connect()
+            return
+        frame = derp.util.resize(frame, (self.width, self.height))
+        msg = self.message(frame)
+        self.__publisher.send_multipart([b'camera', msg.to_bytes()])
+
+
+def run(config):
+    camera = Camera(config)
+    while True:
+        camera.run()

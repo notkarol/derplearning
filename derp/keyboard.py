@@ -1,6 +1,6 @@
 import time
 import capnp
-import input_capnp
+import messages_capnp
 import derp.util
 
 class Keyboard:
@@ -11,11 +11,11 @@ class Keyboard:
         self.__connect()
         self.speed = 0
         self.steer = 0
-        self.offset_speed = 0
-        self.offset_steer = 0
-        self.record = 0
-        self.auto = 0
-        self.__context, self.__publisher = derp.util.publisher('input')
+        self.speed_offset = 0
+        self.steer_offset = 0
+        self.record = False
+        self.auto = False
+        self.__context, self.__publisher = derp.util.publisher('/tmp/derp_keyboard')
 
         # Prepare key code map so we can use strings to understand what key was pressed
         self.code_map = {1: 'escape', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7',
@@ -36,6 +36,7 @@ class Keyboard:
                          104: 'pagedown', 105: 'arrow_left', 106: 'arrow_right', 107: 'end',
                          108: 'arrow_down', 109: 'pagedown', 110: 'insert', 111: 'delete',
                          125: 'super'}
+        self.run()
 
     def __del__(self):
         if self.device is not None:
@@ -48,24 +49,24 @@ class Keyboard:
         return self.device is not None
 
     def __process(self, event):
-        if event.code == 0 or event.code == 4 or not event.value:
+        if event.code == 0 or event.type == 4 or not event.value:
             return False
         if self.code_map[event.code] == 'arrow_left': self.steer -= 16 / 256
         elif self.code_map[event.code] == 'arrow_right': self.steer += 16 / 256
         elif self.code_map[event.code] == 'arrow_up': self.speed += 4 / 256
         elif self.code_map[event.code] == 'arrow_down': self.speed -= 4 / 256
-        elif self.code_map[event.code] == '[': self.offset_steer -= 1 / 256
-        elif self.code_map[event.code] == ']': self.offset_steer += 1 / 256
-        elif self.code_map[event.code] == '1': self.offset_speed = 24 / 256
-        elif self.code_map[event.code] == '2': self.offset_speed = 28 / 256
-        elif self.code_map[event.code] == '3': self.offset_speed = 32 / 256
-        elif self.code_map[event.code] == '4': self.offset_speed = 40 / 256
-        elif self.code_map[event.code] == '5': self.offset_speed = 44 / 256
-        elif self.code_map[event.code] == '6': self.offset_speed = 48 / 256
-        elif self.code_map[event.code] == '7': self.offset_speed = 52 / 256
-        elif self.code_map[event.code] == '8': self.offset_speed = 56 / 256
-        elif self.code_map[event.code] == '9': self.offset_speed = 60 / 256
-        elif self.code_map[event.code] == '0': self.offset_speed = 64 / 256
+        elif self.code_map[event.code] == '[': self.steer_offset -= 1 / 256
+        elif self.code_map[event.code] == ']': self.steer_offset += 1 / 256
+        elif self.code_map[event.code] == '1': self.speed_offset = 24 / 256
+        elif self.code_map[event.code] == '2': self.speed_offset = 28 / 256
+        elif self.code_map[event.code] == '3': self.speed_offset = 32 / 256
+        elif self.code_map[event.code] == '4': self.speed_offset = 40 / 256
+        elif self.code_map[event.code] == '5': self.speed_offset = 44 / 256
+        elif self.code_map[event.code] == '6': self.speed_offset = 48 / 256
+        elif self.code_map[event.code] == '7': self.speed_offset = 52 / 256
+        elif self.code_map[event.code] == '8': self.speed_offset = 56 / 256
+        elif self.code_map[event.code] == '9': self.speed_offset = 60 / 256
+        elif self.code_map[event.code] == '0': self.speed_offset = 64 / 256
         elif self.code_map[event.code] == 'r': self.record = True
         elif self.code_map[event.code] == 'a': self.auto = True
         elif self.code_map[event.code] in ['q', 'escape']:
@@ -73,36 +74,45 @@ class Keyboard:
             self.steer = 0
             self.record = False
             self.auto = False
+        else:
+            return False
         return True
 
     def message(self):
-        msg = input_capnp.Input.new_message(
+        msg = messages_capnp.Input.new_message(
             timestamp=derp.util.get_timestamp(),
             speed=self.speed,
             steer=self.steer,
-            offset_speed=self.offset_speed,
-            offset_steer=self.offset_steer,
+            speedOffset=self.speed_offset,
+            steerOffset=self.steer_offset,
             record=self.record,
             auto=self.auto)
         return msg
 
     def read(self):
+        ret = False
         try:
-            event = self.device.read():
-            return self.__process( event)
+            for msg in self.device.read():
+                ret |= self.__process(msg)
+            return ret
         except BlockingIOError:
-            print("Keyboard BLOCKING ERROR")
+            return ret
         except Exception as e:
-            print("Keyboard RUN ERROR")
+            print("ERROR Keyboard.read", e)
         return None
 
     def run(self):
-        while True:
-            send = self.read()
-            if send is None:
-                self.__connect()
-                continue
-            if send is False:
-                continue
-            msg = self.message()
-            self.__publisher.send_multipart(['input', msg.to_bytes()])
+        send = self.read()
+        if send is None:
+            self.__connect()
+            return
+        if send is False:
+            return
+        msg = self.message()
+        self.__publisher.send_multipart([b'input', msg.to_bytes()])
+
+
+def run(config):
+    keyboard = Keyboard(config)
+    while True:
+        keyboard.run()

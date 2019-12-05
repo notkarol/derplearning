@@ -1,7 +1,6 @@
-camera_front:
-  name: 'camera_front'
+camera:
   path: camera-OV2710.yaml
 keyboard:
   path: 'input-keyboard.yaml'
-output_write:
-  
+writer:
+  root_path: '/tmp'

@@ -5,9 +5,8 @@ The Camera component manages the camera interface.
 import derp.util
 import derp.camera
 import capnp
-import camera_capnp
-import input_capnp
-
+import messages_capnp
+import zmq
 
 class Writer:
     """
@@ -16,24 +15,32 @@ class Writer:
 
     def __init__(self, config):
         self.config = config
-        self.__context, self.__subscriber = derp.util.subscriber(self.config['name'])
+        self.__context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
+                                                                  '/tmp/derp_imu',
+                                                                  '/tmp/derp_keyboard'])
         self.files = {'camera': open('camera.bin',  'w+b'),
                       'input': open('input.bin',  'w+b')}
+        self.counter = 0
+        self.run()
 
     def __del__(self):
         self.__subscriber.close()
         self.__context.term()
 
     def run(self):
-        while True:
-            frame = self.read()
-            if frame is None:
-                self.__connect()
-                continue
-            frame = derp.util.resize(frame, (self.width, self.height))
-            msg = self.message(frame)
-            topic, message = self.subscriber.recv_multipart()
-            if topic == 'camera':
-                camera_capnp.Camera.from_bytes(message).write(self.files[topic])
-            elif topic == 'input':
-                camera_capnp.Input.from_bytes(message).write(self.files[topic])
+        topic, message = self.__subscriber.recv_multipart()
+        topic = topic.decode()
+        if topic == 'camera':
+            msg = messages_capnp.Camera.from_bytes(message)
+        elif topic == 'input':
+            msg = messages_capnp.Input.from_bytes(message)
+        else:
+            print("Skipping", topic)
+        msg.as_builder().write(self.files[topic])
+        self.counter += 1
+        print(topic, self.counter)
+
+def run(config):
+    writer = Writer(config)
+    while True:
+        writer.run()

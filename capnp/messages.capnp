@@ -16,3 +16,13 @@ struct Camera {
   fps @12 :UInt8;
   jpg @13 :Data;
 }
+
+struct Input {
+  timestamp @0 :UInt64;
+  speed @1 :Float32;
+  steer @2 :Float32;
+  speedOffset @3 :Float32;
+  steerOffset @4 :Float32;
+  record @5 :Bool;
+  auto @6 :Bool;
+}
