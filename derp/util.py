@@ -86,16 +86,17 @@ def publisher():
     context = zmq.Context()
     sock = context.socket(zmq.PUB)
     sock.bind("ipc:///tmp/derp")
-    return sock
+    return context, sock
 
-def subscriber(message_names):
-    if isinstance(message_names, str):
-        message_names = [message_names]
+def subscriber(message_names=None):
     context = zmq.Context()
     sock = context.socket(zmq.SUB)
     sock.connect("ipc:///tmp/derp")
-    sock.setsockopt(zmq.SUBSCRIBE, message_names)
-    return sock
+    if message_names:
+        if isinstance(message_names, str):
+            message_names = [message_names]
+        sock.setsockopt(zmq.SUBSCRIBE, message_names)
+    return context, sock
 
 
 def print_image_config(name, config):

@@ -25,11 +25,13 @@ class Camera:
             source_config['resize'] = 1
         self.width = int(self.config['width'] * self.config['resize'] + 0.5)
         self.height = int(self.config['height'] * self.config['resize'] + 0.5)
-        self.publisher = derp.util.publisher(self.config['name'])
+        self.__context, self.__publisher = derp.util.publisher('camera')
         
     def __del__(self):
         if self.cap is not None:
             self.cap.release()
+        self.__publisher.close()
+        self.__context.term()
 
     def __connect(self):
         if self.cap:
@@ -91,4 +93,4 @@ class Camera:
                 continue
             frame = derp.util.resize(frame, (self.width, self.height))
             msg = self.message(frame)
-            self.publisher.send_multipart(['camera', msg.to_bytes()])
+            self.__publisher.send_multipart(['camera_front', msg.to_bytes()])

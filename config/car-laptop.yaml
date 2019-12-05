@@ -1,7 +1,7 @@
 camera_front:
   name: 'camera_front'
   path: camera-OV2710.yaml
-input_keyboard:
+keyboard:
   path: 'input-keyboard.yaml'
-input_joystick:
-  path: 'input-dualshock4.yaml'
+output_write:
+  

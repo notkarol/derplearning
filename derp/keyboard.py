@@ -15,7 +15,7 @@ class Keyboard:
         self.offset_steer = 0
         self.record = 0
         self.auto = 0
-        self.camera = 
+        self.__context, self.__publisher = derp.util.publisher('input')
 
         # Prepare key code map so we can use strings to understand what key was pressed
         self.code_map = {1: 'escape', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7',
@@ -40,6 +40,8 @@ class Keyboard:
     def __del__(self):
         if self.device is not None:
             self.device.close()
+        self.__publisher.close()
+        self.__context.term()
 
     def __connect(self):
         self.device = derp.util.find_device(self.config['device_names'])
@@ -103,4 +105,4 @@ class Keyboard:
             if send is False:
                 continue
             msg = self.message()
-            self.publisher.send_multipart(['input', msg.to_bytes()])
+            self.__publisher.send_multipart(['input', msg.to_bytes()])

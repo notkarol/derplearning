@@ -12,41 +12,42 @@ from struct import Struct
 from collections import deque
 import threading
 from time import time, sleep
-from derp.component import Component
 import derp.util
 
 
-    def __init__(self, pid_path='/tmp/ds4daemon.pid', port=2455, buffer_max=10):
+class Dualshock4:
+
+    def __init__(self, config):
+        self.config = config
+        
+        # The deadzone of the analog sticks to ignore them
+        self.__timeout = self.config['timeout']
+        self.__deadzone = self.config['deadzone']
+        self.left_analog_active = False
+        self.right_analog_active = False
+        self.left_trigger_active = False
+        self.right_trigger_active = False
+        self.up_active = False
+        self.down_active = False
+        self.left_active = False
+        self.right_active = False
 
         # Prepare buffers and status variables
-        self.__port = port
-        self.__pid_path = pid_path
         self.__buffer_max = buffer_max
         self.__report_id = 0x11
         self.__report_size = 79
         self.__paired = False
         self.__claimed = False
-        self.__device_queue = deque()
         self.__client_queue = deque()
         self.__packet = bytearray(self.__report_size)
         self.__packet[0] = 0x52
         self.__packet[1] = self.__report_id
         self.__packet[2] = 0x80
         self.__packet[4] = 0xFF
-        self.__mutex = threading.Lock()
         
         # bluetooth control socket
         self.__ctrl_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
         self.__intr_socket = socket(AF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP)
-
-        # Create file to note that we exist only if we are the only process
-        if not self.verifyUnique():
-            print("Other daemon already exists")
-            return
-        with open(self.__pid_path, 'w') as f:
-            pid = str(os.getpid())
-            f.write(pid)
-        self.__claimed = True
 
         # Pair and send messages
         if not self.pair():
@@ -61,32 +62,10 @@ import derp.util
         """ Close all of our sockets and file descriptors """
         self.__ctrl_socket.close()
         self.__intr_socket.close()
-        if self.__claimed and os.path.exists(self.__pid_path):
-            os.unlink(self.__pid_path)
 
-    def paired(self):
+    def is_paired(self):
         return self.__paired    
 
-    def verifyUnique(self):
-        """ If we're not the only ones running """
-
-        # If the PID path doesn't exist then we're unique
-        if not os.path.exists(self.__pid_path):
-            return True
-
-        # Otherwise check if pid in path exists. If not, delete the file
-        with open(self.__pid_path) as f:
-            pid = int(f.read())
-        print("Checking if pid [%i] exists" % pid)
-        try:
-            os.kill(pid, 0)
-        except OSError:
-            print("Deleting [%s]" % self.__pid_path)
-            os.unlink(self.__pid_path)
-            return True
-
-        # Otherwise, it probably doesn't exist so
-        return False
 
     def pair(self, max_attempts=5):
         """ Try pairing with the controller """
@@ -160,7 +139,8 @@ import derp.util
         if val > 255: val = 255 # bound it
         return val
 
-    def sendController(self, msg=None):
+    def sendController(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0,
+                       light_on_dur=0, light_off_dur):
         if type(msg) is not dict:
             msg = {'rumble_high': 0, 'rumble_low': 0,
                    'red': 0.2 if msg is False else 0.05,
@@ -179,72 +159,13 @@ import derp.util
 
     def recvController(self):
         buf = bytearray(self.__report_size - 2)
-        with self.__mutex:
-            while True:
-                try:
-                    ret = self.__intr_socket.recv_into(buf)
-                    if ret == len(buf) and buf[1] == self.__report_id:
-                        self.__client_queue.append(buf)
-                        if len(self.__client_queue) > self.__buffer_max:
-                            self.__client_queue.popleft()                    
-                except BlockingIOError as e:
-                    break
-
-            # Check to see what the last message was and what the user typed
-            elapsed = time() - self.__creation_time
-            if len(self.__client_queue) and not self.__last_msg and elapsed > 5:
-                byte8 = self.__client_queue[0][8]
-                if byte8 >= 16:
-                    self.__creation_time = time()
-                    cmd = ["python3", "%s/bin/drive.py" % os.environ['DERP_ROOT'], "--quiet"]
-                    if byte8 & 16:
-                        cmd.extend(['--controller', 'square'])
-                    elif byte8 & 32:
-                        pass
-                    elif byte8 & 64:
-                        cmd.extend(['--controller', 'circle'])
-                    elif byte8 & 128:
-                        cmd.extend(['--controller', 'triangle'])
-                    print(cmd)
-                    Popen(cmd)
-        return True
-
-
-
-class Dualshock4(Component):
-
-    def __init__(self, config, state):
-        super(Dualshock4, self).__init__(config, state)
-        
-        # The deadzone of the analog sticks to ignore them
-        self.__timeout = self.config['timeout']
-        self.__deadzone = self.config['deadzone']
-        self.left_analog_active = False
-        self.right_analog_active = False
-        self.left_trigger_active = False
-        self.right_trigger_active = False
-        self.up_active = False
-        self.down_active = False
-        self.left_active = False
-        self.right_active = False
-
-        self.__port = 2455
-        self.__server_addr = "tcp://localhost:%s" % self.__port
-        self.__context = zmq.Context()
-        self.__server_socket = self.__context.socket(zmq.PAIR)
-        self.__server_socket.connect(self.__server_addr)
-        self.ready = True
-        self.__last_recv_time = 0
-
-        # Reset the message queue
-        self.__server_socket.send_json(True)
-        
-    def __del__(self):
-        """ Close all of our sockets and file descriptors """
-        self.__server_socket.recv_json()
-        self.__server_socket.send_json(False)
-        sleep(0.1)
-        self.__server_socket.disconnect(self.__server_addr)
+        try:
+            ret = self.__intr_socket.recv_into(buf)
+            if ret == len(buf) and buf[1] == self.__report_id:
+                return None
+        except BlockingIOError as e:
+            break
+        return self.decodeController(buf)
 
     def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
@@ -259,17 +180,6 @@ class Dualshock4(Component):
         value = value - deadzone if value > 0 else value + deadzone
         value /= 127 - deadzone
         return value
-
-    def __poll(self):
-        """ Request a message from the daemon """
-        poller = zmq.Poller()
-        poller.register(self.__server_socket, zmq.POLLIN)
-        msg = dict(poller.poll(10))
-        if len(msg) > 0:
-            msgs = self.__server_socket.recv_json()
-            self.__last_recv_time = time()
-            return msgs
-        return []
 
     def __process(self, status, out):
         """
@@ -372,24 +282,24 @@ class Dualshock4(Component):
             self.left_active = True
         elif self.left_active:
             self.left_active = False
-            out['offset_steer'] = self.state['offset_steer'] - 0.015625
+            out['offset_steer'] = self.state['offset_steer'] - 4 / 256
         if status['right']:
             self.right_active = True
         elif self.right_active:
             self.right_active = False
-            out['offset_steer'] = self.state['offset_steer'] + 0.015625
+            out['offset_steer'] = self.state['offset_steer'] + 4 / 256
 
         # Fixed speed modifications using arrows
         if status['up']:
             self.up_active = True
         elif self.up_active:
             self.up_active = False
-            out['offset_speed'] = self.state['offset_speed'] + 0.015625
+            out['offset_speed'] = self.state['offset_speed'] + 4 / 256
         if status['down']:
             self.down_active = True
         elif self.down_active:
             self.down_active = False
-            out['offset_speed'] = self.state['offset_speed'] - 0.015625
+            out['offset_speed'] = self.state['offset_speed'] - 4 / 256
 
         # Close down
         if status['button_trackpad'] or status['button_share'] or status['button_options']:
