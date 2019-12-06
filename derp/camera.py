@@ -59,8 +59,8 @@ class Camera:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 
-    def message(self, frame):
-        jpg_buffer = cv2.imencode('.jpg', frame)[1].tostring()
+    def message(self):
+        jpg_buffer = cv2.imencode('.jpg', self.frame)[1].tostring()
         msg = messages_capnp.Camera.new_message(
             timestamp=derp.util.get_timestamp(),
             yaw=self.config['yaw'],
@@ -78,17 +78,10 @@ class Camera:
             jpg=jpg_buffer)
         return msg
         
-    def read(self):
-        """ Read the next video frame. If we couldn't get it, use the previous one """
-        ret, frame = self.cap.read()
-        if ret:
-            frame = derp.util.resize(frame, (self.width, self.height))
-            return frame
-        return None
 
     def run(self):
-        frame = self.read()
-        if frame is None:
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
             self.__connect()
             return
         frame = derp.util.resize(frame, (self.width, self.height))
