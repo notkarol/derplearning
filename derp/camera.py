@@ -26,7 +26,6 @@ class Camera:
         self.width = int(self.config['width'] * self.config['resize'] + 0.5)
         self.height = int(self.config['height'] * self.config['resize'] + 0.5)
         self.__context, self.__publisher = derp.util.publisher('/tmp/derp_camera')
-        self.run()
 
     def __del__(self):
         if self.cap is not None:

@@ -18,9 +18,11 @@ class Writer:
         self.__context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
                                                                   '/tmp/derp_imu',
                                                                   '/tmp/derp_keyboard'])
-        self.files = {'camera': open('camera.bin',  'w+b'),
-                      'input': open('input.bin',  'w+b')}
-        self.counter = 0
+        self.classes = {'camera': messages_capnp.Camera,
+                        'state': messages_capnp.State,
+                        'control': messages_capnp.Control,
+                        'imu': messages_capnp.Imu}
+        self.files = {name: open('%s.bin' % name,  'w+b') for name in self.classes}
         self.run()
 
     def __del__(self):
@@ -28,20 +30,12 @@ class Writer:
         self.__context.term()
 
     def run(self):
-        topic, message = self.__subscriber.recv_multipart()
-        topic = topic.decode()
-        if topic == 'camera':
-            msg = messages_capnp.Camera.from_bytes(message)
-        elif topic == 'control':
-            msg = messages_capnp.Control.from_bytes(message)
-        elif topic == 'state':
-            msg = messages_capnp.Control.from_bytes(message)
-        else:
-            print("Skipping", topic)
-        msg.timestampWritten = derp.util.get_timestamp()
-        msg.as_builder().write(self.files[topic])
-        self.counter += 1
-        print(topic, self.counter)
+        topic_bytes, message_bytes = self.__subscriber.recv_multipart()
+        topic = topic_bytes.decode()
+        message = self.classes[topic].from_bytes(message_bytes).as_builder()
+        message.timestampWritten = derp.util.get_timestamp()
+        message.write(self.files[topic])
+        print(topic)
 
 def run(config):
     writer = Writer(config)

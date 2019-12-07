@@ -23,13 +23,6 @@ class BNO055:
         self.bno = None
         self.__connect()
 
-    def __is_calibrated(self):
-        """
-        Is the device calibrated? Only true if it's fully calibrated.
-        """
-        return selfself.bno.get_calibration_status() == (3, 3, 3, 3)
-
-
     def __connect(self):
         """
         Are we connected to the BNO055 device through the provided
@@ -47,10 +40,21 @@ class BNO055:
                                 x_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_POSITIVE,
                                 y_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
                                 z_sign = Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE)
-
         return True
 
-    def message(self):
+    def create_imu_message(self):
+         msg = messages_capnp.Camera.new_message(
+             timestampCreated=derp.util.get_timestamp(),
+             calibrationGyroscope=self.calibration_status[1],
+             calibrationAccelerometer=self.calibration_status[2],
+             calibrationMagnetometer=self.calibration_status[3],
+             accelerometer=self.accelerometer,
+             calibration=self.calibration,
+             gravity=self.gravity,
+             gyroscope=self.gyroscope,
+             magnetometer=self.magnetometer,
+             quaternion=self.quaternion);
+         return msg
     
     def run(self):
         """
@@ -60,13 +64,12 @@ class BNO055:
         self.temp = self.bno.read_temp()
         self.quaterion = self.bno.read_quaternion()
         self.gravity = self.bno.read_gravity()
-        self.magneto = self.bno.read_magnetometer()
-        self.gyro = self.bno.read_gyroscope()
-        self.accel = self.bno.read_linear_acceleration()
-        self.calibration = self.bno.get_calibration()
-
-    
-
+        self.magnetometer = self.bno.read_magnetometer()
+        self.gyroscope = self.bno.read_gyroscope()
+        self.accelerometer = self.bno.read_linear_acceleration()
+        self.calibration_status = self.bno.get_calibration_status()
+        self.calibration = self.bno.calibration()
+        message = self.create_imu_message()
 
 def run(config):
     imu = BNO055(config)

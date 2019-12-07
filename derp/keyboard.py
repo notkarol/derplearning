@@ -38,7 +38,6 @@ class Keyboard:
                          104: 'pagedown', 105: 'arrow_left', 106: 'arrow_right', 107: 'end',
                          108: 'arrow_down', 109: 'pagedown', 110: 'insert', 111: 'delete',
                          125: 'super'}
-        self.run()
 
     def __del__(self):
         if self.device is not None:
@@ -94,17 +93,17 @@ class Keyboard:
             self.auto = False
             state_changed = True
             control_changed = True
-            return control_changed, state_changed
+        return control_changed, state_changed
 
-    def control_message(self):
+    def create_control_message(self):
         msg = messages_capnp.Control.new_message(
             timestampCreated=derp.util.get_timestamp(),
             speed=self.speed,
             steer=self.steer)
         return msg
 
-    def state_message(self):
-        msg = messages_capnp.Control.new_message(
+    def create_state_message(self):
+        msg = messages_capnp.State.new_message(
             timestampCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
@@ -114,19 +113,17 @@ class Keyboard:
     
     def read(self):
         self.control_message = None
-        self.steer_message = None
+        self.state_message = None
         try:
             for msg in self.device.read():
                 c, s = self.__process(msg)
                 if c:
-                    self.control_message = self.control_message()
+                    self.control_message = self.create_control_message()
                 if s:
-                    self.state_message = self.state_message()        
+                    self.state_message = self.create_state_message()        
             return True
         except BlockingIOError:
             return True
-        except Exception as e:
-            print("ERROR Keyboard.read", e)
         return False
 
     def run(self):
