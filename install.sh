@@ -20,6 +20,7 @@ sudo apt install -y \
      python3-seaborn \
      python3-scipy \
      python3-zmq \
+     xserver-xorg-input-evdev \
      zlib1g-dev
 
 # Install Pytorch

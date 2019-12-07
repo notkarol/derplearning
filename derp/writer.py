@@ -32,10 +32,13 @@ class Writer:
         topic = topic.decode()
         if topic == 'camera':
             msg = messages_capnp.Camera.from_bytes(message)
-        elif topic == 'input':
-            msg = messages_capnp.Input.from_bytes(message)
+        elif topic == 'control':
+            msg = messages_capnp.Control.from_bytes(message)
+        elif topic == 'state':
+            msg = messages_capnp.Control.from_bytes(message)
         else:
             print("Skipping", topic)
+        msg.timestampWritten = derp.util.get_timestamp()
         msg.as_builder().write(self.files[topic])
         self.counter += 1
         print(topic, self.counter)

@@ -15,6 +15,8 @@ class Keyboard:
         self.steer_offset = 0
         self.record = False
         self.auto = False
+        self.control_message = None
+        self.state_message = None
         self.__context, self.__publisher = derp.util.publisher('/tmp/derp_keyboard')
 
         # Prepare key code map so we can use strings to understand what key was pressed
@@ -49,67 +51,93 @@ class Keyboard:
         return self.device is not None
 
     def __process(self, event):
+        control_changed = False
+        state_changed = False
         if event.code == 0 or event.type == 4 or not event.value:
-            return False
-        if self.code_map[event.code] == 'arrow_left': self.steer -= 16 / 256
-        elif self.code_map[event.code] == 'arrow_right': self.steer += 16 / 256
-        elif self.code_map[event.code] == 'arrow_up': self.speed += 4 / 256
-        elif self.code_map[event.code] == 'arrow_down': self.speed -= 4 / 256
-        elif self.code_map[event.code] == '[': self.steer_offset -= 1 / 256
-        elif self.code_map[event.code] == ']': self.steer_offset += 1 / 256
-        elif self.code_map[event.code] == '1': self.speed_offset = 24 / 256
-        elif self.code_map[event.code] == '2': self.speed_offset = 28 / 256
-        elif self.code_map[event.code] == '3': self.speed_offset = 32 / 256
-        elif self.code_map[event.code] == '4': self.speed_offset = 40 / 256
-        elif self.code_map[event.code] == '5': self.speed_offset = 44 / 256
-        elif self.code_map[event.code] == '6': self.speed_offset = 48 / 256
-        elif self.code_map[event.code] == '7': self.speed_offset = 52 / 256
-        elif self.code_map[event.code] == '8': self.speed_offset = 56 / 256
-        elif self.code_map[event.code] == '9': self.speed_offset = 60 / 256
-        elif self.code_map[event.code] == '0': self.speed_offset = 64 / 256
-        elif self.code_map[event.code] == 'r': self.record = True
-        elif self.code_map[event.code] == 'a': self.auto = True
-        elif self.code_map[event.code] in ['q', 'escape']:
+            return control_changed, state_changed
+        if self.code_map[event.code] == 'arrow_left':
+            self.steer -= 16 / 256
+            control_changed = True
+        elif self.code_map[event.code] == 'arrow_right':
+            self.steer += 16 / 256
+            control_changed = True
+        elif self.code_map[event.code] == 'arrow_up':
+            self.speed += 4 / 256
+            control_changed = True
+        elif self.code_map[event.code] == 'arrow_down':
+            self.speed -= 4 / 256
+            control_changed = True
+        elif self.code_map[event.code] == '1':
+            self.steer_offset -= 1 / 256
+            state_changed = True
+        elif self.code_map[event.code] == '2':
+            self.steer_offset += 1 / 256
+            state_changed = True
+        elif self.code_map[event.code] == '3':
+            self.speed_offset -= 16 / 256
+            state_changed = True
+        elif self.code_map[event.code] == '4':
+            self.speed_offset += 16 / 256
+            state_changed = True
+        elif self.code_map[event.code] == 'r':
+            self.record = True
+            state_changed = True
+        elif self.code_map[event.code] == 'a':
+            self.auto = True
+            state_changed = True
+        elif self.code_map[event.code] == 'escape':
             self.speed = 0
             self.steer = 0
+            self.speed_offset = 0
+            self.steer_offset = 0
             self.record = False
             self.auto = False
-        else:
-            return False
-        return True
+            state_changed = True
+            control_changed = True
+            return control_changed, state_changed
 
-    def message(self):
-        msg = messages_capnp.Input.new_message(
-            timestamp=derp.util.get_timestamp(),
+    def control_message(self):
+        msg = messages_capnp.Control.new_message(
+            timestampCreated=derp.util.get_timestamp(),
             speed=self.speed,
-            steer=self.steer,
-            speedOffset=self.speed_offset,
-            steerOffset=self.steer_offset,
-            record=self.record,
-            auto=self.auto)
+            steer=self.steer)
         return msg
 
+    def state_message(self):
+        msg = messages_capnp.Control.new_message(
+            timestampCreated=derp.util.get_timestamp(),
+            speedOffset=self.speed_offset,
+            steerOffset=self.steer_offset,
+            auto=self.auto,
+            record=self.record);
+        return msg
+    
     def read(self):
-        ret = False
+        self.control_message = None
+        self.steer_message = None
         try:
             for msg in self.device.read():
-                ret |= self.__process(msg)
-            return ret
+                c, s = self.__process(msg)
+                if c:
+                    self.control_message = self.control_message()
+                if s:
+                    self.state_message = self.state_message()        
+            return True
         except BlockingIOError:
-            return ret
+            return True
         except Exception as e:
             print("ERROR Keyboard.read", e)
-        return None
+        return False
 
     def run(self):
-        send = self.read()
-        if send is None:
+        if not self.read():
             self.__connect()
-            return
-        if send is False:
-            return
-        msg = self.message()
-        self.__publisher.send_multipart([b'input', msg.to_bytes()])
+        if self.control_message:
+            self.control_message.timestampPublished = derp.util.get_timestamp()
+            self.__publisher.send_multipart([b'control', self.control_message.to_bytes()])
+        if self.state_message:
+            self.state_message.timestampPublished = derp.util.get_timestamp()
+            self.__publisher.send_multipart([b'state', self.state_message.to_bytes()])
 
 
 def run(config):

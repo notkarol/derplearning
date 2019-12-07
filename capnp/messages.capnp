@@ -25,25 +25,25 @@ struct Control {
   timestampWritten @2 :UInt64;
   speed @3 :Float32;
   steer @4 :Float32;
-  speedOffset @5 :Float32;
-  steerOffset @6 :Float32;
 }
 
 struct State {
   timestampCreated @0 :UInt64;
   timestampPublished @1 :UInt64;
   timestampWritten @2 :UInt64;
-  record @7 :Bool;
-  auto @8 :Bool;
+  record @3 :Bool;
+  auto @4 :Bool;
+  speedOffset @5 :Float32;
+  steerOffset @6 :Float32;
 }
 
 struct Imu {
   timestampCreated @0 :UInt64;
   timestampPublished @1 :UInt64;
   timestampWritten @2 :UInt64;
-  calibrationGyroscope @3 :Uint8
-  calibrationAccelerometer @4 :Uint8
-  calibrationMagnetometer @5 :Uint8
+  calibrationGyroscope @3 :UInt8;
+  calibrationAccelerometer @4 :UInt8;
+  calibrationMagnetometer @5 :UInt8;
   quaterionW @6 :Float32;
   quaterionX @7 :Float32;
   quaterionY @8 :Float32;

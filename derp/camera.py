@@ -27,7 +27,7 @@ class Camera:
         self.height = int(self.config['height'] * self.config['resize'] + 0.5)
         self.__context, self.__publisher = derp.util.publisher('/tmp/derp_camera')
         self.run()
-        
+
     def __del__(self):
         if self.cap is not None:
             self.cap.release()
@@ -60,9 +60,8 @@ class Camera:
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 
     def message(self):
-        jpg_buffer = cv2.imencode('.jpg', self.frame)[1].tostring()
         msg = messages_capnp.Camera.new_message(
-            timestamp=derp.util.get_timestamp(),
+            timestampCreated=derp.util.get_timestamp(),
             yaw=self.config['yaw'],
             pitch=self.config['pitch'],
             roll=self.config['roll'],
@@ -74,18 +73,18 @@ class Camera:
             depth=self.config['depth'],
             hfov=self.config['hfov'],
             vfov=self.config['vfov'],
-            fps=self.config['fps'],
-            jpg=jpg_buffer)
+            fps=self.config['fps'])
         return msg
-        
 
     def run(self):
         ret, frame = self.cap.read()
+        msg = self.message()
         if not ret or frame is None:
             self.__connect()
             return
         frame = derp.util.resize(frame, (self.width, self.height))
-        msg = self.message(frame)
+        msg.jpg = cv2.imencode('.jpg', frame)[1].tostring()
+        msg.timestampPublished = derp.util.get_timestamp()
         self.__publisher.send_multipart([b'camera', msg.to_bytes()])
 
 
