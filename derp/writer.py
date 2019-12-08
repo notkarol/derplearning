@@ -19,10 +19,11 @@ class Writer:
                                                                   '/tmp/derp_imu',
                                                                   '/tmp/derp_joystick',
                                                                   '/tmp/derp_keyboard'])
-        self.files = {'camera': open('camera.bin',  'w+b'),
-                      'control': open('control.bin',  'w+b'),
-                      'state': open('state.bin',  'w+b')}
-        self.counter = 0
+        self.classes = {'camera': messages_capnp.Camera,
+                        'state': messages_capnp.State,
+                        'control': messages_capnp.Control,
+                        'imu': messages_capnp.Imu}
+        self.files = {name: open('%s.bin' % name,  'w+b') for name in self.classes}
         self.run()
 
     def __del__(self):
@@ -30,21 +31,12 @@ class Writer:
         self.__context.term()
 
     def run(self):
-        topic, message = self.__subscriber.recv_multipart()
-        topic = topic.decode()
-        if topic == 'camera':
-            msg = messages_capnp.Camera.from_bytes(message).as_builder()
-        elif topic == 'control':
-            msg = messages_capnp.Control.from_bytes(message).as_builder()
-        elif topic == 'state':
-            msg = messages_capnp.State.from_bytes(message).as_builder()
-        else:
-            print("Skipping", topic)
-            return
-        msg.timestampWritten = derp.util.get_timestamp()
-        msg.write(self.files[topic])
-        self.counter += 1
-        print(topic, self.counter)
+        topic_bytes, message_bytes = self.__subscriber.recv_multipart()
+        topic = topic_bytes.decode()
+        message = self.classes[topic].from_bytes(message_bytes).as_builder()
+        message.timestampWritten = derp.util.get_timestamp()
+        message.write(self.files[topic])
+        print(topic)
 
 def run(config):
     writer = Writer(config)

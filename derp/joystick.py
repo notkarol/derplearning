@@ -251,14 +251,14 @@ class Dualshock4:
             self.speed_offset = 0
             self.record = False
             self.auto = False
-            control_chanded = True
-            state_chanded = True
+            control_changed = True
+            state_changed = True
         if status['button_triangle']:
             self.auto = True
-            state_chanded = True
+            state_changed = True
         if status['button_circle']:
-            out['record'] = True
-            state_chanded = True
+            self.record = True
+            state_changed = True
         return control_changed, state_changed
 
     def create_control_message(self):

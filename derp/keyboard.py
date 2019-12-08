@@ -40,7 +40,6 @@ class Keyboard:
                          104: 'pagedown', 105: 'arrow_left', 106: 'arrow_right', 107: 'end',
                          108: 'arrow_down', 109: 'pagedown', 110: 'insert', 111: 'delete',
                          125: 'super'}
-        self.run()
 
     def __del__(self):
         if self.device is not None:
@@ -115,7 +114,7 @@ class Keyboard:
     
     def read(self):
         self.control_message = None
-        self.steer_message = None
+        self.state_message = None
         try:
             for msg in self.device.read():
                 c, s = self.__process(msg)
@@ -126,8 +125,6 @@ class Keyboard:
             return True
         except BlockingIOError:
             return True
-        except Exception as e:
-            print("ERROR Keyboard.read", e)
         return False
 
     def run(self):

@@ -44,18 +44,10 @@ struct Imu {
   calibrationGyroscope @3 :UInt8;
   calibrationAccelerometer @4 :UInt8;
   calibrationMagnetometer @5 :UInt8;
-  quaterionW @6 :Float32;
-  quaterionX @7 :Float32;
-  quaterionY @8 :Float32;
-  quaterionZ @9 :Float32;
-  magX @10 :Float32;
-  magY @11 :Float32;
-  magZ @12 :Float32;
-  gyroX @13 :Float32;
-  ghroY @14 :Float32;
-  gyroZ @15 :Float32;
-  accelX @16 :Float32;
-  accelY @17 :Float32;
-  accelZ @18 :Float32;
-  calibration @19 :Data;
+  accelerometer @6 :List(Float32);
+  calibration @7 :Data;
+  gravity @8 :List(Float32);
+  gyroscope @9 :List(Float32);
+  magnetometer @10 :List(Float32);
+  quaterion @11 :List(Float32);
 }
