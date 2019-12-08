@@ -59,7 +59,7 @@ class Camera:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config['height'])
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
 
-    def message(self):
+    def create_camera_message(self):
         msg = messages_capnp.Camera.new_message(
             timestampCreated=derp.util.get_timestamp(),
             yaw=self.config['yaw'],
@@ -78,7 +78,7 @@ class Camera:
 
     def run(self):
         ret, frame = self.cap.read()
-        msg = self.message()
+        msg = self.create_camera_message()
         if not ret or frame is None:
             self.__connect()
             return

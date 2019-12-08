@@ -5,6 +5,7 @@ The main driver program that loops the live internal state.
 import argparse
 import derp.util
 import derp.camera
+import derp.joystick
 import derp.keyboard
 import derp.writer
 from multiprocessing import Process
@@ -25,6 +26,8 @@ def main():
         component_parts = component_name.split('_')
         if 'camera' in component_parts:
             func = derp.camera.run
+        elif 'joystick' in component_parts:
+            func = derp.joystick.run
         elif 'keyboard' in component_parts:
             func = derp.keyboard.run
         elif 'writer' in component_parts:

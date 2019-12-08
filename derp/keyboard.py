@@ -7,8 +7,8 @@ class Keyboard:
 
     def __init__(self, config):
         self.config = config
+
         self.device = None
-        self.__connect()
         self.speed = 0
         self.steer = 0
         self.speed_offset = 0
@@ -17,8 +17,10 @@ class Keyboard:
         self.auto = False
         self.control_message = None
         self.state_message = None
-        self.__context, self.__publisher = derp.util.publisher('/tmp/derp_keyboard')
 
+        self.__connect()
+        self.__context, self.__publisher = derp.util.publisher('/tmp/derp_keyboard')
+        
         # Prepare key code map so we can use strings to understand what key was pressed
         self.code_map = {1: 'escape', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7',
                          9: '8', 10: '9', 11: '0', 12: '-_', 13: '=+', 14: 'backspace', 15: 'tab',
@@ -56,28 +58,28 @@ class Keyboard:
         if event.code == 0 or event.type == 4 or not event.value:
             return control_changed, state_changed
         if self.code_map[event.code] == 'arrow_left':
-            self.steer -= 16 / 256
+            self.steer -= 15 / 255
             control_changed = True
         elif self.code_map[event.code] == 'arrow_right':
-            self.steer += 16 / 256
+            self.steer += 15 / 255
             control_changed = True
         elif self.code_map[event.code] == 'arrow_up':
-            self.speed += 4 / 256
+            self.speed += 5 / 255
             control_changed = True
         elif self.code_map[event.code] == 'arrow_down':
-            self.speed -= 4 / 256
+            self.speed -= 5 / 255
             control_changed = True
         elif self.code_map[event.code] == '1':
-            self.steer_offset -= 1 / 256
+            self.steer_offset -= 1 / 255
             state_changed = True
         elif self.code_map[event.code] == '2':
-            self.steer_offset += 1 / 256
+            self.steer_offset += 1 / 255
             state_changed = True
         elif self.code_map[event.code] == '3':
-            self.speed_offset -= 16 / 256
+            self.speed_offset -= 5 / 255
             state_changed = True
         elif self.code_map[event.code] == '4':
-            self.speed_offset += 16 / 256
+            self.speed_offset += 5 / 255
             state_changed = True
         elif self.code_map[event.code] == 'r':
             self.record = True
@@ -89,22 +91,21 @@ class Keyboard:
             self.speed = 0
             self.steer = 0
             self.speed_offset = 0
-            self.steer_offset = 0
             self.record = False
             self.auto = False
             state_changed = True
             control_changed = True
-            return control_changed, state_changed
+        return control_changed, state_changed
 
-    def control_message(self):
+    def create_control_message(self):
         msg = messages_capnp.Control.new_message(
             timestampCreated=derp.util.get_timestamp(),
             speed=self.speed,
             steer=self.steer)
         return msg
 
-    def state_message(self):
-        msg = messages_capnp.Control.new_message(
+    def create_state_message(self):
+        msg = messages_capnp.State.new_message(
             timestampCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
@@ -119,9 +120,9 @@ class Keyboard:
             for msg in self.device.read():
                 c, s = self.__process(msg)
                 if c:
-                    self.control_message = self.control_message()
+                    self.control_message = self.create_control_message()
                 if s:
-                    self.state_message = self.state_message()        
+                    self.state_message = self.create_state_message()        
             return True
         except BlockingIOError:
             return True
