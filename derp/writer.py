@@ -23,7 +23,7 @@ class Writer:
                         'state': messages_capnp.State,
                         'control': messages_capnp.Control,
                         'imu': messages_capnp.Imu}
-        self.files = {name: open('%s.bin' % name,  'w+b') for name in self.classes}
+        self.files = {}
         self.run()
 
     def __del__(self):
@@ -34,9 +34,22 @@ class Writer:
         topic_bytes, message_bytes = self.__subscriber.recv_multipart()
         topic = topic_bytes.decode()
         message = self.classes[topic].from_bytes(message_bytes).as_builder()
-        message.timestampWritten = derp.util.get_timestamp()
-        message.write(self.files[topic])
-        print(topic)
+
+        # Create folder or delete folder
+        if topic == 'state':
+            if message.record and not self.files:
+                folder = derp.util.create_record_folder()
+                print(folder)
+                self.files = {name: open('%s/%s.bin' % (folder, name), 'w+b')
+                              for name in self.classes}
+            elif not message.record and self.files:
+                for name in self.files:
+                    self.files[name].close()
+                self.files = {}
+
+        if self.files:
+            message.timestampWritten = derp.util.get_timestamp()
+            message.write(self.files[topic])
 
 def run(config):
     writer = Writer(config)
