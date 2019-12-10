@@ -1,5 +1,3 @@
-class: 'CloneAdaSpeed'
-
 # Training related parameters
 create:
   data_folders: ['train-2017-oakland']

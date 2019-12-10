@@ -17,12 +17,9 @@ class Writer:
         self.config = config
         self.__context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
                                                                   '/tmp/derp_imu',
+                                                                  '/tmp/derp_brain',
                                                                   '/tmp/derp_joystick',
                                                                   '/tmp/derp_keyboard'])
-        self.classes = {'camera': messages_capnp.Camera,
-                        'state': messages_capnp.State,
-                        'control': messages_capnp.Control,
-                        'imu': messages_capnp.Imu}
         self.files = {}
         self.run()
 

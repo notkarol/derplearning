@@ -1,9 +1,0 @@
-name: 'servo_steer'
-required: True
-class: 'UsbServo'
-index: 0
-act_state: 'steer'
-min_value: -0.95
-max_value: 0.95
-state:
-  offset_steer: 0.0

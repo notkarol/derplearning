@@ -25,6 +25,7 @@ struct Control {
   timestampWritten @2 :UInt64;
   speed @3 :Float32;
   steer @4 :Float32;
+  manual @5 :Bool;
 }
 
 struct State {

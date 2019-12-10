@@ -16,7 +16,13 @@ import time
 import torch
 import yaml
 import zmq
+import capnp
+import messages_capnp
 
+TOPIC_CLASSES = {'camera': messages_capnp.Camera,
+                 'state': messages_capnp.State,
+                 'control': messages_capnp.Control,
+                 'imu': messages_capnp.Imu}
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 

@@ -19,6 +19,7 @@ sudo apt install -y \
      python3-pip \
      python3-seaborn \
      python3-scipy \
+     python3-pyudev \
      python3-zmq \
      xserver-xorg-input-evdev \
      zlib1g-dev
@@ -32,6 +33,9 @@ else
 	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
     fi
 fi
+
+# Install messages
+pip3 install --user pycapnp
 
 # Install IMU software
 if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
