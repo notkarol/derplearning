@@ -5,16 +5,27 @@ the actual Pytorch models.
 """
 import torch
 
+
 class ConvBlock(torch.nn.Module):
     """
     A ConvBlock represents a convolution. It's not just a convolution however,
     as some common operations (dropout, activation, batchnorm, 2x2 pooling)
     can be set and run in the order mentioned.
     """
-    def __init__(self, dim, n_out, kernel_size=3, stride=1,
-                 padding=None, batchnorm=True,
-                 activation=True, pool=None,
-                 dropout=0.0, verbose=False):
+
+    def __init__(
+        self,
+        dim,
+        n_out,
+        kernel_size=3,
+        stride=1,
+        padding=None,
+        batchnorm=True,
+        activation=True,
+        pool=None,
+        dropout=0.0,
+        verbose=False,
+    ):
         """ A convolution operation """
         super(ConvBlock, self).__init__()
 
@@ -22,8 +33,9 @@ class ConvBlock(torch.nn.Module):
             padding = kernel_size // 2
 
         n_in = int(dim[0])
-        self.conv2d = torch.nn.Conv2d(n_in, n_out, kernel_size=kernel_size,
-                                      stride=stride, padding=padding)
+        self.conv2d = torch.nn.Conv2d(
+            n_in, n_out, kernel_size=kernel_size, stride=stride, padding=padding
+        )
         self.batchnorm = torch.nn.BatchNorm2d(n_out) if batchnorm else None
         self.activation = torch.nn.ReLU(inplace=True) if activation else None
         self.dropout = torch.nn.Dropout2d(dropout) if dropout > 0.0 else None
@@ -39,8 +51,10 @@ class ConvBlock(torch.nn.Module):
         self.n_params = n_out * (n_in * kernel_size * kernel_size + (2 if batchnorm else 1))
 
         if verbose:
-            print("Conv2d in %3i out %3i h %3i w %3i k %i s %i params %9i" %
-                  (n_in, *dim, kernel_size, stride, self.n_params))
+            print(
+                "Conv2d in %3i out %3i h %3i w %3i k %i s %i params %9i"
+                % (n_in, *dim, kernel_size, stride, self.n_params)
+            )
 
     def forward(self, batch):
         """ Forward the 4D batch """
@@ -61,12 +75,13 @@ class ResnetBlock(torch.nn.Module):
     A Resnet block is a special kind of chained convolution that learns to
     progressively update a manifold in each channel, instead of replacing it.
     """
+
     def __init__(self, dim, n_out, kernel_size=3, stride=1, pool=None, verbose=False):
         """ A residual convolution operation """
         super(ResnetBlock, self).__init__()
 
         n_in = int(dim[0])
-        residual_dim = dim.copy() # keep a copy since we're going down parallel channels
+        residual_dim = dim.copy()  # keep a copy since we're going down parallel channels
         self.conv1 = ConvBlock(dim, n_out, kernel_size, stride, pool=pool, verbose=verbose)
         self.conv2 = ConvBlock(dim, n_out, kernel_size, activation=False, verbose=verbose)
         if n_in != n_out:
@@ -77,8 +92,9 @@ class ResnetBlock(torch.nn.Module):
             self.pool = pool if pool is None else PoolBlock(residual_dim, pool, 2)
         self.activation = torch.nn.ReLU(inplace=True)
 
-        self.n_params = (self.conv1.n_params + self.conv2.n_params +
-                         (self.conv3.params if self.conv3 else 0))
+        self.n_params = (
+            self.conv1.n_params + self.conv2.n_params + (self.conv3.params if self.conv3 else 0)
+        )
 
     def forward(self, batch):
         """ Forward the 4D batch """
@@ -101,8 +117,8 @@ class LinearBlock(torch.nn.Module):
     some common operations (dropout, activation, batchnorm) can be set and run
     in the order mentioned.
     """
-    def __init__(self, dim, n_out, dropout=0.0, batchnorm=False,
-                 activation=True, verbose=False):
+
+    def __init__(self, dim, n_out, dropout=0.0, batchnorm=False, activation=True, verbose=False):
         """ A fully connected operation """
         super(LinearBlock, self).__init__()
         n_in = int(dim[0])
@@ -116,8 +132,10 @@ class LinearBlock(torch.nn.Module):
         self.n_params = n_out * (n_in + (3 if batchnorm else 2))
 
         if verbose:
-            print("Linear in %3i out %3i                     params %9i" %
-                  (n_in, n_out, self.n_params))
+            print(
+                "Linear in %3i out %3i                     params %9i"
+                % (n_in, n_out, self.n_params)
+            )
 
     def forward(self, batch):
         """ Forward the 2D batch """
@@ -137,7 +155,8 @@ class PoolBlock(torch.nn.Module):
     convolutional layers, on each channel individually. By default only two are
     supported: max and avg.
     """
-    def __init__(self, dim, pool='max', size=None, stride=None, verbose=False):
+
+    def __init__(self, dim, pool="max", size=None, stride=None, verbose=False):
         """ A pooling operation """
         super(PoolBlock, self).__init__()
 
@@ -147,9 +166,9 @@ class PoolBlock(torch.nn.Module):
         else:
             size = [int(x) for x in dim[1:]]
             dim[1:] = 1
-        if pool == 'max':
+        if pool == "max":
             self.pool = torch.nn.MaxPool2d(size, stride=stride, padding=0)
-        elif pool == 'avg':
+        elif pool == "avg":
             self.pool = torch.nn.AvgPool2d(size, stride=stride, padding=0)
         self.n_params = 0
 
@@ -164,6 +183,7 @@ class ViewBlock(torch.nn.Module):
     A ViewBlock restructures the shape of our activation maps so they're
     represented as 1D instead of 3D.
     """
+
     def __init__(self, dim, shape=-1, verbose=False):
         """ A reshape operation """
         super(ViewBlock, self).__init__()
@@ -187,6 +207,7 @@ class ViewBlock(torch.nn.Module):
 
 class Tiny(torch.nn.Module):
     """ A small and quick model """
+
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         """
         Args:
@@ -200,15 +221,14 @@ class Tiny(torch.nn.Module):
         dim = in_dim.copy()
         self.feat = torch.nn.Sequential(
             ConvBlock(dim, 32, 5, stride=2, batchnorm=False, verbose=verbose),
-            ConvBlock(dim, 32, 3, pool='max', batchnorm=False, verbose=verbose),
-            ConvBlock(dim, 32, 3, pool='max', batchnorm=False, verbose=verbose),
-            ConvBlock(dim, 32, 2, pool='max', batchnorm=False, verbose=verbose))
+            ConvBlock(dim, 32, 3, pool="max", batchnorm=False, verbose=verbose),
+            ConvBlock(dim, 32, 3, pool="max", batchnorm=False, verbose=verbose),
+            ConvBlock(dim, 32, 2, pool="max", batchnorm=False, verbose=verbose),
+        )
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
-        self.head = torch.nn.Sequential(
-            LinearBlock(dim, n_out, activation=False, verbose=verbose))
-        self.n_params = (sum([x.n_params for x in self.feat]) +
-                         sum([x.n_params for x in self.head]))
+        self.head = torch.nn.Sequential(LinearBlock(dim, n_out, activation=False, verbose=verbose))
+        self.n_params = sum([x.n_params for x in self.feat]) + sum([x.n_params for x in self.head])
         if verbose:
             print("Tiny                                      params %9i" % self.n_params)
 
@@ -231,6 +251,7 @@ class StarTree(torch.nn.Module):
     A medium-sized model that uses layers with few activation maps to
     efficiently increase the number of layers, and therefore nonlinearities.
     """
+
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         """
         Args:
@@ -245,20 +266,21 @@ class StarTree(torch.nn.Module):
         self.feat = torch.nn.Sequential(
             ConvBlock(dim, 64, 5, stride=2, verbose=verbose),
             ConvBlock(dim, 16, 3, verbose=verbose),
-            ConvBlock(dim, 32, 3, pool='max', verbose=verbose),
+            ConvBlock(dim, 32, 3, pool="max", verbose=verbose),
             ConvBlock(dim, 24, 3, verbose=verbose),
-            ConvBlock(dim, 48, 3, pool='max', verbose=verbose),
+            ConvBlock(dim, 48, 3, pool="max", verbose=verbose),
             ConvBlock(dim, 32, 3, verbose=verbose),
-            ConvBlock(dim, 64, 3, pool='max', verbose=verbose),
+            ConvBlock(dim, 64, 3, pool="max", verbose=verbose),
             ConvBlock(dim, 40, 3, verbose=verbose),
-            ConvBlock(dim, 80, 2, pool='max', verbose=verbose, dropout=0.25))
+            ConvBlock(dim, 80, 2, pool="max", verbose=verbose, dropout=0.25),
+        )
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
         self.head = torch.nn.Sequential(
             LinearBlock(dim, 50, verbose=verbose),
-            LinearBlock(dim, n_out, activation=False, verbose=verbose))
-        self.n_params = (sum([x.n_params for x in self.feat]) +
-                         sum([x.n_params for x in self.head]))
+            LinearBlock(dim, n_out, activation=False, verbose=verbose),
+        )
+        self.n_params = sum([x.n_params for x in self.feat]) + sum([x.n_params for x in self.head])
         if verbose:
             print("StarTree                                  params %9i" % self.n_params)
 
@@ -280,6 +302,7 @@ class Resnet20(torch.nn.Module):
     """
     A large model that is based on residual connections to process information.
     """
+
     def __init__(self, in_dim, n_status, n_out, verbose=True):
         """
         Args:
@@ -301,14 +324,15 @@ class Resnet20(torch.nn.Module):
             ResnetBlock(dim, 96, 3, verbose=verbose),
             ResnetBlock(dim, 96, 3, verbose=verbose),
             ResnetBlock(dim, 128, 3, stride=2, verbose=verbose),
-            ConvBlock(dim, 128, 1, pool='max', verbose=verbose))
+            ConvBlock(dim, 128, 1, pool="max", verbose=verbose),
+        )
         self.view = ViewBlock(dim, verbose=verbose)
         dim[0] += n_status
         self.head = torch.nn.Sequential(
             LinearBlock(dim, 50, verbose=verbose),
-            LinearBlock(dim, n_out, activation=False, verbose=verbose))
-        self.n_params = (sum([x.n_params for x in self.feat]) +
-                         sum([x.n_params for x in self.head]))
+            LinearBlock(dim, n_out, activation=False, verbose=verbose),
+        )
+        self.n_params = sum([x.n_params for x in self.feat]) + sum([x.n_params for x in self.head])
         if verbose:
             print("Resnet20                                  params %9i" % self.n_params)
 

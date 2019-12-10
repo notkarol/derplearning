@@ -11,11 +11,12 @@ import derp.writer
 from multiprocessing import Process
 import time
 
+
 def main():
     """ Prepare arguments, configurations, variables and run the event loop. """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--car', type=str, required=True, help='Hardware config path')
-    parser.add_argument('--brain', type=str, required=True, help='Software config path')
+    parser.add_argument("--car", type=str, required=True, help="Hardware config path")
+    parser.add_argument("--brain", type=str, required=True, help="Software config path")
     args = parser.parse_args()
 
     car_config = derp.util.load_config(args.car)
@@ -23,14 +24,14 @@ def main():
 
     processes = {}
     for component_name in sorted(car_config):
-        component_parts = component_name.split('_')
-        if 'camera' in component_parts:
+        component_parts = component_name.split("_")
+        if "camera" in component_parts:
             func = derp.camera.run
-        elif 'joystick' in component_parts:
+        elif "joystick" in component_parts:
             func = derp.joystick.run
-        elif 'keyboard' in component_parts:
+        elif "keyboard" in component_parts:
             func = derp.keyboard.run
-        elif 'writer' in component_parts:
+        elif "writer" in component_parts:
             func = derp.writer.run
         else:
             continue

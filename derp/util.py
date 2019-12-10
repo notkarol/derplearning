@@ -19,23 +19,27 @@ import zmq
 import capnp
 import messages_capnp
 
-TOPIC_CLASSES = {'camera': messages_capnp.Camera,
-                 'state': messages_capnp.State,
-                 'control': messages_capnp.Control,
-                 'imu': messages_capnp.Imu}
+TOPIC_CLASSES = {
+    "camera": messages_capnp.Camera,
+    "state": messages_capnp.State,
+    "control": messages_capnp.Control,
+    "imu": messages_capnp.Imu,
+}
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
+
 
 class Bbox:
     """
     A bounding box is a 4-tuple of integers representing x, y, width, height
     """
+
     def __init__(self, x, y, w, h):
         """ Creates class x, y, w,h variables from the arguments. """
-        self.x = int(x + 0.5) # first col
-        self.y = int(y + 0.5) # first row
-        self.w = int(w + 0.5) # width
-        self.h = int(h + 0.5) # height
+        self.x = int(x + 0.5)  # first col
+        self.y = int(y + 0.5)  # first row
+        self.w = int(w + 0.5)  # width
+        self.h = int(h + 0.5)  # height
 
     def __repr__(self):
         """
@@ -48,7 +52,7 @@ class Bbox:
 
 
 def get_timestamp():
-    return time.time_ns() // 1000000 
+    return time.time_ns() // 1000000
 
 
 def find_device(names):
@@ -62,7 +66,7 @@ def find_device(names):
             if name in device_name:
                 print("Using evdev:", device_name)
                 return device
-    print("Could not find devices", names, 'in', evdev.list_devices())
+    print("Could not find devices", names, "in", evdev.list_devices())
     return None
 
 
@@ -75,17 +79,30 @@ def get_experiment_path(name):
 
 
 def encode_video(folder, name, suffix, fps=30):
-    cmd = " ".join(["gst-launch-1.0",
-                    "multifilesrc",
-                    "location='%s/%s/%%06d.%s'" % (folder, name, suffix),
-                    "!", "'image/jpeg,framerate=%i/1'" % fps,
-                    "!", "jpegparse",
-                    "!", "jpegdec",
-                    "!", "omxh264enc", "bitrate=8000000",
-                    "!", "'video/x-h264, stream-format=(string)byte-stream'",
-                    "!", "h264parse",
-                    "!", "mp4mux",
-                    "!", "filesink location='%s/%s.mp4'" % (folder, name)])
+    cmd = " ".join(
+        [
+            "gst-launch-1.0",
+            "multifilesrc",
+            "location='%s/%s/%%06d.%s'" % (folder, name, suffix),
+            "!",
+            "'image/jpeg,framerate=%i/1'" % fps,
+            "!",
+            "jpegparse",
+            "!",
+            "jpegdec",
+            "!",
+            "omxh264enc",
+            "bitrate=8000000",
+            "!",
+            "'video/x-h264, stream-format=(string)byte-stream'",
+            "!",
+            "h264parse",
+            "!",
+            "mp4mux",
+            "!",
+            "filesink location='%s/%s.mp4'" % (folder, name),
+        ]
+    )
     subprocess.Popen(cmd, shell=True)
 
 
@@ -93,16 +110,17 @@ def publisher(path):
     context = zmq.Context()
     sock = context.socket(zmq.PUB)
     sock.bind("ipc://" + path)
-    #sock.bind("tcp://*:%s" % port)
+    # sock.bind("tcp://*:%s" % port)
     return context, sock
+
 
 def subscriber(paths):
     context = zmq.Context()
     sock = context.socket(zmq.SUB)
-    #sock.connect("tcp://localhost:%s" % port)
+    # sock.connect("tcp://localhost:%s" % port)
     for path in paths:
         sock.connect("ipc://" + path)
-    sock.setsockopt(zmq.SUBSCRIBE, b'')
+    sock.setsockopt(zmq.SUBSCRIBE, b"")
     return context, sock
 
 
@@ -114,36 +132,36 @@ def print_image_config(name, config):
     right = config["yaw"] + config["hfov"] / 2
     hppd = config["width"] / config["hfov"]
     vppd = config["height"] / config["vfov"]
-    print("%s top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f" %
-          (name, top, bot, left, right, hppd, vppd))
+    print(
+        "%s top: %6.2f bot: %6.2f left: %6.2f right: %6.2f hppd: %5.1f vppd: %5.1f"
+        % (name, top, bot, left, right, hppd, vppd)
+    )
 
 
 def get_patch_bbox(target_config, source_config):
     """
     Currently we assume that orientations and positions are identical
     """
-    if 'resize' not in source_config:
-        source_config['resize'] = 1
-    source_width = int(source_config['width'] * source_config['resize'] + 0.5)
-    source_height = int(source_config['height'] * source_config['resize'] + 0.5)
-    hfov_ratio = target_config["hfov"] / source_config['hfov']
-    vfov_ratio = target_config["vfov"] / source_config['vfov']
-    hfov_offset = source_config['yaw'] - target_config["yaw"]
-    vfov_offset = source_config['pitch'] - target_config["pitch"]
+    if "resize" not in source_config:
+        source_config["resize"] = 1
+    source_width = int(source_config["width"] * source_config["resize"] + 0.5)
+    source_height = int(source_config["height"] * source_config["resize"] + 0.5)
+    hfov_ratio = target_config["hfov"] / source_config["hfov"]
+    vfov_ratio = target_config["vfov"] / source_config["vfov"]
+    hfov_offset = source_config["yaw"] - target_config["yaw"]
+    vfov_offset = source_config["pitch"] - target_config["pitch"]
     patch_width = source_width * hfov_ratio
     patch_height = source_height * vfov_ratio
     x_center = (source_width - patch_width) // 2
     y_center = (source_height - patch_height) // 2
-    x_offset = (hfov_offset / source_config['hfov']) * source_width
-    y_offset = (vfov_offset / source_config['vfov']) * source_height
+    x_offset = (hfov_offset / source_config["hfov"]) * source_width
+    y_offset = (vfov_offset / source_config["vfov"]) * source_height
     x = int(x_center + x_offset + 0.5)
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    print('Using bbox:', x, y, patch_width, patch_height,
-          'in', source_width, source_height)
-    if (x >= 0 and x + patch_width <= source_width
-        and y >= 0 and y + patch_height <= source_height):
+    print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
+    if x >= 0 and x + patch_width <= source_width and y >= 0 and y + patch_height <= source_height:
         return Bbox(x, y, patch_width, patch_height)
     return None
 
@@ -195,8 +213,8 @@ def perturb(frame, config, perts):
             frame[index, magnitude:, :] = frame[index, : frame.shape[1] - magnitude]
             frame[index, :magnitude, :] = 0
         elif magnitude < 0:
-            frame[index, :magnitude, :] = frame[index, abs(magnitude):]
-            frame[index, frame.shape[1] + magnitude:] = 0
+            frame[index, :magnitude, :] = frame[index, abs(magnitude) :]
+            frame[index, frame.shape[1] + magnitude :] = 0
 
 
 def deg2rad(val):
@@ -265,7 +283,7 @@ def find_matching_file(path, name_pattern):
     pattern = re.compile(name_pattern)
     path = pathlib.Path(path)
     if path.exists():
-        for filename in path.glob('*'):
+        for filename in path.glob("*"):
             if pattern.search(str(filename)) is not None:
                 return path / filename
     return None
@@ -329,13 +347,14 @@ def prepareImageBatch(image, cuda=True):
 
 def plot_batch(path, example, status, label, guess):
     import matplotlib.pyplot as plt
+
     dim = int(len(example) ** 0.5)
     if (dim * dim) < len(example):
         dim += 1
     fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
 
     # Change from CHW to HWC, and move RGB to GBR
-    example = np.transpose(example, (0, 2, 3, 1))[...,[2,1,0]]
+    example = np.transpose(example, (0, 2, 3, 1))[..., [2, 1, 0]]
     for i in range(len(example)):
         x, y = i % dim, int(i // dim)
         axs[y, x].imshow(example[i])
@@ -343,9 +362,9 @@ def plot_batch(path, example, status, label, guess):
         # Prepare Title
         label_str = " ".join(["%5.2f" % x for x in label[i]])
         guess_str = " ".join(["%5.2f" % x for x in guess[i]])
-        axs[y, x].set_title('L: %s\nG: %s' % (label_str, guess_str), fontsize=8)
+        axs[y, x].set_title("L: %s\nG: %s" % (label_str, guess_str), fontsize=8)
         axs[y, x].set_xticks([])
         axs[y, x].set_yticks([])
 
-    plt.savefig("%s.png" % str(path), bbox_inches='tight', dpi=160)
+    plt.savefig("%s.png" % str(path), bbox_inches="tight", dpi=160)
     print("Saved batch %s" % path)

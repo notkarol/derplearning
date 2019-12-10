@@ -12,8 +12,8 @@ import capnp
 import messages_capnp
 import derp.util
 
-class Dualshock4:
 
+class Dualshock4:
     def __init__(self, config):
         self.config = config
 
@@ -24,7 +24,7 @@ class Dualshock4:
         self.steer_offset = 0
         self.record = False
         self.auto = False
-        
+
         # Prepare buffers and status variables
         self.status = None
         self.last_status = None
@@ -35,7 +35,7 @@ class Dualshock4:
         while self.__read() is False:
             continue
         self.send(green=1)
-        self.__context, self.__publisher = derp.util.publisher('/tmp/derp_joystick')
+        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
 
     def __del__(self):
         try:
@@ -67,7 +67,7 @@ class Dualshock4:
         if device_addr is None:
             return False
         self.__report_fd = os.open(hidraw_device, os.O_RDWR | os.O_NONBLOCK)
-        self.__fd = FileIO(self.__report_fd, 'rb+', closefd=False)
+        self.__fd = FileIO(self.__report_fd, "rb+", closefd=False)
         self.__input_device = InputDevice(event_device)
         self.__input_device.grab()
         self.__buffer = bytearray(self.__report_size)
@@ -81,7 +81,7 @@ class Dualshock4:
 
     def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
-        return 128 - self.config['deadzone'] < value <= 128 + self.config['deadzone']
+        return 128 - self.config["deadzone"] < value <= 128 + self.config["deadzone"]
 
     def __normalize_stick(self, value, deadzone):
         """
@@ -101,64 +101,66 @@ class Dualshock4:
         if not ret:
             return
         if ret < self.__report_size or self.__buffer[0] != self.__report_id:
-            return False        
+            return False
 
         self.control_message = self.create_control_message()
         self.state_message = self.create_state_message()
         self.last_status = self.status
         short = Struct("<h")
         dpad = self.__buffer[7] % 16
-        self.status = {"left_analog_x" : self.__buffer[3],
-                       "left_analog_y" : self.__buffer[4],
-                       "right_analog_x" : self.__buffer[5],
-                       "right_analog_y" : self.__buffer[6],
-                       "up" :  (dpad in (0, 1, 7)),
-                       "down" : (dpad in (3, 4, 5)),
-                       "left" : (dpad in (5, 6, 7)),
-                       "right" : (dpad in (1, 2, 3)),
-                       "button_square" : (self.__buffer[7] & 16) != 0,
-                       "button_cross" : (self.__buffer[7] & 32) != 0,
-                       "button_circle" : (self.__buffer[7] & 64) != 0,
-                       "button_triangle" : (self.__buffer[7] & 128) != 0,
-                       "button_l1" : (self.__buffer[8] & 1) != 0,
-                       "button_l2" : (self.__buffer[8] & 4) != 0,
-                       "button_l3" : (self.__buffer[8] & 64) != 0,
-                       "button_r1" : (self.__buffer[8] & 2) != 0,
-                       "button_r2" : (self.__buffer[8] & 8) != 0,
-                       "button_r3" : (self.__buffer[8] & 128) != 0,
-                       "button_share" : (self.__buffer[8] & 16) != 0,
-                       "button_options" : (self.__buffer[8] & 32) != 0,
-                       "button_trackpad" :  (self.__buffer[9] & 2) != 0,
-                       "button_ps" : (self.__buffer[9] & 1) != 0,
-                       "timestamp" : self.__buffer[9] >> 2,
-                       "left_trigger" : self.__buffer[10],
-                       "right_trigger" : self.__buffer[11],
-                       "battery" : self.__buffer[32] % 16,
-                       "accel_y" : short.unpack_from(self.__buffer, 15)[0],
-                       "accel_x" : short.unpack_from(self.__buffer, 17)[0],
-                       "accel_z" : short.unpack_from(self.__buffer, 19)[0],
-                       "orientation_roll" : -(short.unpack_from(self.__buffer, 21)[0]),
-                       "orientation_yaw" : short.unpack_from(self.__buffer, 23)[0],
-                       "orientation_pitch" : short.unpack_from(self.__buffer, 25)[0],
-                       "trackpad_0_id": self.__buffer[37] & 0x7f,
-                       "trackpad_0_active": (self.__buffer[37] >> 7) == 0,
-                       "trackpad_0_x": ((self.__buffer[39] & 0x0f) << 8) | self.__buffer[38],
-                       "trackpad_0_y": self.__buffer[40] << 4 | ((self.__buffer[39] & 0xf0) >> 4),
-                       "trackpad_1_id": self.__buffer[41] & 0x7f,
-                       "trackpad_2_active": (self.__buffer[41] >> 7) == 0,
-                       "trackpad_3_x": ((self.__buffer[43] & 0x0f) << 8) | self.__buffer[42],
-                       "trackpad_4_y": self.__buffer[44] << 4 | ((self.__buffer[43] & 0xf0) >> 4),
-                       "battery_level" : self.__buffer[32] % 16,
-                       "usb" : (self.__buffer[32] & 16) != 0,
-                       "audio" : (self.__buffer[32] & 32) != 0,
-                       "mic" : (self.__buffer[32] & 64) != 0}
+        self.status = {
+            "left_analog_x": self.__buffer[3],
+            "left_analog_y": self.__buffer[4],
+            "right_analog_x": self.__buffer[5],
+            "right_analog_y": self.__buffer[6],
+            "up": (dpad in (0, 1, 7)),
+            "down": (dpad in (3, 4, 5)),
+            "left": (dpad in (5, 6, 7)),
+            "right": (dpad in (1, 2, 3)),
+            "button_square": (self.__buffer[7] & 16) != 0,
+            "button_cross": (self.__buffer[7] & 32) != 0,
+            "button_circle": (self.__buffer[7] & 64) != 0,
+            "button_triangle": (self.__buffer[7] & 128) != 0,
+            "button_l1": (self.__buffer[8] & 1) != 0,
+            "button_l2": (self.__buffer[8] & 4) != 0,
+            "button_l3": (self.__buffer[8] & 64) != 0,
+            "button_r1": (self.__buffer[8] & 2) != 0,
+            "button_r2": (self.__buffer[8] & 8) != 0,
+            "button_r3": (self.__buffer[8] & 128) != 0,
+            "button_share": (self.__buffer[8] & 16) != 0,
+            "button_options": (self.__buffer[8] & 32) != 0,
+            "button_trackpad": (self.__buffer[9] & 2) != 0,
+            "button_ps": (self.__buffer[9] & 1) != 0,
+            "timestamp": self.__buffer[9] >> 2,
+            "left_trigger": self.__buffer[10],
+            "right_trigger": self.__buffer[11],
+            "battery": self.__buffer[32] % 16,
+            "accel_y": short.unpack_from(self.__buffer, 15)[0],
+            "accel_x": short.unpack_from(self.__buffer, 17)[0],
+            "accel_z": short.unpack_from(self.__buffer, 19)[0],
+            "orientation_roll": -(short.unpack_from(self.__buffer, 21)[0]),
+            "orientation_yaw": short.unpack_from(self.__buffer, 23)[0],
+            "orientation_pitch": short.unpack_from(self.__buffer, 25)[0],
+            "trackpad_0_id": self.__buffer[37] & 0x7F,
+            "trackpad_0_active": (self.__buffer[37] >> 7) == 0,
+            "trackpad_0_x": ((self.__buffer[39] & 0x0F) << 8) | self.__buffer[38],
+            "trackpad_0_y": self.__buffer[40] << 4 | ((self.__buffer[39] & 0xF0) >> 4),
+            "trackpad_1_id": self.__buffer[41] & 0x7F,
+            "trackpad_2_active": (self.__buffer[41] >> 7) == 0,
+            "trackpad_3_x": ((self.__buffer[43] & 0x0F) << 8) | self.__buffer[42],
+            "trackpad_4_y": self.__buffer[44] << 4 | ((self.__buffer[43] & 0xF0) >> 4),
+            "battery_level": self.__buffer[32] % 16,
+            "usb": (self.__buffer[32] & 16) != 0,
+            "audio": (self.__buffer[32] & 32) != 0,
+            "mic": (self.__buffer[32] & 64) != 0,
+        }
         return True
-    
 
-    def send(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0,
-             light_on_dur=0, light_off_dur=0):
+    def send(
+        self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0, light_on_dur=0, light_off_dur=0
+    ):
         packet = bytearray(79)
-        packet[:5] = [0xa2, 0x11, 0x80, 0x00, 0xff]
+        packet[:5] = [0xA2, 0x11, 0x80, 0x00, 0xFF]
         packet[7] = int(rumble_high * 255 + 0.5)
         packet[8] = int(rumble_low * 255 + 0.5)
         packet[9] = int(red * 255 + 0.5)
@@ -167,10 +169,10 @@ class Dualshock4:
         packet[12] = int(light_on_dur * 255 + 0.5)
         packet[13] = int(light_off_dur * 255 + 0.5)
         crc = crc32(packet[:-4])
-        packet[-4] = (crc & 0x000000ff)
-        packet[-3] = (crc & 0x0000ff00) >> 8
-        packet[-2] = (crc & 0x00ff0000) >> 16
-        packet[-1] = (crc & 0xff000000) >> 24
+        packet[-4] = crc & 0x000000FF
+        packet[-3] = (crc & 0x0000FF00) >> 8
+        packet[-2] = (crc & 0x00FF0000) >> 16
+        packet[-1] = (crc & 0xFF000000) >> 24
         hid = bytearray((self.__report_id,))
         self.__fd.write(hid + packet[2:])
 
@@ -183,38 +185,39 @@ class Dualshock4:
         control_changed = False
 
         # Steer
-        if not self.__in_deadzone(self.status['left_analog_x']):
-            self.steer = self.__normalize_stick(self.status['left_analog_x'],
-                                                self.config['deadzone'])
+        if not self.__in_deadzone(self.status["left_analog_x"]):
+            self.steer = self.__normalize_stick(
+                self.status["left_analog_x"], self.config["deadzone"]
+            )
             control_changed = True
-        elif not self.__in_deadzone(self.last_status['left_analog_x']):
+        elif not self.__in_deadzone(self.last_status["left_analog_x"]):
             self.steer = 0
             control_changed = True
-        if self.status['left_trigger']:
-            self.speed = -self.status['left_trigger'] / 255
+        if self.status["left_trigger"]:
+            self.speed = -self.status["left_trigger"] / 255
             control_changed = True
-        elif self.last_status['left_trigger']:
+        elif self.last_status["left_trigger"]:
             self.speed = 0
             control_changed = True
-        if self.status['right_trigger']:
-            self.speed = self.status['right_trigger'] / 255
+        if self.status["right_trigger"]:
+            self.speed = self.status["right_trigger"] / 255
             control_changed = True
-        elif self.last_status['right_trigger']:
+        elif self.last_status["right_trigger"]:
             self.speed = 0
             control_changed = True
-        if self.status['left'] and not self.last_status['left']:
+        if self.status["left"] and not self.last_status["left"]:
             self.steer_offset -= 1 / 255
             state_changed = True
-        if self.status['right'] and not self.last_status['right']:
+        if self.status["right"] and not self.last_status["right"]:
             self.steer_offset += 1 / 255
             state_changed = True
-        if self.status['up'] and not self.last_status['up']:
+        if self.status["up"] and not self.last_status["up"]:
             self.speed_offset += 5 / 255
             state_changed = True
-        if self.status['down'] and not self.last_status['down']:
+        if self.status["down"] and not self.last_status["down"]:
             self.speed_offset -= 5 / 255
             state_changed = True
-        if self.status['button_cross'] and not self.last_status['button_cross']:
+        if self.status["button_cross"] and not self.last_status["button_cross"]:
             self.speed = 0
             self.steer = 0
             self.speed_offset = 0
@@ -222,19 +225,18 @@ class Dualshock4:
             self.auto = False
             control_changed = True
             state_changed = True
-        if self.status['button_triangle'] and not self.last_status['button_triangle']:
+        if self.status["button_triangle"] and not self.last_status["button_triangle"]:
             self.auto = True
             state_changed = True
-        if self.status['button_circle'] and not self.last_status['button_circle']:
+        if self.status["button_circle"] and not self.last_status["button_circle"]:
             self.record = True
             state_changed = True
         return control_changed, state_changed
 
     def create_control_message(self):
         msg = messages_capnp.Control.new_message(
-            timestampCreated=derp.util.get_timestamp(),
-            speed=self.speed,
-            steer=self.steer)
+            timestampCreated=derp.util.get_timestamp(), speed=self.speed, steer=self.steer
+        )
         return msg
 
     def create_state_message(self):
@@ -243,7 +245,8 @@ class Dualshock4:
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
             auto=self.auto,
-            record=self.record);
+            record=self.record,
+        )
         return msg
 
     def run(self):
@@ -252,10 +255,10 @@ class Dualshock4:
         control_changed, state_changed = self.__process()
         if control_changed:
             self.control_message.timestampPublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b'control', self.control_message.to_bytes()])
+            self.__publisher.send_multipart([b"control", self.control_message.to_bytes()])
         if state_changed:
             self.state_message.timestampPublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b'state', self.state_message.to_bytes()])
+            self.__publisher.send_multipart([b"state", self.state_message.to_bytes()])
 
 
 def run(config):

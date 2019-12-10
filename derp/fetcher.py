@@ -9,6 +9,7 @@ import torch.utils.data
 
 import derp.util
 
+
 class Fetcher(torch.utils.data.Dataset):
     """
     Fetcher is an image-loader for use with training.
@@ -34,7 +35,7 @@ class Fetcher(torch.utils.data.Dataset):
 
         # Read in states and paths
         # Each video has a certain fixed number of state variables which we will encode as a dict
-        for recording_name in sorted(self.root.glob('*')):
+        for recording_name in sorted(self.root.glob("*")):
 
             # Skip any non-subpath
             path = self.root / recording_name
@@ -42,11 +43,11 @@ class Fetcher(torch.utils.data.Dataset):
                 continue
 
             # Make sure we can find the path
-            status_path = path / 'status.csv'
+            status_path = path / "status.csv"
             if not status_path.exists():
                 raise RuntimeError("Fetcher: Unable to find status path")
 
-            predict_path = path / 'predict.csv'
+            predict_path = path / "predict.csv"
             if not predict_path.exists():
                 raise RuntimeError("Fetcher: Unable to find predict path")
 
@@ -65,7 +66,6 @@ class Fetcher(torch.utils.data.Dataset):
                     self.status.append(status)
                     self.predict.append(predict)
 
-
     def __getitem__(self, index):
         """ Return the specified index. Apply transforms as specified """
 
@@ -78,7 +78,6 @@ class Fetcher(torch.utils.data.Dataset):
             thumb = self.transform(thumb)
 
         return thumb, status, predict
-
 
     def __len__(self):
         """ Return the number of items our fetcher is responsible for """
