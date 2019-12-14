@@ -2,10 +2,6 @@
 The bno055 is an IMU sensor. This class lets us communicate with it
 in the derp way through the Adafruit BNO055 class.
 """
-import pathlib
-import yaml
-import capnp
-import messages_capnp
 import Adafruit_BNO055.BNO055
 
 
@@ -22,6 +18,14 @@ class BNO055:
         """
         self.config = config
         self.bno = None
+        self.temp = None
+        self.quaternion = None
+        self.gravity = None
+        self.magnetometer = None
+        self.gyroscope = None
+        self.acceleropmeter = None
+        self.calibration_status = None
+        self.calibration = None
         self.__connect()
 
     def __connect(self):
@@ -46,7 +50,8 @@ class BNO055:
         return True
 
     def create_imu_message(self):
-        msg = messages_capnp.Camera.new_message(
+        """Create a new message that encodes the latest IMU state"""
+        msg = derp.util.TOPICS['imu'].new_message(
             timestampCreated=derp.util.get_timestamp(),
             calibrationGyroscope=self.calibration_status[1],
             calibrationAccelerometer=self.calibration_status[2],
@@ -62,7 +67,7 @@ class BNO055:
 
     def run(self):
         """
-        Reinitialize IMU if it's failed to get data at any point. 
+        Reinitialize IMU if it's failed to get data at any point.
         Otherwise get data from the IMU to update state variable.
         """
         self.temp = self.bno.read_temp()
@@ -77,6 +82,7 @@ class BNO055:
 
 
 def run(config):
+    """Run the IMU in a loop"""
     imu = BNO055(config)
     while True:
         imu.run()

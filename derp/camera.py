@@ -1,29 +1,18 @@
-"""
-The Camera component manages the camera interface.
-"""
-import capnp
-import messages_capnp
-import cv2
+"""The Camera manages the camera interface and sends camera messages."""
 import os
 import re
-
+import cv2
 import derp.util
 
 
 class Camera:
-    """
-    The Camera component manages the camera interface.
-    """
+    """The Camera manages the camera interface and sends camera messages."""
 
     def __init__(self, config):
+        """The Camera manages the camera interface and sends camera messages."""
         self.config = config
         self.cap = None
-        self.frame_counter = 0
-        self.start_time = 0
-        self.image_bytes = b""
         self.__connect()
-        if "resize" not in self.config:
-            source_config["resize"] = 1
         self.width = int(self.config["width"] * self.config["resize"] + 0.5)
         self.height = int(self.config["height"] * self.config["resize"] + 0.5)
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_camera")
@@ -43,25 +32,24 @@ class Camera:
                 int(f[-1]) for f in sorted(os.listdir("/dev")) if re.match(r"^video[0-9]", f)
             ]
             if len(devices) == 0:
-                self.connected = False
-                return self.connected
+                return False
             self.index = devices[-1]
         else:
             self.index = self.config["index"]
 
         # Connect to camera, exit if we can't
-        try:
-            self.cap = cv2.VideoCapture(self.index)
-        except:
-            print("Camera index [%i] not found. Failing." % self.index)
+        self.cap = cv2.VideoCapture(self.index)
+        if not self.cap or not self.cap.isOpened():
             self.cap = None
-        else:
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config["width"])
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config["height"])
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            return False
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config["width"])
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config["height"])
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        return True
 
     def create_camera_message(self):
-        msg = messages_capnp.Camera.new_message(
+        """Returns the camera message with its config-sourced position and description"""
+        msg = derp.util.TOPICS['camera'].new_message(
             timestampCreated=derp.util.get_timestamp(),
             yaw=self.config["yaw"],
             pitch=self.config["pitch"],
@@ -79,6 +67,7 @@ class Camera:
         return msg
 
     def run(self):
+        """Get and publish the camera frame"""
         ret, frame = self.cap.read()
         msg = self.create_camera_message()
         if not ret or frame is None:
@@ -91,6 +80,7 @@ class Camera:
 
 
 def run(config):
+    """Run the camera in a loop"""
     camera = Camera(config)
     while True:
         camera.run()

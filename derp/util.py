@@ -19,7 +19,7 @@ import zmq
 import capnp
 import messages_capnp
 
-TOPIC_CLASSES = {
+TOPICS = {
     "camera": messages_capnp.Camera,
     "state": messages_capnp.State,
     "control": messages_capnp.Control,
@@ -68,42 +68,6 @@ def find_device(names):
                 return device
     print("Could not find devices", names, "in", evdev.list_devices())
     return None
-
-
-def get_config_path(name):
-    return ROOT / "config" / (name + ".yaml")
-
-
-def get_experiment_path(name):
-    return ROOT / "scratch" / name
-
-
-def encode_video(folder, name, suffix, fps=30):
-    cmd = " ".join(
-        [
-            "gst-launch-1.0",
-            "multifilesrc",
-            "location='%s/%s/%%06d.%s'" % (folder, name, suffix),
-            "!",
-            "'image/jpeg,framerate=%i/1'" % fps,
-            "!",
-            "jpegparse",
-            "!",
-            "jpegdec",
-            "!",
-            "omxh264enc",
-            "bitrate=8000000",
-            "!",
-            "'video/x-h264, stream-format=(string)byte-stream'",
-            "!",
-            "h264parse",
-            "!",
-            "mp4mux",
-            "!",
-            "filesink location='%s/%s.mp4'" % (folder, name),
-        ]
-    )
-    subprocess.Popen(cmd, shell=True)
 
 
 def publisher(path):

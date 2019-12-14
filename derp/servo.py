@@ -50,7 +50,7 @@ class Servo:
         """ Send the servo a specific value in [-1, 1] to move to """
         topic_bytes, message_bytes = self.__subscriber.recv_multipart()
         topic = topic_bytes.decode()
-        message = self.classes[topic].from_bytes(message_bytes).as_builder()
+        message = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
 
         if topic == "control":
             self.auto = message.auto

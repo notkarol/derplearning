@@ -1,20 +1,21 @@
 """
+Joystick to drive the car around manually without keyboard.
 Inspired by https://github.com/chrippa/ds4drv
 """
 import fcntl
 from io import FileIO
 import os
 from struct import Struct
-from evdev import InputDevice
-from pyudev import Context, Monitor
 from binascii import crc32
-import capnp
-import messages_capnp
+from evdev import InputDevice
+from pyudev import Context
 import derp.util
 
 
 class Dualshock4:
+    """Joystick to drive the car around manually without keyboard."""
     def __init__(self, config):
+        """Joystick to drive the car around manually without keyboard."""
         self.config = config
 
         # State/Controls
@@ -94,12 +95,11 @@ class Dualshock4:
         return value
 
     def __read(self):
+        """Read a message from the controller and process it into a dict"""
         try:
             ret = self.__fd.readinto(self.__buffer)
         except IOError:
-            return
-        if not ret:
-            return
+            return False
         if ret < self.__report_size or self.__buffer[0] != self.__report_id:
             return False
 
@@ -156,9 +156,8 @@ class Dualshock4:
         }
         return True
 
-    def send(
-        self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0, light_on_dur=0, light_off_dur=0
-    ):
+    def send(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0, light_on=0, light_off=0):
+        """Actuate the controller by setting its rumble or light color/blink"""
         packet = bytearray(79)
         packet[:5] = [0xA2, 0x11, 0x80, 0x00, 0xFF]
         packet[7] = int(rumble_high * 255 + 0.5)
@@ -166,8 +165,8 @@ class Dualshock4:
         packet[9] = int(red * 255 + 0.5)
         packet[10] = int(green * 255 + 0.5)
         packet[11] = int(blue * 255 + 0.5)
-        packet[12] = int(light_on_dur * 255 + 0.5)
-        packet[13] = int(light_off_dur * 255 + 0.5)
+        packet[12] = int(light_on * 255 + 0.5)
+        packet[13] = int(light_off * 255 + 0.5)
         crc = crc32(packet[:-4])
         packet[-4] = crc & 0x000000FF
         packet[-3] = (crc & 0x0000FF00) >> 8
@@ -234,13 +233,18 @@ class Dualshock4:
         return control_changed, state_changed
 
     def create_control_message(self):
-        msg = messages_capnp.Control.new_message(
-            timestampCreated=derp.util.get_timestamp(), speed=self.speed, steer=self.steer
+        """Prepare the control speed/steer message to control the car"""
+        msg = derp.util.TOPICS['control'].new_message(
+            timestampCreated=derp.util.get_timestamp(),
+            speed=self.speed,
+            steer=self.steer,
+            manual=True,
         )
         return msg
 
     def create_state_message(self):
-        msg = messages_capnp.State.new_message(
+        """Prepare the state variables to adjust the car and other params"""
+        msg = derp.util.TOPICS['state'].new_message(
             timestampCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
@@ -250,6 +254,7 @@ class Dualshock4:
         return msg
 
     def run(self):
+        """Query one set of inputs from the joystick and send it out."""
         while self.__read() is False:
             continue
         control_changed, state_changed = self.__process()
@@ -262,6 +267,7 @@ class Dualshock4:
 
 
 def run(config):
+    """Run the joystick in a loop"""
     joystick = Dualshock4(config)
     while True:
         joystick.run()

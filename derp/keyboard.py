@@ -1,11 +1,11 @@
-import time
-import capnp
-import messages_capnp
+"""Keyboard class to control the car"""
 import derp.util
 
 
 class Keyboard:
+    """Keyboard class to control the car"""
     def __init__(self, config):
+        """Keyboard class to control the car"""
         self.config = config
 
         self.device = None
@@ -179,13 +179,18 @@ class Keyboard:
         return control_changed, state_changed
 
     def create_control_message(self):
-        msg = messages_capnp.Control.new_message(
-            timestampCreated=derp.util.get_timestamp(), speed=self.speed, steer=self.steer
+        """Prepare the control speed/steer message to control the car"""
+        msg = derp.util.TOPICS['control'].new_message(
+            timestampCreated=derp.util.get_timestamp(),
+            speed=self.speed,
+            steer=self.steer,
+            manual=True,
         )
         return msg
 
     def create_state_message(self):
-        msg = messages_capnp.State.new_message(
+        """Prepare the state variables to adjust the car and othe rparams"""
+        msg = derp.util.TOPICS['state'].new_message(
             timestampCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
@@ -195,14 +200,15 @@ class Keyboard:
         return msg
 
     def read(self):
+        """Loop through all available messages from the keyboard"""
         self.control_message = None
         self.state_message = None
         try:
             for msg in self.device.read():
-                c, s = self.__process(msg)
-                if c:
+                has_control, has_speed = self.__process(msg)
+                if has_control:
                     self.control_message = self.create_control_message()
-                if s:
+                if has_speed:
                     self.state_message = self.create_state_message()
             return True
         except BlockingIOError:
@@ -210,6 +216,7 @@ class Keyboard:
         return False
 
     def run(self):
+        """Query the keyboard for inputs and send it out"""
         if not self.read():
             self.__connect()
         if self.control_message:
@@ -221,6 +228,7 @@ class Keyboard:
 
 
 def run(config):
+    """Run the keyboard in a loop"""
     keyboard = Keyboard(config)
     while True:
         keyboard.run()
