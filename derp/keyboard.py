@@ -6,7 +6,7 @@ class Keyboard:
     """Keyboard class to control the car"""
     def __init__(self, config):
         """Keyboard class to control the car"""
-        self.config = config
+        self.config = config['keyboard']
 
         self.device = None
         self.speed = 0

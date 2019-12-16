@@ -10,7 +10,7 @@ class Camera:
 
     def __init__(self, config):
         """The Camera manages the camera interface and sends camera messages."""
-        self.config = config
+        self.config = config['camera']
         self.cap = None
         self.__connect()
         self.width = int(self.config["width"] * self.config["resize"] + 0.5)

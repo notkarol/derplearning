@@ -16,7 +16,7 @@ class BNO055:
         Args:
             config (dict): The configuration file for the sensor.
         """
-        self.config = config
+        self.config = config['imu']
         self.bno = None
         self.temp = None
         self.quaternion = None

@@ -1,6 +1,6 @@
 """The disk writer class that records all derp agent messages."""
+import yaml
 import derp.util
-import derp.camera
 
 
 class Writer:
@@ -8,7 +8,8 @@ class Writer:
 
     def __init__(self, config):
         """Using a dict config connects to all possible subscriber sources"""
-        self.config = config
+        self.config = config['writer']
+        self.car_config = config
         self.__context, self.__subscriber = derp.util.subscriber(
             [
                 "/tmp/derp_camera",
@@ -25,15 +26,14 @@ class Writer:
         self.__subscriber.close()
         self.__context.term()
 
-    def create_rcording(self):
+    def create_recording(self):
         folder = derp.util.create_record_folder()
         self.files = {
             name: open("%s/%s.bin" % (folder, name), "w+b") for name in derp.util.TOPICS
         }
-        with open(str(self.folder / "car.yaml"), "w") as car_fd:
-            yaml.dump(self.car_config, car_fd)
-        with open(str(self.folder / "brain.yaml"), "w") as brain_fd:
-            yaml.dump(self.brain_config, brain_fd)
+        with open(str(folder / "config.yaml"), "w") as config_fd:
+            yaml.dump(self.car_config, config_fd)
+        return folder
 
     def run(self):
         """

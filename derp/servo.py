@@ -11,7 +11,7 @@ class Servo:
     """
 
     def __init__(self, config):
-        self.config = config
+        self.config = config['servo']
         self.usb_vendor_id = 0x1FFB  # Polulu
         self.usb_product_id = 0x0089  # Maestro 6
         self.device = None

@@ -16,7 +16,7 @@ class Dualshock4:
     """Joystick to drive the car around manually without keyboard."""
     def __init__(self, config):
         """Joystick to drive the car around manually without keyboard."""
-        self.config = config
+        self.config = config['joystick']
 
         # State/Controls
         self.speed = 0
