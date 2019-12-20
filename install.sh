@@ -19,6 +19,7 @@ sudo apt install -y \
      python3-pip \
      python3-seaborn \
      python3-scipy \
+     python3-skimage \
      python3-pyudev \
      python3-zmq \
      xserver-xorg-input-evdev \

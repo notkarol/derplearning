@@ -19,6 +19,19 @@ struct Camera {
   jpg @15 :Data;
 }
 
+struct Label {
+  timestampCreated @0 :UInt64;
+  timestampPublished @1 :UInt64;
+  timestampWritten @2 :UInt64;
+  quality @3 :QualityEnum;
+  enum QualityEnum {
+    unknown @0;
+    junk @1;
+    risky @2;
+    good @3;
+  }
+}
+
 struct Control {
   timestampCreated @0 :UInt64;
   timestampPublished @1 :UInt64;

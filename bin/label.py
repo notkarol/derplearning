@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+from pathlib import Path
 import sys
 import time
 import yaml
@@ -14,14 +15,11 @@ import derp.util as util
 
 
 class Labeler:
-    def __init__(self, recording_path, scale=1):
-        self.cap = None
-
+    def __init__(self, folder, scale=1):
         self.scale = scale  # Image Scale Factor
-        self.recording_path = recording_path
-        self.config_path = os.path.join(self.recording_path, "car.yaml")
+        self.folder = folder
+        self.config_path = self.folder / "config.yaml"
         self.config = util.load_config(self.config_path)
-        self.component_config = util.find_component_config(self.config, "camera")
 
         self.red = np.array([0, 0, 255], dtype=np.uint8)
         self.green = np.array([32, 192, 32], dtype=np.uint8)
@@ -43,14 +41,26 @@ class Labeler:
             "junk": self.red,
         }
 
-        self.init_states()
-        self.init_camera()
-        self.init_labels()
+        self.topics = {}
+        for topic in derp.util.TOPICS:
+            self.topics[topic] = []
+            if derp.util.topic_exists(self.folder, topic):
+                topic_fd = derp.util.topic_file_reader(self.folder, topic)
+                self.topics[topic] = [msg for msg in derp.util.TOPICS[topic].read_multiple(topic_fd)]
+                topic_fd.close()
+            else:
+                print("Topic %s not found in folder %s" % (topic, self.folder))
+            print(topic, len(self.topics[topic]))
+        self.n_frames = len(self.topics['camera'])
+        
+        b, a = signal.butter(3, 0.05, output="ba")
+        #self.steers_butter = signal.filtfilt(b, a, self.steers)
+        self.frame_id = -1
+        self.seek()
+        self.labels = ["" for _ in range(self.n_frames)]
         self.init_window()
 
     def __del__(self):
-        if self.cap:
-            self.cap.release()
         cv2.destroyAllWindows()
 
     def legal_position(self, pos):
@@ -71,38 +81,15 @@ class Labeler:
         beg_pos, end_pos = self.frame_pos(beg), self.frame_pos(end)
         self.label_bar[beg_pos : end_pos + 1] = self.marker_color[marker]
 
-    def seek(self, frame_id):
+    def seek(self, frame_id=None):
+        if frame_id is None:
+            frame_id = self.frame_id + 1
         if not self.legal_position(frame_id):
-            print("seek failed illegal target:", frame_id)
-            return False
-
-        self.update_label(frame_id, self.frame_id, self.marker)
-
-        self.frame_id = frame_id - 1
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
-        print(
-            "%04i %.3f %6.3f %6.3f"
-            % (
-                self.frame_id,
-                self.timestamps[self.frame_id],
-                self.speeds[frame_id],
-                self.steers[frame_id],
-            )
-        )
-        self.read()
-        self.show = True
-        return True
-
-    def read(self):
-        if not self.legal_position(self.frame_id + 1):
             print("read failed illegal", self.frame_id)
             return False
 
-        ret, frame = self.cap.read()
-
-        if not ret or frame is None:
-            print("read failed frame", frame_id)
-            return False
+        jpg_arr = np.fromstring(self.topics['camera'][self.frame_id].jpg, np.uint8)
+        frame = cv2.imdecode(jpg_arr, cv2.IMREAD_COLOR)
 
         # Resize frame as needed
         self.frame = cv2.resize(
@@ -124,7 +111,7 @@ class Labeler:
         self.window[self.fh + self.bhh, self.fwi, :] = self.gray75
 
     def draw_horizon_bar(self):
-        percent = self.component_config["pitch"] / self.component_config["vfov"] + 0.5
+        percent = self.config['camera']["pitch"] / self.config['camera']["vfov"] + 0.5
         self.window[int(self.fh * percent), :, :] = self.magenta
 
     def draw_graph(self, data_vector, color):
@@ -163,16 +150,16 @@ class Labeler:
         self.draw_bar_timemarker()
         self.draw_bar_zeroline()
         self.draw_bar_status()
-        self.draw_graph(data_vector=self.speeds, color=self.cyan)
-        self.draw_graph(data_vector=self.steers, color=self.green)
-        self.draw_graph(data_vector=self.steers_butter, color=self.white)
+        #self.draw_graph(data_vector=self.speeds, color=self.cyan)
+        #self.draw_graph(data_vector=self.steers, color=self.green)
+        #self.draw_graph(data_vector=self.steers_butter, color=self.white)
 
         if self.model:
             self.draw_graph(data_vector=self.m_speeds, color=self.blue)
             self.draw_graph(data_vector=self.m_steers, color=self.red)
 
         # Display the newly generated window
-        cv2.imshow("Labeler %s" % self.recording_path, self.window)
+        cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):
         with open(self.labels_path, "w") as f:
@@ -205,18 +192,18 @@ class Labeler:
         elif key == ord("s"):
             self.save_labels()
         elif key == 82:  # up
-            self.seek(self.frame_id + self.fps)
+            self.seek(self.frame_id + 10)
         elif key == 84:  # down
-            self.seek(self.frame_id - self.fps)
+            self.seek(self.frame_id - 10)
         elif key == 81:  # left
             self.seek(self.frame_id - 1)
         elif key == 83:  # right
             self.seek(self.frame_id + 1)
         elif key == 85:  # page up
-            self.component_config["pitch"] -= 0.1
+            self.config['camera']["pitch"] -= 0.1
             self.show = True
         elif key == 86:  # page down
-            self.component_config["pitch"] += 0.1
+            self.config['camera']["pitch"] += 0.1
             self.show = True
         elif key == ord("`"):
             self.seek(0)
@@ -224,39 +211,13 @@ class Labeler:
             self.seek(int(self.n_frames * (key - ord("0")) / 10))
         elif key == ord("0"):
             self.seek(self.n_frames - 1)
-
         elif key != 255:
             print("Unknown key press: [%s]" % key)
 
         return True
 
     def frame_pos(self, frame_id):
-        return min(self.fw - 1, int(frame_id / len(self.timestamps) * self.fw))
-
-    def init_labels(self):
-        self.labels_path = os.path.join(self.recording_path, "label.csv")
-        if os.path.exists(self.labels_path):
-            _, _, self.labels = derp.util.read_csv(self.labels_path, floats=False)
-            for i in range(len(self.labels)):
-                self.labels[i] = self.labels[i][0]
-        else:
-            self.labels = ["" for _ in range(self.n_frames)]
-
-    def init_states(self):
-        self.state_path = os.path.join(self.recording_path, "state.csv")
-        self.timestamps, self.state_headers, self.states = derp.util.read_csv(self.state_path)
-        self.speeds = self.states[:, self.state_headers.index("speed")]
-        self.steers = self.states[:, self.state_headers.index("steer")]
-        b, a = signal.butter(3, 0.05, output="ba")
-        self.steers_butter = signal.filtfilt(b, a, self.steers)
-
-    def init_camera(self):
-        self.video_path = os.path.join(self.recording_path, "camera_front.mp4")
-        self.cap = cv2.VideoCapture(self.video_path)
-        self.n_frames = min(len(self.timestamps), int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)))
-        self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-        self.frame_id = -1
-        self.read()
+        return min(self.fw - 1, int(frame_id / self.n_frames * self.fw))
 
     def init_window(self):
         self.fh = self.frame.shape[0]
@@ -269,7 +230,7 @@ class Labeler:
         self.window = np.zeros(self.window_shape, dtype=np.uint8)
 
         # state_x is a vector containing the indicies of the x coordinate of the state graph
-        self.state_x = np.linspace(0, 1, len(self.timestamps))
+        self.state_x = np.linspace(0, 1, self.n_frames)
         self.window_x = np.linspace(0, 1, self.fw)
 
         self.paused = True
@@ -286,19 +247,18 @@ class Labeler:
         self.m_steers = np.zeros(self.n_frames, dtype=float)
 
         # opens the video config file
-        video_config = util.load_config("%s/%s" % (self.recording_path, "car.yaml"))
+        video_config = util.load_config("%s/%s" % (self.folder, "car.yaml"))
         bot = Inferer(
             video_config=video_config,
             model_config=config,
-            folder=self.recording_path,
+            folder=self.folder,
             model_path=model_path,
         )
 
         # Move the capture function to the start of the video
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, -1)
 
         for i in range(self.n_frames):
-            ret, frame = self.cap.read()
+            frame = cv2.imdecode(self.topics['camera'][i].jpg,  cv2.IMREAD_COLOR)
 
             if not ret or frame is None:
                 print("read failed frame", frame_id)
@@ -308,9 +268,6 @@ class Labeler:
             else:
                 self.m_speeds[i] = self.m_speeds[i - 1]
                 self.m_steers[i] = self.m_steers[i - 1]
-
-        # Restore the camera position to wherever it was before predict was called
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.frame_id)
 
     def run_labeler(self, config_path=None, model_path=None):
 
@@ -325,10 +282,10 @@ class Labeler:
         self.display()
 
         # Loop through video
-        while self.cap.isOpened():
+        while True:
             if not self.paused and self.frame_id < self.n_frames:
                 self.update_label(self.frame_id, self.frame_id, self.marker)
-                self.read()
+                self.seek()
                 self.show = True
 
             if self.show:
@@ -342,7 +299,7 @@ class Labeler:
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", type=str, required=True, help="recording path location")
+    parser.add_argument("path", type=Path, help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
     parser.add_argument("--config", type=str, default=None, help="physical configuration")
     parser.add_argument("--infer", type=str, default=None, help="infer configuration")
@@ -386,5 +343,5 @@ You an also clear the marker so that when you maneuver through the video you don
 """
         )
 
-    labeler = Labeler(recording_path=args.path, scale=args.scale)
+    labeler = Labeler(folder=args.path, scale=args.scale)
     labeler.run_labeler(args.config, args.infer)

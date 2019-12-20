@@ -130,7 +130,7 @@ class Keyboard:
         self.__context.term()
 
     def __connect(self):
-        self.device = derp.util.find_device(self.config["device_names"])
+        self.device = derp.util.find_evdev_device(self.config["device_names"])
         return self.device is not None
 
     def __process(self, event):

@@ -29,45 +29,8 @@ TOPICS = {
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 
-class Bbox:
-    """
-    A bounding box is a 4-tuple of integers representing x, y, width, height
-    """
-
-    def __init__(self, x, y, w, h):
-        """ Creates class x, y, w,h variables from the arguments. """
-        self.x = int(x + 0.5)  # first col
-        self.y = int(y + 0.5)  # first row
-        self.w = int(w + 0.5)  # width
-        self.h = int(h + 0.5)  # height
-
-    def __repr__(self):
-        """
-        For this class's representation just use all the local class variables.
-        """
-        return "Bbox(x: %i y: %i w: %i h: %i)" % (self.x, self.y, self.w, self.h)
-
-    def __str__(self):
-        return repr(self)
-
-
 def get_timestamp():
     return time.time_ns() // 1000000
-
-
-def find_device(names):
-    """
-    Searches for an input devices. Assuming it is found that device is returned
-    """
-    for filename in sorted(evdev.list_devices()):
-        device = evdev.InputDevice(filename)
-        device_name = device.name.lower()
-        for name in names:
-            if name in device_name:
-                print("Using evdev:", device_name)
-                return device
-    print("Could not find devices", names, "in", evdev.list_devices())
-    return None
 
 
 def publisher(path):
@@ -86,6 +49,34 @@ def subscriber(paths):
         sock.connect("ipc://" + path)
     sock.setsockopt(zmq.SUBSCRIBE, b"")
     return context, sock
+
+
+def topic_file_reader(folder, topic):
+    return open("%s/%s.bin" % (folder, topic), "rb") 
+
+
+def topic_exists(folder, topic):
+    path = folder / ('%s.bin' % topic)
+    return path.exists()
+
+
+def topic_file_writer(folder, topic):
+    return open("%s/%s.bin" % (folder, topic), "ab") 
+
+
+def find_evdev_device(names):
+    """
+    Searches for an input devices. Assuming it is found that device is returned
+    """
+    for filename in sorted(evdev.list_devices()):
+        device = evdev.InputDevice(filename)
+        device_name = device.name.lower()
+        for name in names:
+            if name in device_name:
+                print("Using evdev:", device_name)
+                return device
+    print("Could not find devices", names, "in", evdev.list_devices())
+    return None
 
 
 def print_image_config(name, config):
@@ -197,11 +188,6 @@ def save_image(path, image):
     return cv2.imwrite(str(path), image)
 
 
-def get_name(path):
-    """ The name of a script is it"s filename without the extension """
-    return pathlib.Path(str(path).rstrip("/")).stem
-
-
 def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
@@ -238,19 +224,6 @@ def find_value(haystack, key, values, interpolate=False):
 
     nearest = diff.argmin()
     return values[nearest]
-
-
-def find_matching_file(path, name_pattern):
-    """
-    Finds a file that matches the given name regex
-    """
-    pattern = re.compile(name_pattern)
-    path = pathlib.Path(path)
-    if path.exists():
-        for filename in path.glob("*"):
-            if pattern.search(str(filename)) is not None:
-                return path / filename
-    return None
 
 
 def unscale(config, vector):

@@ -28,9 +28,7 @@ class Writer:
 
     def create_recording(self):
         folder = derp.util.create_record_folder()
-        self.files = {
-            name: open("%s/%s.bin" % (folder, name), "w+b") for name in derp.util.TOPICS
-        }
+        self.files = {t: derp.util.topic_file_writer(folder, tipic) for t in derp.util.TOPICS}
         with open(str(folder / "config.yaml"), "w") as config_fd:
             yaml.dump(self.car_config, config_fd)
         return folder
