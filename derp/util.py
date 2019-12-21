@@ -24,6 +24,7 @@ TOPICS = {
     "state": messages_capnp.State,
     "control": messages_capnp.Control,
     "imu": messages_capnp.Imu,
+    "label": messages_capnp.Label,
 }
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
@@ -63,6 +64,18 @@ def topic_exists(folder, topic):
 def topic_file_writer(folder, topic):
     return open("%s/%s.bin" % (folder, topic), "ab") 
 
+
+def interpolate(desired_times, source_times, source_values):
+    out = []
+    pos = 0
+    val = 0
+    for desired_time in desired_times:
+        while pos < len(source_times) and source_times[pos] < desired_time:
+            val = source_values[pos]
+            pos += 1
+        out.append(val)
+    return np.array(out)
+    
 
 def find_evdev_device(names):
     """

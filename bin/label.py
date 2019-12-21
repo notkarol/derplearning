@@ -27,13 +27,10 @@ class Labeler:
         self.yellow = np.array([0, 255, 255], dtype=np.uint8)
         self.cyan = np.array([255, 255, 0], dtype=np.uint8)
         self.magenta = np.array([255, 0, 255], dtype=np.uint8)
-        self.gray25 = np.array([64, 64, 64], dtype=np.uint8)
         self.gray50 = np.array([128, 128, 128], dtype=np.uint8)
         self.gray75 = np.array([192, 192, 192], dtype=np.uint8)
-        self.black = np.array([0, 0, 0], dtype=np.uint8)
         self.white = np.array([255, 255, 255], dtype=np.uint8)
         self.orange = np.array([255, 128, 0], dtype=np.uint8)
-        self.purple = np.array([255, 0, 128], dtype=np.uint8)
         self.marker_color = {
             "": self.gray50,
             "good": self.green,
@@ -52,12 +49,21 @@ class Labeler:
                 print("Topic %s not found in folder %s" % (topic, self.folder))
             print(topic, len(self.topics[topic]))
         self.n_frames = len(self.topics['camera'])
-        
+        if 'label' in self.topics:
+            self.labels = [msg.qualiy for msg in self.topics['label']]
+        else:
+            self.labels = [derp.util.TOPICS['label'].QualityEnum.unknown
+                           for _ in range(self.n_frames)]
+        control_times = [msg.timestampPublished for msg in self.topics['control']]
+        self.camera_times = [msg.timestampPublished for msg in self.topics['camera']]
+        self.speeds = derp.util.interpolate(self.camera_times, control_times,
+                                            [msg.speed for msg in self.topics['control']])
+        self.steers = derp.util.interpolate(self.camera_times, control_times,
+                                            [msg.steer for msg in self.topics['control']])
         b, a = signal.butter(3, 0.05, output="ba")
-        #self.steers_butter = signal.filtfilt(b, a, self.steers)
-        self.frame_id = -1
-        self.seek()
-        self.labels = ["" for _ in range(self.n_frames)]
+        self.steers_butter = signal.filtfilt(b, a, self.steers)
+        self.frame_id = 0
+        self.seek(self.frame_id)
         self.init_window()
 
     def __del__(self):
@@ -67,9 +73,6 @@ class Labeler:
         return 0 <= pos < self.n_frames
 
     def update_label(self, id1, id2, marker):
-        if not marker:
-            return
-
         # Update the labels that are to be stored
         beg, end = min(id1, id2), max(id1, id2)
 
@@ -85,24 +88,21 @@ class Labeler:
         if frame_id is None:
             frame_id = self.frame_id + 1
         if not self.legal_position(frame_id):
-            print("read failed illegal", self.frame_id)
+            print("read failed illegal", frame_id)
             return False
-
-        jpg_arr = np.fromstring(self.topics['camera'][self.frame_id].jpg, np.uint8)
+        jpg_arr = np.frombuffer(self.topics['camera'][self.frame_id].jpg, np.uint8)
         frame = cv2.imdecode(jpg_arr, cv2.IMREAD_COLOR)
-
-        # Resize frame as needed
         self.frame = cv2.resize(
             frame, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_AREA
         )
-        self.frame_id += 1
+        self.frame_id = frame_id
         return True
 
     def draw_bar_timemarker(self):
         self.window[self.fh :, self.frame_pos(self.frame_id), :] = self.marker_color[self.marker]
 
     def draw_bar_blank(self):
-        self.window[self.fh :, :, :] = self.black
+        self.window[self.fh :, :, :] = 0
 
     def draw_bar_status(self):
         self.window[self.fh : self.fh + int(self.bhh // 10), self.fwi, :] = self.label_bar
@@ -150,9 +150,9 @@ class Labeler:
         self.draw_bar_timemarker()
         self.draw_bar_zeroline()
         self.draw_bar_status()
-        #self.draw_graph(data_vector=self.speeds, color=self.cyan)
-        #self.draw_graph(data_vector=self.steers, color=self.green)
-        #self.draw_graph(data_vector=self.steers_butter, color=self.white)
+        self.draw_graph(data_vector=self.speeds, color=self.cyan)
+        self.draw_graph(data_vector=self.steers, color=self.green)
+        self.draw_graph(data_vector=self.steers_butter, color=self.white)
 
         if self.model:
             self.draw_graph(data_vector=self.m_speeds, color=self.blue)
@@ -213,7 +213,6 @@ class Labeler:
             self.seek(self.n_frames - 1)
         elif key != 255:
             print("Unknown key press: [%s]" % key)
-
         return True
 
     def frame_pos(self, frame_id):
