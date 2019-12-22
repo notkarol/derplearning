@@ -18,6 +18,8 @@ import yaml
 import zmq
 import capnp
 import messages_capnp
+import scipy.signal as signal
+from scipy.interpolate import interp1d
 
 TOPICS = {
     "camera": messages_capnp.Camera,
@@ -62,20 +64,8 @@ def topic_exists(folder, topic):
 
 
 def topic_file_writer(folder, topic):
-    return open("%s/%s.bin" % (folder, topic), "wb") 
+    return open("%s/%s.bin" % (folder, topic), "wb")     
 
-
-def interpolate(desired_times, source_times, source_values):
-    out = []
-    pos = 0
-    val = 0
-    for desired_time in desired_times:
-        while pos < len(source_times) and source_times[pos] < desired_time:
-            val = source_values[pos]
-            pos += 1
-        out.append(val)
-    return np.array(out)
-    
 
 def find_evdev_device(names):
     """
@@ -318,3 +308,29 @@ def plot_batch(path, example, status, label, guess):
 
     plt.savefig("%s.png" % str(path), bbox_inches="tight", dpi=160)
     print("Saved batch %s" % path)
+
+
+def smooth(vals):
+    b, a = signal.butter(3, 0.05, output="ba")
+    return signal.filtfilt(b, a, vals)
+
+def latest_messages(desired_times, source_times, source_values):
+    out = []
+    pos = 0
+    val = 0
+    for desired_time in desired_times:
+        while pos < len(source_times) and source_times[pos] < desired_time:
+            val = source_values[pos]
+            pos += 1
+        out.append(val)
+    return np.array(out)
+
+def interpolate(vals, n_out, intmult=None):
+    fn_interpolate = interp1d(np.linspace(0, 1, len(vals)), vals)
+    if intmult is None:
+        out = np.array([-fn_interpolate(x) for x in np.linspace(0, 1, n_out)])
+    else:
+        out = np.array([-fn_interpolate(x) * intmult + 0.5 for x in
+                        np.linspace(0, 1, n_out)], dtype=np.int)
+    return out
+                    
