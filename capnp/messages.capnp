@@ -26,7 +26,7 @@ struct Label {
   quality @3 :QualityEnum;
   enum QualityEnum {
     unknown @0;
-    junk @1;
+    trash @1;
     risky @2;
     good @3;
   }

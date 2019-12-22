@@ -62,7 +62,7 @@ def topic_exists(folder, topic):
 
 
 def topic_file_writer(folder, topic):
-    return open("%s/%s.bin" % (folder, topic), "ab") 
+    return open("%s/%s.bin" % (folder, topic), "wb") 
 
 
 def interpolate(desired_times, source_times, source_values):
