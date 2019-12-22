@@ -28,7 +28,7 @@ class Writer:
 
     def create_recording(self):
         folder = derp.util.create_record_folder()
-        self.files = {t: derp.util.topic_file_writer(folder, tipic) for t in derp.util.TOPICS}
+        self.files = {t: derp.util.topic_file_writer(folder, t) for t in derp.util.TOPICS}
         with open(str(folder / "config.yaml"), "w") as config_fd:
             yaml.dump(self.car_config, config_fd)
         return folder
@@ -46,8 +46,10 @@ class Writer:
         # Create folder or delete folder
         if topic == "state":
             if message.record and not self.files:
-                self.create_recording()
+                folder = self.create_recording()
+                print("Started recording", folder)
             elif not message.record and self.files:
+                print("Stopped recording")
                 for name in self.files:
                     self.files[name].close()
                 self.files = {}

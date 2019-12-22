@@ -1,17 +1,13 @@
-import numpy as np
-import cv2
-import os
-from pathlib import Path
-import sys
-import time
-import yaml
+#!/usr/bin/env python3
 import argparse
-import derp.util
-import matplotlib.pyplot as plt
+import cv2
+import numpy as np
+from pathlib import Path
 import scipy.signal as signal
 from scipy.interpolate import interp1d
 from skimage.draw import line_aa
-import derp.util as util
+import time
+import derp.util
 
 
 class Labeler:
@@ -19,8 +15,11 @@ class Labeler:
         self.scale = scale
         self.folder = folder
         self.config_path = self.folder / 'config.yaml'
-        self.config = util.load_config(self.config_path)
-        self.marker_colors = [(128, 128, 128), (0, 255, 0), (255, 128, 0), (255, 0, 0)]
+        self.config = derp.util.load_config(self.config_path)
+        self.marker_colors = [(128, 128, 128), # unknown gray
+                              (0, 0, 255),     # trash red
+                              (0, 128, 255),   # risky orange
+                              (0, 255, 0)]     # good  green
         self.topics = {}
         for topic in derp.util.TOPICS:
             if not derp.util.topic_exists(self.folder, topic):
@@ -147,7 +146,8 @@ class Labeler:
 
     def handle_keyboard_input(self):
         key = cv2.waitKey(10) & 0xFF
-        if key == 27: return False # ESC
+        if key == 255: return True
+        elif key == 27: return False # ESC
         elif key == ord(' '): self.paused = not self.paused
         elif key == ord('g'): self.marker = 'good'
         elif key == ord('r'): self.marker = 'risky'
@@ -175,11 +175,12 @@ class Labeler:
                 self.update_label(self.frame_id, self.frame_id, self.marker)
                 self.show = self.seek()
             if self.show:
+                print("DISPLAY")
                 self.display()
                 self.show = False
             if not self.handle_keyboard_input():
                 break
-
+            time.sleep(0.01)
 
 if __name__ == '__main__':
     print('Arrow keys to navigate, ` through 0 to teleport, s to save, ESC to quit')

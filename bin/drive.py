@@ -39,8 +39,6 @@ def main():
         print("Starting", component_name)
         processes[component_name] = Process(target=func, args=(config,))
         processes[component_name].start()
-
-    time.sleep(5)
     for component_name in sorted(processes):
         processes[component_name].join()
 
