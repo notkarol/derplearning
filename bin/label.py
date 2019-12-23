@@ -11,7 +11,7 @@ import derp.util
 class Labeler:
     """OpenCV-based frame viewer that replays recordings and assign time-based labels"""
 
-    def __init__(self, folder, scale=1, bhh=100):
+    def __init__(self, folder, scale=1, bhh=40):
         """Load the topics and existing labels from the folder, scaling up the frame"""
         self.folder = folder
         self.scale = scale
@@ -50,6 +50,11 @@ class Labeler:
         self.speeds = derp.util.interpolate(camera_speeds, self.f_w, self.bhh)
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
+        # Print some statistics
+        duration = (camera_times[-1] - camera_times[0]) / 1E6
+        fps = (len(camera_times) - 1) / duration
+        print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
+        
     def __del__(self):
         """Deconstructor to close window"""
         cv2.destroyAllWindows()
@@ -150,8 +155,8 @@ class Labeler:
             self.config["camera"]["pitch"] -= 0.1  # page up
         elif key == 86:
             self.config["camera"]["pitch"] += 0.1  # page down
-        elif ord("1") <= key <= ord("6"):
-            self.seek(int(self.n_frames * (key - ord("0") - 1) / 5))
+        elif ord("1") <= key <= ord("5"):
+            self.seek(int(self.n_frames * (key - ord("0") - 1) / 4))
         elif key != 255:
             print("Unknown key press: [%s]" % key)
         self.show = True
@@ -177,8 +182,25 @@ class Labeler:
 
 def main():
     """Initialize the labeler based on user args and run it"""
-    print("Arrow keys to navigate, 1-6 to teleport, s to save, ESC to quit")
-    print("To assign a label state as you play: g=good, r=risky, t=trash, and c to clear quality")
+    print("""
+This labeling tool interpolates the data based on camera frames and then lets you label each.
+To exit press ESCAPE
+To save press s
+To navigate between frames:
+    Left/Right: move in 1 frame increments
+    Up/Down: move in 10 frame increments
+    1: goes to beginning
+    2: goes to 25% in
+    3: goes to 50% in
+    4  goes to 25% in
+    5: goes to end
+To adjust horizon line press PAGE_UP or PAGE_DOWN
+To change the quality label of this frame 
+    g: good (use for training)
+    r: risky (advanced situation not suitable for classic training)
+    t: trash (don't use this part of the video)
+    c: clear, as in don't change the quality label
+""")
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=Path, help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
