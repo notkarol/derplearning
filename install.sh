@@ -54,6 +54,11 @@ if ! [[ -e $maestro_path ]] ; then
     echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="1ffb", MODE="0666"' | sudo tee $maestro_path
     sudo udevadm control --reload-rules
 fi
+hidraw_path=/etc/udev/rules.d/99-hidraw-permissions.rules
+if ! [[ -e $hidraw_path ]] ; then
+    echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0666", GROUP="plugdev"' | sudo tee $hidraw_path
+    sudo udevadm control --reload-rules
+fi
 if [[ -e $(groups | grep i2c) ]] ; then 
     sudo usermod -a -G i2c $USER # gpio
 fi

@@ -26,7 +26,6 @@ class Labeler:
         self.f_h = self.frame.shape[0]
         self.f_w = self.frame.shape[1]
         self.bhh = bhh
-        self.fwi = np.arange(self.f_w)
         self.window = np.zeros([self.f_h + self.bhh * 2 + 2, self.f_w, 3], dtype=np.uint8)
         self.paused = True
         self.show = False
@@ -88,7 +87,7 @@ class Labeler:
     def draw_line(self, values, color):
         """Draw the line on the screen"""
         interpolated_values = derp.util.interpolate(values, self.f_w, self.bhh)
-        self.window[interpolated_values + self.f_h + self.bhh, self.fwi, :] = color
+        self.window[interpolated_values + self.f_h + self.bhh, np.arange(self.f_w), :] = color
 
     def display(self):
         """Blit all the status on the screen"""
@@ -98,14 +97,14 @@ class Labeler:
         self.window[int(self.f_h * horizon_percent), :, :] = (255, 0, 255)
         # Clear status buffer
         self.window[self.f_h :, :, :] = 0
+        # Draw label bar
+        self.window[self.f_h : self.f_h + int(self.bhh // 10), :, :] = self.label_bar
         # Draw current timestamp vertical line
         self.window[self.f_h :, self.frame_pos(self.frame_id), :] = self.bar_color(self.quality)
         # Draw zero line
-        self.window[self.f_h + self.bhh, self.fwi, :] = (192, 192, 192)
-        # Draw label bar
-        self.window[self.f_h : self.f_h + int(self.bhh // 10), self.fwi, :] = self.label_bar
-        self.draw_line(data_vector=self.speeds, color=(255, 255, 0))
-        self.draw_line(data_vector=self.steers, color=(0, 255, 0))
+        self.window[self.f_h + self.bhh, :, :] = (192, 192, 192)
+        self.draw_line(self.speeds, color=(0, 0, 255))
+        self.draw_line(self.steers, color=(255, 128, 0))
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):

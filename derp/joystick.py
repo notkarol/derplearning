@@ -6,6 +6,7 @@ import fcntl
 from io import FileIO
 import os
 from struct import Struct
+import time
 from binascii import crc32
 from evdev import InputDevice
 from pyudev import Context
@@ -100,11 +101,10 @@ class Dualshock4:
             ret = self.__fd.readinto(self.__buffer)
         except IOError:
             return False
-        if ret < self.__report_size or self.__buffer[0] != self.__report_id:
+        if ret is None or ret < self.__report_size or self.__buffer[0] != self.__report_id:
             return False
 
-        self.control_message = self.create_control_message()
-        self.state_message = self.create_state_message()
+        self.recv_timestamp = derp.util.get_timestamp()
         self.last_status = self.status
         short = Struct("<h")
         dpad = self.__buffer[7] % 16
@@ -185,22 +185,28 @@ class Dualshock4:
 
         # Steer
         if not self.__in_deadzone(self.status["left_analog_x"]):
-            self.steer = self.__normalize_stick(
+            steer = self.__normalize_stick(
                 self.status["left_analog_x"], self.config["deadzone"]
             )
-            control_changed = True
+            if steer != self.steer:
+                self.steer = steer
+                control_changed = True
         elif not self.__in_deadzone(self.last_status["left_analog_x"]):
             self.steer = 0
             control_changed = True
         if self.status["left_trigger"]:
-            self.speed = -self.status["left_trigger"] / 255
-            control_changed = True
+            speed = -self.status["left_trigger"] / 255
+            if speed != self.speed:
+                self.speed = speed
+                control_changed = True
         elif self.last_status["left_trigger"]:
             self.speed = 0
             control_changed = True
         if self.status["right_trigger"]:
-            self.speed = self.status["right_trigger"] / 255
-            control_changed = True
+            speed = self.status["right_trigger"] / 255
+            if speed != self.speed:
+                self.speed = speed
+                control_changed = True
         elif self.last_status["right_trigger"]:
             self.speed = 0
             control_changed = True
@@ -216,6 +222,8 @@ class Dualshock4:
         if self.status["down"] and not self.last_status["down"]:
             self.speed_offset -= 5 / 255
             state_changed = True
+        if self.status["button_square"] and not self.last_status["button_square"]:
+            pass
         if self.status["button_cross"] and not self.last_status["button_cross"]:
             self.speed = 0
             self.steer = 0
@@ -258,13 +266,17 @@ class Dualshock4:
         while self.__read() is False:
             continue
         control_changed, state_changed = self.__process()
-        if control_changed:
-            self.control_message.timestampPublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b"control", self.control_message.to_bytes()])
         if state_changed:
-            self.state_message.timestampPublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b"state", self.state_message.to_bytes()])
-
+            state_message = self.create_state_message()
+            state_message.timestampCreated = self.recv_timestamp
+            state_message.timestampPublished = derp.util.get_timestamp()
+            self.__publisher.send_multipart([b"state", state_message.to_bytes()])
+        if control_changed:
+            control_message = self.create_control_message()
+            control_message.timestampCreated = self.recv_timestamp
+            control_message.timestampPublished = derp.util.get_timestamp()
+            self.__publisher.send_multipart([b"control", control_message.to_bytes()])
+        time.sleep(0.001)
 
 def run(config):
     """Run the joystick in a loop"""

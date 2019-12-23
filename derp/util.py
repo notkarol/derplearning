@@ -33,7 +33,7 @@ ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 
 def get_timestamp():
-    return time.time_ns() // 1000000
+    return time.time_ns() // 1000
 
 
 def publisher(path):
