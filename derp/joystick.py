@@ -30,6 +30,9 @@ class Dualshock4:
         # Prepare buffers and status variables
         self.status = None
         self.last_status = None
+        self.__fd = None
+        self.__input_device = None
+        self.__report_fd = None
         self.__report_id = 0x11
         self.__report_size = 78
         if not self.__connect():
@@ -40,12 +43,13 @@ class Dualshock4:
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_input")
 
     def __del__(self):
-        try:
-            self.send(blue=1)
+        self.send(blue=1)
+        if self.__fd is not None:
             self.__fd.close()
+        if self.__report_fd is not None:
+            self.__report_fd.close()
+        if self.__input_device is not None:
             self.__input_device.ungrab()
-        except IOError:
-            pass
 
     def __find(self):
         context = Context()
@@ -97,6 +101,8 @@ class Dualshock4:
 
     def __read(self):
         """Read a message from the controller and process it into a dict"""
+        if self.__fd is None:
+            return False
         try:
             ret = self.__fd.readinto(self.__buffer)
         except IOError:
@@ -173,7 +179,10 @@ class Dualshock4:
         packet[-2] = (crc & 0x00FF0000) >> 16
         packet[-1] = (crc & 0xFF000000) >> 24
         hid = bytearray((self.__report_id,))
-        self.__fd.write(hid + packet[2:])
+        if self.__fd is not None:
+            self.__fd.write(hid + packet[2:])
+            return True
+        return False
 
     def __process(self):
         """

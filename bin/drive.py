@@ -3,6 +3,7 @@
 The main driver program that loops the live internal state.
 """
 import argparse
+from pathlib import Path
 import derp.util
 import derp.camera
 import derp.joystick
@@ -15,33 +16,30 @@ import time
 def main():
     """ Prepare arguments, configurations, variables and run the event loop. """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("config", type=str, help="Main config path, should include all hardeware")
-    parser.add_argument("--brain", type=str, help="optional Software config path")
+    parser.add_argument("config", type=Path, help="Main config path, should include all hardeware")
     args = parser.parse_args()
 
     config = derp.util.load_config(args.config)
-    if args.brain:
-        config['brain'] = derp.util.load_config(args.brain)
 
     processes = {}
     for component_name in sorted(config):
-        component_parts = component_name.split("_")
-        if "camera" == component_parts:
+        if "camera" == component_name:
             func = derp.camera.run
-        elif "input" == component_parts:
+        elif "input" == component_name:
             if config[component_name]['type'] == 'keyboard':
                 func = derp.keyboard.run
             elif config[component_name]['type'] == 'joystick':
                 func = derp.joystick.run
             else:
                 continue
-        elif "writer" == component_parts:
+        elif "writer" == component_name:
             func = derp.writer.run
         else:
             continue
         print("Starting", component_name)
         processes[component_name] = Process(target=func, args=(config,))
         processes[component_name].start()
+
     for component_name in sorted(processes):
         processes[component_name].join()
 
