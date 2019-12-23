@@ -334,3 +334,13 @@ def interpolate(vals, n_out, intmult=None):
                         np.linspace(0, 1, n_out)], dtype=np.int)
     return out
                     
+
+def load_topics(folder):
+    out = {}
+    for topic in TOPICS:
+        if not topic_exists(folder, topic):
+            continue
+        topic_fd = topic_file_reader(folder, topic)
+        out[topic] = [msg for msg in TOPICS[topic].read_multiple(topic_fd)]
+        topic_fd.close()
+    return out

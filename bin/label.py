@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""OpenCV-based frame viewer that replays recordings and assign time-based labels"""
 import argparse
 from pathlib import Path
 import time
@@ -9,41 +10,29 @@ import derp.util
 
 
 class Labeler:
-    def __init__(self, folder, scale=1):
+    """OpenCV-based frame viewer that replays recordings and assign time-based labels"""
+
+    def __init__(self, folder, scale=1, bhh=100):
+        """Load the topics and existing labels from the folder, scaling up the frame"""
         self.scale = scale
         self.folder = folder
         self.config_path = self.folder / "config.yaml"
         self.config = derp.util.load_config(self.config_path)
-        self.marker_colors = [(128, 128, 128), (0, 0, 255), (0, 128, 255), (0, 255, 0)]
-        self.topics = {}
-        for topic in derp.util.TOPICS:
-            if not derp.util.topic_exists(self.folder, topic):
-                continue
-            topic_fd = derp.util.topic_file_reader(self.folder, topic)
-            self.topics[topic] = [
-                msg for msg in derp.util.TOPICS[topic].read_multiple(topic_fd)
-            ]
-            topic_fd.close()
-            print(topic, len(self.topics[topic]), sep="\t")
-        self.n_frames = len(self.topics["camera"])
-        control_times = [msg.timestampPublished for msg in self.topics["control"]]
-        camera_times = [msg.timestampPublished for msg in self.topics["camera"]]
-        speeds = [msg.speed for msg in self.topics["control"]]
-        steers = [msg.steer for msg in self.topics["control"]]
-        self.speeds = derp.util.latest_messages(camera_times, control_times, speeds)
-        self.steers = derp.util.latest_messages(camera_times, control_times, steers)
+        self.quality_colors = [(128, 128, 128), (0, 0, 255), (0, 128, 255), (0, 255, 0)]
+        self.topics = derp.util.load_topics(folder)
         self.frame_id = 0
+        self.n_frames = len(self.topics["camera"])
         self.seek(self.frame_id)
         self.f_h = self.frame.shape[0]
         self.f_w = self.frame.shape[1]
-        self.bhh = 100
+        self.bhh = bhh
         self.fwi = np.arange(self.f_w)
-        window_shape = list(self.frame.shape)
-        window_shape[0] += self.bhh * 2 + 2
-        self.window = np.zeros(window_shape, dtype=np.uint8)
+        self.window = np.zeros([self.f_h + self.bhh * 2 + 2, self.f_w, 3], dtype=np.uint8)
         self.paused = True
         self.show = False
-        self.marker = "unknown"
+        self.quality = "unknown"
+
+        # Prepare labels
         self.label_bar = np.ones((self.f_w, 3), dtype=np.uint8) * (128, 128, 128,)
         if "label" in self.topics and len(self.topics["label"]) >= self.n_frames:
             self.labels = [str(msg.quality) for msg in self.topics["label"]]
@@ -52,22 +41,30 @@ class Labeler:
         for i, l in enumerate(self.labels):
             self.update_label(i, i, l)
 
+        # Prepare state messages
+        control_times = [msg.timestampPublished for msg in self.topics["control"]]
+        camera_times = [msg.timestampPublished for msg in self.topics["camera"]]
+        speeds = [msg.speed for msg in self.topics["control"]]
+        steers = [msg.steer for msg in self.topics["control"]]
+        self.speeds = derp.util.latest_messages(camera_times, control_times, speeds)
+        self.steers = derp.util.latest_messages(camera_times, control_times, steers)
+
     def __del__(self):
+        """Deconstructor to close window"""
         cv2.destroyAllWindows()
 
-    def update_label(self, first_index, last_index, marker="unknown"):
-        if marker == "unknown":
+    def update_label(self, first_index, last_index, quality="unknown"):
+        """Update the label bar to the given quality"""
+        if quality == "unknown":
             return False
         for index in range(first_index, last_index + 1):
-            self.labels[index] = marker
+            self.labels[index] = quality
         beg_pos = self.frame_pos(first_index)
         end_pos = self.frame_pos(last_index + (self.n_frames < len(self.label_bar)))
-        bar_color = self.marker_colors[
-            derp.util.TOPICS["label"].QualityEnum.__dict__[marker]
-        ]
-        self.label_bar[beg_pos : end_pos + 1] = bar_color
+        self.label_bar[beg_pos : end_pos + 1] = self.bar_color(quality)
 
     def seek(self, frame_id=None):
+        """Update the current frame to the given frame_id, otherwise advances by 1 frame"""
         if frame_id is None:
             frame_id = self.frame_id + 1
         if frame_id < 0:
@@ -84,62 +81,40 @@ class Labeler:
         self.frame_id = frame_id
         return True
 
-    def draw_bar_time_marker(self):
-        bar_color = self.marker_colors[
-            derp.util.TOPICS["label"].QualityEnum.__dict__[self.marker]
-        ]
-        self.window[self.f_h :, self.frame_pos(self.frame_id), :] = bar_color
+    def bar_color(self, quality):
+        """Figure out the color for the given quality"""
+        return self.quality_colors[derp.util.TOPICS["label"].QualityEnum.__dict__[quality]]
 
-    def draw_bar_blank(self):
-        self.window[self.f_h :, :, :] = 0
-
-    def draw_bar_status(self):
-        self.window[
-            self.f_h : self.f_h + int(self.bhh // 10), self.fwi, :,
-        ] = self.label_bar
-
-    def draw_bar_zeroline(self):
-        y_val = self.f_h + self.bhh
-        self.window[y_val, self.fwi, :] = (192, 192, 192)
-
-    def draw_horizon_bar(self):
-        percent = self.config["camera"]["pitch"] / self.config["camera"]["vfov"] + 0.5
-        self.window[int(self.f_h * percent), :, :] = (255, 0, 255)
-
-    def draw_line(self, data_vector, color):
-        bar = derp.util.interpolate(data_vector, self.f_w, self.bhh)
-        data_jump_locs = []
-        for loc in np.where(abs(bar[:-1] - bar[1:]) >= 2)[0]:
-            rr, cc, _ = line_aa(
-                bar[loc] + self.f_h + self.bhh,
-                loc,
-                bar[loc + 1] + self.f_h + self.bhh,
-                loc + 1,
-            )
-            data_jump_locs.append((rr, cc))
-        self.window[bar + self.f_h + self.bhh, self.fwi, :] = color
-        for rr, cc in data_jump_locs:
-            self.window[rr, cc, :] = color
+    def draw_line(self, values, color):
+        """Draw the line on the screen"""
+        interpolated_values = derp.util.interpolate(values, self.f_w, self.bhh)
+        self.window[interpolated_values + self.f_h + self.bhh, self.fwi, :] = color
 
     def display(self):
+        """Blit all the status on the screen"""
         self.window[: self.frame.shape[0], :, :] = self.frame
-        self.draw_horizon_bar()
-        self.draw_bar_blank()
-        self.draw_bar_time_marker()
-        self.draw_bar_zeroline()
-        self.draw_bar_status()
+        horizon_percent = self.config["camera"]["pitch"] / self.config["camera"]["vfov"] + 0.5
+        # Horizon line
+        self.window[int(self.f_h * horizon_percent), :, :] = (255, 0, 255)
+        # Clear status buffer
+        self.window[self.f_h :, :, :] = 0
+        # Draw current timestamp vertical line
+        self.window[self.f_h :, self.frame_pos(self.frame_id), :] = self.bar_color(self.quality)
+        # Draw zero line
+        self.window[self.f_h + self.bhh, self.fwi, :] = (192, 192, 192)
+        # Draw label bar
+        self.window[self.f_h : self.f_h + int(self.bhh // 10), self.fwi, :] = self.label_bar
         self.draw_line(data_vector=self.speeds, color=(255, 255, 0))
         self.draw_line(data_vector=self.steers, color=(0, 255, 0))
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):
+        """Write all of our labels to the folder as messages"""
         with derp.util.topic_file_writer(self.folder, "label") as label_fd:
             for label_i, label in enumerate(self.labels):
                 msg = derp.util.TOPICS["label"].new_message(
                     timestampCreated=derp.util.get_timestamp(),
-                    timestampPublished=self.topics["camera"][
-                        label_i
-                    ].timestampPublished,
+                    timestampPublished=self.topics["camera"][label_i].timestampPublished - 1,
                     timestampWritten=derp.util.get_timestamp(),
                     quality=label,
                 )
@@ -147,6 +122,7 @@ class Labeler:
         print("Saved labels in", self.folder)
 
     def handle_keyboard_input(self):
+        """Fetch a new keyboard input if one exists"""
         key = cv2.waitKey(1) & 0xFF
         if key == 255:
             return True
@@ -155,13 +131,13 @@ class Labeler:
         elif key == ord(" "):
             self.paused = not self.paused
         elif key == ord("g"):
-            self.marker = "good"
+            self.quality = "good"
         elif key == ord("r"):
-            self.marker = "risky"
+            self.quality = "risky"
         elif key == ord("t"):
-            self.marker = "trash"
+            self.quality = "trash"
         elif key == ord("c"):
-            self.marker = "unknown"
+            self.quality = "unknown"
         elif key == ord("s"):
             self.save_labels()
         elif key == 82:
@@ -190,7 +166,7 @@ class Labeler:
         self.display()
         while True:
             if not self.paused:
-                self.update_label(self.frame_id, self.frame_id, self.marker)
+                self.update_label(self.frame_id, self.frame_id, self.quality)
                 self.show = self.seek()
             if self.show:
                 self.display()
@@ -202,9 +178,7 @@ class Labeler:
 
 def main():
     print("Arrow keys to navigate, 1-6 to teleport, s to save, ESC to quit")
-    print(
-        "To assign a label state as you play: g=good, r=risky, t=trash, and c to clear marker"
-    )
+    print("To assign a label state as you play: g=good, r=risky, t=trash, and c to clear quality")
     parser = argparse.ArgumentParser()
     parser.add_argument("path", type=Path, help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
