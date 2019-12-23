@@ -114,73 +114,39 @@ def process_recording(args):
     """
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
-    config, recording_path, folders = args
-    recording_name = recording_path.name
+    config, folder, folders = args
+    camera_config = derp.util.load_config(folder / "config.yaml")['camera']
+    n_perts = config["build"]["n_perts"] if camera_config["hfov"] > config["thumb"]["hfov"] else 1
 
+    # Prepare folders and status files
+    metadata_fds = {}
+    for part in folders:
+        out_path = folders[part] / folder.name
+        if out_path.exists():
+            return False
+        out_path.mkdir(parents=True)
+        metadata_fds[part] = open(str(out_path / "metadata.csv"), "a")
 
-    topics = derp.util.load_topics(recording_path)
+    # Load data, if there are no labels the don't run ourselves
+    topics = derp.util.load_topics(folder)
     if 'label' not in topics:
-        print(recording_path, "has no labels")
+        print(folder, "has no labels")
         return False
-    state = {topic: None for topic in topics}
+
+    print("Processing", folder.name)
+    state = {topic: derp.util.TOPICS[topic].new_message() for topic in topics}
     for timestamp, topic, msg in derp.util.replay(topics):
         state[topic] = msg
-        if topic == 'camera':
-            pass
-            
-    recording_camera_config = derp.util.load_config(recording_path / "car.yaml")['camera']
-
-    # Load brain off of the first state entry
-    brain = derp.util.load_brain(config, source_config, state)
-    if brain.bbox is None:
-        return False
-
-    # Perturb our arrays
-    n_perts = 1
-    if frame_config["hfov"] > config["thumb"]["hfov"]:
-        n_perts = config["build"]["n_perts"]
-    print("Processing", recording_path, n_perts)
-
-    # Prepare directories and writers
-    predict_fds = {}
-    status_fds = {}
-    for part in folders:
-        out_path = folders[part] / recording_name
-        if out_path.exists():
-            print("unable to create this recording's dataset as it was already started")
-            return False
-        out_path.mkdir(parents=True, exist_ok=True)
-        predict_fds[part] = open(str(out_path / "predict.csv"), "a")
-        status_fds[part] = open(str(out_path / "status.csv"), "a")
-
-    # load video
-    video_path = recording_path / ("%s.mp4" % config["thumb"]["component"])
-    reader = cv2.VideoCapture(str(video_path))
-
-    # Loop through video and add frames into dataset
-    frame_id = 0
-    for frame_id in range(len(label_ts)):
-        # Skip if label isn't good
-        if labels[frame_id][label_headers.index("status")] != "good":
+        if topic != 'camera' or state['label'].quality != "good":
             continue
 
-        # Prepare attributes regardless of perturbation
-        if np.random.rand() < config["build"]["train_chance"]:
-            part = "train"
-        else:
-            part = "val"
-        data_dir = folders[part] / recording_name
-
-        # Get the frame, exit if we can not
-        ret, frame = reader.read()
-        if not ret:
-            break
+        partition = 'train' if np.random.rand() < config["build"]["train_chance"] else 'val'
+        data_dir = folders[partition] / folder.name
 
         # Create each perturbation for dataset
-        for pert_id in range(n_perts if part == "train" else 1):
+        for pert_id in range(n_perts):
 
             # Prepare variables to store for this example
-            brain.state = prepare_state(config, frame_id, state_headers, states, frame)
             perts = prepare_pert_magnitudes(config["build"]["perts"], pert_id == 0)
             predict = prepare_predict(
                 config, frame_id, state_headers, state_timestamps, states, perts
@@ -200,9 +166,6 @@ def process_recording(args):
             write_csv(predict_fds[part], predict, data_dir, store_name)
             write_csv(status_fds[part], status, data_dir, store_name)
 
-    # Cleanup and return
-    reader.release()
-    print("Finished", recording_path)
     return True
 
 
@@ -240,9 +203,9 @@ def main():
         if not data_folder.is_absolute():
             data_folder = derp.util.ROOT / "data" / data_folder
         for filename in data_folder.glob("*"):
-            recording_path = data_folder / filename
-            if recording_path.is_dir():
-                process_args.append([brain_config, recording_path, folders])
+            folder = data_folder / filename
+            if folder.is_dir():
+                process_args.append([brain_config, folder, folders])
 
     # Prepare pool of workers
     if args.count <= 0:
@@ -251,7 +214,6 @@ def main():
     else:
         pool = multiprocessing.Pool(args.count)
         pool.map(process_recording, process_args)
-    print("Completed", experiment_path)
 
 
 if __name__ == "__main__":

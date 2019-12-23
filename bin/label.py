@@ -72,8 +72,7 @@ class Labeler:
         if frame_id >= self.n_frames:
             frame_id = self.n_frames - 1
             self.paused = True
-        jpg_arr = np.frombuffer(self.topics["camera"][self.frame_id].jpg, np.uint8)
-        frame = cv2.imdecode(jpg_arr, cv2.IMREAD_COLOR)
+        frame = derp.util.decode_jpg(self.topics['camera'][self.frame_id].jog)
         self.frame = cv2.resize(
             frame, None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_AREA
         )

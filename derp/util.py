@@ -361,9 +361,10 @@ def replay(topics):
     heap = []
     for topic in topics:
         for msg in topics[topic]:
-            heapq.heappush(heap, [msg.timestampPublished, topic, msg])
+            heapq.heappush(heap, [msg.timePublished, topic, msg])
     while heap:
         yield heapq.heappop(heap)
 
-    
-    
+
+def decode_jpg(jpg):
+    return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)    
