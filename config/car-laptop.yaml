@@ -1,6 +1,11 @@
 camera:
   path: camera-OV2710.yaml
-keyboard:
-  path: 'input-keyboard.yaml'
+input:
+  type: keyboard
+  device_names:
+    - keyboard
+    - kbd
+    - logitech k400 plus
+    - gaming kb
 writer:
   root_path: '/tmp'

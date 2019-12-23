@@ -17,7 +17,7 @@ class Dualshock4:
     """Joystick to drive the car around manually without keyboard."""
     def __init__(self, config):
         """Joystick to drive the car around manually without keyboard."""
-        self.config = config['joystick']
+        self.config = config['input']
 
         # State/Controls
         self.speed = 0
@@ -37,7 +37,7 @@ class Dualshock4:
         while self.__read() is False:
             continue
         self.send(green=1)
-        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
+        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_input")
 
     def __del__(self):
         try:
@@ -243,7 +243,7 @@ class Dualshock4:
     def create_control_message(self):
         """Prepare the control speed/steer message to control the car"""
         msg = derp.util.TOPICS['control'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
+            timeCreated=derp.util.get_timestamp(),
             speed=self.speed,
             steer=self.steer,
             manual=True,
@@ -253,7 +253,7 @@ class Dualshock4:
     def create_state_message(self):
         """Prepare the state variables to adjust the car and other params"""
         msg = derp.util.TOPICS['state'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
+            timeCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
             auto=self.auto,
@@ -268,13 +268,13 @@ class Dualshock4:
         control_changed, state_changed = self.__process()
         if state_changed:
             state_message = self.create_state_message()
-            state_message.timestampCreated = self.recv_timestamp
-            state_message.timestampPublished = derp.util.get_timestamp()
+            state_message.timeCreated = self.recv_timestamp
+            state_message.timePublished = derp.util.get_timestamp()
             self.__publisher.send_multipart([b"state", state_message.to_bytes()])
         if control_changed:
             control_message = self.create_control_message()
-            control_message.timestampCreated = self.recv_timestamp
-            control_message.timestampPublished = derp.util.get_timestamp()
+            control_message.timeCreated = self.recv_timestamp
+            control_message.timePublished = derp.util.get_timestamp()
             self.__publisher.send_multipart([b"control", control_message.to_bytes()])
         time.sleep(0.001)
 

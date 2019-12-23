@@ -15,8 +15,7 @@ class Writer:
                 "/tmp/derp_camera",
                 "/tmp/derp_imu",
                 "/tmp/derp_brain",
-                "/tmp/derp_joystick",
-                "/tmp/derp_keyboard",
+                "/tmp/derp_input",
             ]
         )
         self.files = {}
@@ -55,7 +54,7 @@ class Writer:
                 self.files = {}
 
         if self.files:
-            message.timestampWritten = derp.util.get_timestamp()
+            message.timeWritten = derp.util.get_timestamp()
             message.write(self.files[topic])
 
 

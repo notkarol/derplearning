@@ -5,6 +5,7 @@ import csv
 import cv2
 from datetime import datetime
 import evdev
+import heapq
 import pathlib
 import numpy as np
 import os
@@ -191,6 +192,14 @@ def save_image(path, image):
     return cv2.imwrite(str(path), image)
 
 
+def write_csv(path, table):
+    with open(path, 'a') as csv_fd:
+        writer = csv.writer(csv_fd)
+        for row in table:
+            writer.writerow(row)
+    return True
+
+
 def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
@@ -211,6 +220,8 @@ def load_config(config_path):
                 component_config = yaml.load(component_fd, Loader=yaml.FullLoader)
             component_config.update(config[component])
             config[component] = component_config
+    if 'name' not in config:
+        config['name'] = config_path.stem
     return config
 
 
@@ -344,3 +355,15 @@ def load_topics(folder):
         out[topic] = [msg for msg in TOPICS[topic].read_multiple(topic_fd)]
         topic_fd.close()
     return out
+
+
+def replay(topics):
+    heap = []
+    for topic in topics:
+        for msg in topics[topic]:
+            heapq.heappush(heap, [msg.timestampPublished, topic, msg])
+    while heap:
+        yield heapq.heappop(heap)
+
+    
+    

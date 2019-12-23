@@ -1,9 +1,7 @@
 """
 The root class of any object that manipulate's the car state based on some heuristic.
 """
-import cv2
 import numpy as np
-import os
 import torch
 import derp.util
 
@@ -13,47 +11,55 @@ class Brain:
     The root class of any object that manipulate's the car state based on some heuristic.
     """
 
-    def __init__(self, config, car_config, state):
-        """
-        Preset some common constructor parameters.
-        """
-        self.config = config
-        self.car_config = car_config
-        self.state = state
-        self.ready = True
+    def __init__(self, config):
+        """Preset some common constructor parameters"""
+        self.config = config['brain']
+        self.car_config = config
+        self.messages = [derp.util.TOPICS[topic].new_message() for topic in derp.util.TOPICS]
+        self.speed = 0
+        self.steer = 0
+        self.__sub_context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
+                                                                      '/tmp/derp_input',
+                                                                      '/tmp/derp_imu'])
+        self.__pub_context, self.__publisher = derp.util.subscriber('/tmp/derp_brain')
+
+    def __del__(self):
+        self.__subscriber.close()
+        self.__sub_context.term() 
+        self.__publisher.close()
+        self.__pub_context.term() 
 
     def __repr__(self):
-        """
-        Unique instances should not really exist so just use the class name.
-        """
+        """Unique instances should not really exist so just use the class name"""
         return self.__class__.__name__.lower()
 
     def __str__(self):
-        """
-        Just use the representation.
-        """
+        """Just use the representation"""
         return repr(self)
 
-    def plan(self):
-        """
-        By default if a child does not override this, do nothing to update the state.
-        """
+    def predict(self):
         return True
-
-
-class Manual(Brain):
-    def __init__(self, config, car_config, state):
-        super(Manual, self).__init__(config, car_config, state)
-        self.ready = True
-
+    
+    def run(self):
+        """By default if a child does not override this, do nothing to update the state."""
+        topic_bytes, message_bytes = self.__subscriber.recv_multipart()
+        recv_timestamp = derp.util.get_timestamp()
+        topic = topic_bytes.decode()
+        self.messages[topic] = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
+        if topic == 'camera' and self.predict():
+            msg = derp.util.TOPICS['control'].new_messsage(
+                timeCreated=recv_timestamp,
+                timePublished=derp.util.get_timestamp(),
+                speed=self.speed,
+                steer=self.steer,
+                manual=False,
+            )
+            self.__publisher.send_multipart([b'control', msg.to_bytes()])
 
 class Clone(Brain):
-    def __init__(self, config, car_config, state):
-
-        super(Clone, self).__init__(config, car_config, state)
-        self.camera_config = derp.util.find_component_config(
-            car_config, config["thumb"]["component"]
-        )
+    def __init__(self, config):
+        super(Clone, self).__init__(config)
+        self.camera_config = self.car_config['camera']
 
         # Show the user what we're working with
         derp.util.print_image_config("Source", self.camera_config)
@@ -110,18 +116,12 @@ class Clone(Brain):
             prediction = np.zeros(len(self.config["predict"]), dtype=np.float32)
         self.state["prediction"] = prediction
 
-    def plan(self):
-        self.predict()
-        if self.state["auto"]:
-            self.state["speed"] = float(self.state["prediction"][0])
-            self.state["steer"] = float(self.state["prediction"][1])
-
 
 class CloneAdaSpeed(Clone):
     def __init__(self, config, car_config, state):
         super(CloneAdaSpeed, self).__init__(config, car_config, state)
 
-    def plan(self):
+    def run(self):
         self.predict()
         if self.state["auto"]:
             return
@@ -142,7 +142,7 @@ class CloneFixSpeed(Clone):
     def __init__(self, config, car_config, state):
         super(CloneFixSpeed, self).__init__(config, car_config, state)
 
-    def plan(self):
+    def run(self):
         self.predict()
         if not self.state["auto"]:
             return

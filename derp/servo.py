@@ -19,7 +19,7 @@ class Servo:
         self.speed_offset = 0
         self.steer_offset = 0
         self.__context, self.__subscriber = derp.util.subscriber(
-            ["/tmp/derp_brain", "/tmp/derp_joystick", "/tmp/derp_keyboard"]
+            ["/tmp/derp_brain", "/tmp/derp_input"]
         )
         self.__connect()
 

@@ -41,8 +41,8 @@ class Labeler:
             self.update_label(i, i, l)
 
         # Prepare state messages
-        control_times = [msg.timestampPublished for msg in self.topics["control"]]
-        camera_times = [msg.timestampPublished for msg in self.topics["camera"]]
+        control_times = [msg.timePublished for msg in self.topics["control"]]
+        camera_times = [msg.timePublished for msg in self.topics["camera"]]
         speeds = [msg.speed for msg in self.topics["control"]]
         steers = [msg.steer for msg in self.topics["control"]]
         self.speeds = derp.util.latest_messages(camera_times, control_times, speeds)
@@ -112,9 +112,9 @@ class Labeler:
         with derp.util.topic_file_writer(self.folder, "label") as label_fd:
             for label_i, label in enumerate(self.labels):
                 msg = derp.util.TOPICS["label"].new_message(
-                    timestampCreated=derp.util.get_timestamp(),
-                    timestampPublished=self.topics["camera"][label_i].timestampPublished - 1,
-                    timestampWritten=derp.util.get_timestamp(),
+                    timeCreated=derp.util.get_timestamp(),
+                    timePublished=self.topics["camera"][label_i].timePublished - 1,
+                    timeWritten=derp.util.get_timestamp(),
                     quality=label,
                 )
                 msg.write(label_fd)

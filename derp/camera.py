@@ -47,10 +47,14 @@ class Camera:
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         return True
 
-    def create_camera_message(self):
-        """Returns the camera message with its config-sourced position and description"""
+    def run(self):
+        """Get and publish the camera frame"""
+        ret, frame = self.cap.read()
+        if not ret or frame is None:
+            self.__connect()
+            return
         msg = derp.util.TOPICS['camera'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
+            timeCreated=derp.util.get_timestamp(),
             yaw=self.config["yaw"],
             pitch=self.config["pitch"],
             roll=self.config["roll"],
@@ -64,18 +68,9 @@ class Camera:
             vfov=self.config["vfov"],
             fps=self.config["fps"],
         )
-        return msg
-
-    def run(self):
-        """Get and publish the camera frame"""
-        ret, frame = self.cap.read()
-        msg = self.create_camera_message()
-        if not ret or frame is None:
-            self.__connect()
-            return
         frame = derp.util.resize(frame, (self.width, self.height))
         msg.jpg = cv2.imencode(".jpg", frame)[1].tostring()
-        msg.timestampPublished = derp.util.get_timestamp()
+        msg.timePublished = derp.util.get_timestamp()
         self.__publisher.send_multipart([b"camera", msg.to_bytes()])
 
 

@@ -6,7 +6,7 @@ class Keyboard:
     """Keyboard class to control the car"""
     def __init__(self, config):
         """Keyboard class to control the car"""
-        self.config = config['keyboard']
+        self.config = config['input']
 
         self.device = None
         self.speed = 0
@@ -19,7 +19,7 @@ class Keyboard:
         self.state_message = None
 
         self.__connect()
-        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_keyboard")
+        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_input")
 
         # Prepare key code map so we can use strings to understand what key was pressed
         self.code_map = {
@@ -181,7 +181,7 @@ class Keyboard:
     def create_control_message(self):
         """Prepare the control speed/steer message to control the car"""
         msg = derp.util.TOPICS['control'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
+            timeCreated=derp.util.get_timestamp(),
             speed=self.speed,
             steer=self.steer,
             manual=True,
@@ -191,7 +191,7 @@ class Keyboard:
     def create_state_message(self):
         """Prepare the state variables to adjust the car and othe rparams"""
         msg = derp.util.TOPICS['state'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
+            timeCreated=derp.util.get_timestamp(),
             speedOffset=self.speed_offset,
             steerOffset=self.steer_offset,
             auto=self.auto,
@@ -220,10 +220,10 @@ class Keyboard:
         if not self.read():
             self.__connect()
         if self.control_message:
-            self.control_message.timestampPublished = derp.util.get_timestamp()
+            self.control_message.timePublished = derp.util.get_timestamp()
             self.__publisher.send_multipart([b"control", self.control_message.to_bytes()])
         if self.state_message:
-            self.state_message.timestampPublished = derp.util.get_timestamp()
+            self.state_message.timePublished = derp.util.get_timestamp()
             self.__publisher.send_multipart([b"state", self.state_message.to_bytes()])
 
 

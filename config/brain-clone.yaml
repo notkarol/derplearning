@@ -1,6 +1,6 @@
 # Training related parameters
-create:
-  data_folders: ['train-2017-oakland']
+build:
+  data_folders: ['']
   train_chance: 0.9
   n_perts: 1
   perts:
@@ -20,7 +20,6 @@ train:
 
 # What we expect for input from the camera
 thumb:
-  component: 'camera_front'
   hfov: 75
   vfov: 18.75
   height: 32

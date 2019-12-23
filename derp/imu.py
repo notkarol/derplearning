@@ -18,7 +18,6 @@ class BNO055:
         """
         self.config = config['imu']
         self.bno = None
-        self.temp = None
         self.quaternion = None
         self.gravity = None
         self.magnetometer = None
@@ -49,36 +48,26 @@ class BNO055:
         )
         return True
 
-    def create_imu_message(self):
-        """Create a new message that encodes the latest IMU state"""
-        msg = derp.util.TOPICS['imu'].new_message(
-            timestampCreated=derp.util.get_timestamp(),
-            calibrationGyroscope=self.calibration_status[1],
-            calibrationAccelerometer=self.calibration_status[2],
-            calibrationMagnetometer=self.calibration_status[3],
-            accelerometer=self.accelerometer,
-            calibration=self.calibration,
-            gravity=self.gravity,
-            gyroscope=self.gyroscope,
-            magnetometer=self.magnetometer,
-            quaternion=self.quaternion,
-        )
-        return msg
-
     def run(self):
         """
         Reinitialize IMU if it's failed to get data at any point.
         Otherwise get data from the IMU to update state variable.
         """
-        self.temp = self.bno.read_temp()
-        self.quaterion = self.bno.read_quaternion()
-        self.gravity = self.bno.read_gravity()
-        self.magnetometer = self.bno.read_magnetometer()
-        self.gyroscope = self.bno.read_gyroscope()
-        self.accelerometer = self.bno.read_linear_acceleration()
-        self.calibration_status = self.bno.get_calibration_status()
-        self.calibration = self.bno.calibration()
-        message = self.create_imu_message()
+        calibration_status = self.bno.get_calibration_status()
+        msg = derp.util.TOPICS['imu'].new_message(
+            timeCreated=derp.util.get_timestamp(),
+            calibrationGyroscope=calibration_status[1],
+            calibrationAccelerometer=calibration_status[2],
+            calibrationMagnetometer=calibration_status[3],
+            accelerometer=self.bno.read_linear_acceleration(),
+            calibration=self.bno.calibration(),
+            gravity=self.bno.read_gravity(),
+            gyroscope=self.bno.read_gyroscope(),
+            magnetometer=self.bno.read_magnetometer(),
+            quaternion=self.bno.read_quaternion(),
+        )
+        msg.timePublished = derp.util.get_timestamp()
+        
 
 
 def run(config):

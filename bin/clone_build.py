@@ -4,22 +4,10 @@ Builds cloning datasets for use in the clone_train.py script.
 """
 import argparse
 import multiprocessing
-import pathlib
+from pathlib import Path
 import cv2
 import numpy as np
 import derp.util
-import scipy.signal
-
-
-def prepare_state(config, frame_id, state_headers, states, frame):
-    """
-    Prepares the state dictionary with the state of the machine frame index
-    """
-    state = {}
-    for header, value in zip(state_headers, states[frame_id]):
-        state[header] = value
-    state[config["thumb"]["component"]] = frame
-    return state
 
 
 def prepare_predict(config, frame_id, state_headers, state_timestamps, states, perts):
@@ -89,25 +77,6 @@ def prepare_store_name(frame_id, pert_id, perts, predict):
     return store_name
 
 
-def write_thumb(thumb, data_dir, store_name):
-    """
-    Write our image to di sk.
-    """
-    store_path = data_dir / store_name
-    cv2.imwrite(str(store_path), thumb)
-
-
-def write_csv(writer, array, data_dir, store_name):
-    """
-    Write a CSV file to disk.
-    """
-    writer.write(str(pathlib.Path(data_dir.name) / store_name))
-    for val in array:
-        writer.write(",%f" % val)
-    writer.write("\n")
-    writer.flush()
-
-
 def perturb(config, frame_config, frame, predict, status, perts):
     """
     Apply perturbations to the frame so that the frame appears to be located
@@ -118,7 +87,7 @@ def perturb(config, frame_config, frame, predict, status, perts):
     # figure out steer correction based on perturbations
     steer_correction = 0
     for pert in perts:
-        pertd = config["create"]["perts"][pert]
+        pertd = config["build"]["perts"][pert]
         steer_correction += pertd["fudge"] * perts[pert]
 
     # skip if we have nothing to correct
@@ -146,32 +115,22 @@ def process_recording(args):
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
     config, recording_path, folders = args
-    component_name = config["thumb"]["component"]
     recording_name = recording_path.name
 
-    # Prepare our data input
-    states_path = recording_path / "state.csv"
-    state_timestamps, state_headers, states = derp.util.read_csv(states_path, floats=True)
 
-    # Apply butterworth filter
-    steer_index = state_headers.index("steer")
-    # b, a = scipy.signal.butter(3, 0.05, output='ba')
-    # states[steer_index, :] = scipy.signal.filtfilt(b, a, states[steer_index, :])
-
-    # Skip if there are no labels
-    labels_path = recording_path / "label.csv"
-    if not labels_path.exists():
-        print("Unable to open [%s]" % labels_path)
+    topics = derp.util.load_topics(recording_path)
+    if 'label' not in topics:
+        print(recording_path, "has no labels")
         return False
-    label_ts, label_headers, labels = derp.util.read_csv(labels_path, floats=False)
-
-    # Prepare configs
-    source_config_path = recording_path / "car.yaml"
-    source_config = derp.util.load_config(source_config_path)
-    frame_config = derp.util.find_component_config(source_config, component_name)
+    state = {topic: None for topic in topics}
+    for timestamp, topic, msg in derp.util.replay(topics):
+        state[topic] = msg
+        if topic == 'camera':
+            pass
+            
+    recording_camera_config = derp.util.load_config(recording_path / "car.yaml")['camera']
 
     # Load brain off of the first state entry
-    state = prepare_state(config, 0, state_headers, states, None)
     brain = derp.util.load_brain(config, source_config, state)
     if brain.bbox is None:
         return False
@@ -179,7 +138,7 @@ def process_recording(args):
     # Perturb our arrays
     n_perts = 1
     if frame_config["hfov"] > config["thumb"]["hfov"]:
-        n_perts = config["create"]["n_perts"]
+        n_perts = config["build"]["n_perts"]
     print("Processing", recording_path, n_perts)
 
     # Prepare directories and writers
@@ -206,7 +165,7 @@ def process_recording(args):
             continue
 
         # Prepare attributes regardless of perturbation
-        if np.random.rand() < config["create"]["train_chance"]:
+        if np.random.rand() < config["build"]["train_chance"]:
             part = "train"
         else:
             part = "val"
@@ -222,7 +181,7 @@ def process_recording(args):
 
             # Prepare variables to store for this example
             brain.state = prepare_state(config, frame_id, state_headers, states, frame)
-            perts = prepare_pert_magnitudes(config["create"]["perts"], pert_id == 0)
+            perts = prepare_pert_magnitudes(config["build"]["perts"], pert_id == 0)
             predict = prepare_predict(
                 config, frame_id, state_headers, state_timestamps, states, perts
             )
@@ -251,22 +210,19 @@ def main():
     """
     Builds cloning datasets for use in the clone_train.py script.
     """
-    # Make sure we got arguments correctly processed
     parser = argparse.ArgumentParser()
-    parser.add_argument("--brain", type=str, required=True, help="car brain we wish to train for")
-    parser.add_argument(
-        "--count", type=int, default=4, help="Number of processes to run in parallel"
-    )
+    parser.add_argument("--brain", type=Path, required=True, help="brain we wish to train")
+    parser.add_argument("--car", type=Path, required=True, help="physical car we wish to train for")
+    parser.add_argument("--count", type=int, default=4, help="number of parallel processes")
     args = parser.parse_args()
 
     # Import configs that we wish to train for
-    config_path = derp.util.get_brain_config_path(args.brain)
-    brain_config = derp.util.load_config(config_path)
-    experiment_path = derp.util.get_experiment_path(brain_config["name"])
+    brain_config = derp.util.load_config(args.brain)
+    car_config = derp.util.load_config(args.car)
 
-    # Create folders
+    experiment_path = derp.util.ROOT / 'scratch' / brain_config['name']
+    print(experiment_path)
     if not experiment_path.exists():
-        print("Created", experiment_path)
         experiment_path.mkdir(parents=True, exist_ok=True)
 
     # Prepare folders and file descriptors
@@ -275,19 +231,14 @@ def main():
     for part in parts:
         folders[part] = experiment_path / part
         if not folders[part].exists():
-            print("Created", folders[part])
             folders[part].mkdir(parents=True, exist_ok=True)
 
     # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in brain_config["create"]["data_folders"]:
-        data_folder = pathlib.Path(data_folder)
-
-        # If we don't have an absolute path, prepend derp_data folder
+    for data_folder in brain_config["build"]["data_folders"]:
+        data_folder = Path(data_folder)
         if not data_folder.is_absolute():
             data_folder = derp.util.ROOT / "data" / data_folder
-
-        # If we have the recording path, process what's in it
         for filename in data_folder.glob("*"):
             recording_path = data_folder / filename
             if recording_path.is_dir():

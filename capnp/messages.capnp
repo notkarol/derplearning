@@ -1,9 +1,9 @@
 @0x88f4b9e26c4cefca;
 
 struct Camera {
-  timestampCreated @0 :UInt64;
-  timestampPublished @1 :UInt64;
-  timestampWritten @2 :UInt64;
+  timeCreated @0 :UInt64;
+  timePublished @1 :UInt64;
+  timeWritten @2 :UInt64;
   yaw @3 :Float32;
   pitch @4 :Float32;
   roll @5 :Float32;
@@ -20,9 +20,9 @@ struct Camera {
 }
 
 struct Label {
-  timestampCreated @0 :UInt64;
-  timestampPublished @1 :UInt64;
-  timestampWritten @2 :UInt64;
+  timeCreated @0 :UInt64;
+  timePublished @1 :UInt64;
+  timeWritten @2 :UInt64;
   quality @3 :QualityEnum;
   enum QualityEnum {
     unknown @0;
@@ -33,18 +33,18 @@ struct Label {
 }
 
 struct Control {
-  timestampCreated @0 :UInt64;
-  timestampPublished @1 :UInt64;
-  timestampWritten @2 :UInt64;
+  timeCreated @0 :UInt64;
+  timePublished @1 :UInt64;
+  timeWritten @2 :UInt64;
   speed @3 :Float32;
   steer @4 :Float32;
   manual @5 :Bool;
 }
 
 struct State {
-  timestampCreated @0 :UInt64;
-  timestampPublished @1 :UInt64;
-  timestampWritten @2 :UInt64;
+  timeCreated @0 :UInt64;
+  timePublished @1 :UInt64;
+  timeWritten @2 :UInt64;
   record @3 :Bool;
   auto @4 :Bool;
   speedOffset @5 :Float32;
@@ -52,9 +52,9 @@ struct State {
 }
 
 struct Imu {
-  timestampCreated @0 :UInt64;
-  timestampPublished @1 :UInt64;
-  timestampWritten @2 :UInt64;
+  timeCreated @0 :UInt64;
+  timePublished @1 :UInt64;
+  timeWritten @2 :UInt64;
   calibrationGyroscope @3 :UInt8;
   calibrationAccelerometer @4 :UInt8;
   calibrationMagnetometer @5 :UInt8;

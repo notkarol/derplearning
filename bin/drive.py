@@ -26,13 +26,16 @@ def main():
     processes = {}
     for component_name in sorted(config):
         component_parts = component_name.split("_")
-        if "camera" in component_parts:
+        if "camera" == component_parts:
             func = derp.camera.run
-        elif "joystick" in component_parts:
-            func = derp.joystick.run
-        elif "keyboard" in component_parts:
-            func = derp.keyboard.run
-        elif "writer" in component_parts:
+        elif "input" == component_parts:
+            if config[component_name]['type'] == 'keyboard':
+                func = derp.keyboard.run
+            elif config[component_name]['type'] == 'joystick':
+                func = derp.joystick.run
+            else:
+                continue
+        elif "writer" == component_parts:
             func = derp.writer.run
         else:
             continue
