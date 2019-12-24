@@ -15,7 +15,7 @@ build:
 train:
   perturbs:
     - name: 'colorjitter'
-      brightness: 0.5,
+      brightness: 0.5
       contrast: 0.5
       saturation: 0.5
       hue: 0.1
@@ -39,8 +39,8 @@ status: []
 
 # States we will predict
 predict:
-  - {name: 'steer', field: 'steer', time_offset: -0.2, scale: 1 }
-  - {name: 'speed_modulator', field: 'steer', time_offset:  1.8, scale: 1 }
+  - {name: 'steer', field: 'steer', time_offset: 0}
+  - {name: 'speed', field: 'speed', time_offset: 0}
 
 # Other parameters that will affect things during autonomous mode
 scale: 0.5

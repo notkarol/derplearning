@@ -4,16 +4,13 @@ Run a training instance over the supplied controller dataset. Stores a torch mod
 the controller dataset folder every time the validation loss decreases.
 """
 import argparse
+from pathlib import Path
 import time
 from subprocess import call
-
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-
 from derp.fetcher import Fetcher
 import derp.util
 import derp.model
@@ -62,69 +59,60 @@ def main():
     the controller dataset folder every time the validation loss decreases.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--controller", type=str, required=True, help="Controller we wish to train")
-    parser.add_argument(
-        "--model", type=str, default="StarTree", help="Model to run. Default to Medium Sized"
-    )
+    parser.add_argument("brain", type=Path, help="Controller we wish to train")
+    parser.add_argument("--model", type=str, default="StarTree", help="Model class to train")
     parser.add_argument("--gpu", type=str, default="0", help="GPU to use")
     parser.add_argument("--bs", type=int, default=32, help="Batch Size")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning Rate")
-    parser.add_argument("--epochs", type=int, default=50, help="Number of epochs to run for")
+    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs to run for")
+    parser.add_argument('--seed', type=int, default=0, help='seed')
     args = parser.parse_args()
 
-    # Prepare config and paths
-    config_path = derp.util.get_controller_config_path(args.controller)
-    controller_config = derp.util.load_config(config_path)
-    experiment_path = derp.util.get_experiment_path(controller_config["name"])
-
-    # If we don't have the experiment file created, make sure we try creating it
+    np.random.seed(args.seed)
+    config = derp.util.load_config(args.brain)
+    experiment_path = derp.util.ROOT / 'scratch' / config['name']
     if not experiment_path.exists():
-        call(["python3", "clone_build.py", "--controller", args.controller])
-
-    # Prepare device we will train on
+        call(["python3", "bin/clone_build.py", args.brain])
     device = torch.device("cuda:" + args.gpu if torch.cuda.is_available() else "cpu")
 
     # Prepare model
-    thumb_config = controller_config["thumb"]
-    dim_in = np.array((thumb_config["depth"], thumb_config["height"], thumb_config["width"]))
-    n_status = len(controller_config["status"])
-    n_out = len(controller_config["predict"])
-    model_class = derp.util.load_class("derp.model", args.model)
-    model = model_class(dim_in, n_status, n_out).to(device)
-    criterion = nn.MSELoss().to(device)
-    optimizer = optim.Adam(model.parameters(), args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+    dim_in = np.array([config["thumb"]["depth"],
+                       config["thumb"]["height"],
+                       config["thumb"]["width"]])
+    model_fn = eval('derp.model.' + args.model)
+    model = model_fn(dim_in, len(config["status"]), len(config["predict"])).to(device)
+    criterion = torch.nn.MSELoss().to(device)
+    optimizer = torch.optim.AdamW(model.parameters(), args.lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.25, verbose=True, patience=8
     )
 
     # Prepare perturbation of example
-    tlist = []
-    for traind in controller_config["train"]["prepare"]:
-        if traind["name"] == "colorjitter":
+    transform_list = []
+    for perturb_config in config["train"]["perturbs"]:
+        if perturb_config["name"] == "colorjitter":
             transform = transforms.ColorJitter(
-                brightness=traind["brightness"],
-                contrast=traind["contrast"],
-                saturation=traind["saturation"],
-                hue=traind["hue"],
+                brightness=perturb_config["brightness"],
+                contrast=perturb_config["contrast"],
+                saturation=perturb_config["saturation"],
+                hue=perturb_config["hue"],
             )
-            tlist.append(transform)
-        tlist.append(transforms.ToTensor())
-    transform = transforms.Compose(tlist)
+            transform_list.append(transform)
+    transform_list.append(transforms.ToTensor())
+    transform = transforms.Compose(transform_list)
 
     # prepare data loaders
     parts = ["train", "val"]
     loaders = {}
     fetchers = {}
     for part in parts:
-        fetchers[part] = Fetcher(experiment_path / part, transform)
+        fetchers[part] = Fetcher(experiment_path / part, transform, config['predict'])
         loaders[part] = DataLoader(fetchers[part], batch_size=args.bs, shuffle=True, num_workers=2)
-        print(
-            "Part %6s #examples: %6i  #batches: %4i"
-            % (part, len(fetchers[part]), len(fetchers[part]) / args.bs + 0.9999)
-        )
+        print("Part %6s #examples: %6i  #batches: %4i"
+              % (part, len(fetchers[part]), len(fetchers[part]) / args.bs + 0.9999))
 
     # Train
-    min_loss = 1
+    min_loss = 1E6
     for epoch in range(args.epochs + 1):
         durations = {}
         batch_durations = {}
