@@ -1,22 +1,24 @@
 # Training related parameters
 build:
-  data_folders: ['']
-  train_chance: 0.9
-  n_perts: 1
-  perts:
+  folders: ['debug']
+  train_chance: 0.8
+  n_samples: 1
+  perturbs:
     shift:
-      max: 0.0 # meters
+      range: [0, 0] # meters
       fudge: 0.5
-      timedecay: 1.0
     rotate:
-      max: 0 # degrees
+      range: [0, 0] # degrees
       fudge: 0.02
-      timedecay: 1.0
 
 # Training related parameters
 train:
-  prepare:
-    - {name: 'colorjitter', brightness: 0.5, contrast: 0.5, saturation: 0.5, hue: 0.1}
+  perturbs:
+    - name: 'colorjitter'
+      brightness: 0.5,
+      contrast: 0.5
+      saturation: 0.5
+      hue: 0.1
 
 # What we expect for input from the camera
 thumb:

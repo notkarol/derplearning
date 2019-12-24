@@ -41,12 +41,10 @@ class Labeler:
             self.update_label(i, i, quality)
 
         # Prepare state messages
-        control_times = [msg.timePublished for msg in self.topics["control"]]
         camera_times = [msg.timePublished for msg in self.topics["camera"]]
-        speeds = [msg.speed for msg in self.topics["control"]]
-        steers = [msg.steer for msg in self.topics["control"]]
-        camera_speeds = derp.util.latest_messages(camera_times, control_times, speeds)
-        camera_steers = derp.util.latest_messages(camera_times, control_times, steers)
+        controls = derp.util.extract_car_controls(self.topics)
+        camera_speeds = derp.util.extract_latest(camera_times, controls[:, 0], controls[:, 1])
+        camera_steers = derp.util.extract_latest(camera_times, controls[:, 0], controls[:, 2])
         self.speeds = derp.util.interpolate(camera_speeds, self.f_w, self.bhh)
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 

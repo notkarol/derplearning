@@ -90,17 +90,6 @@ class Clone(Brain):
         # Data saving
         self.frame_counter = 0
 
-    def prepare_thumb(self, frame):
-        if frame is not None:
-            patch = derp.util.crop(frame, self.bbox)
-            thumb = derp.util.resize(patch, self.size)
-        else:
-            dim = [self.config["thumb"]["height"], self.config["thumb"]["width"]]
-            if self.config["thumb"]["depth"] > 1:
-                dim += [self.config["thumb"]["depth"]]
-            thumb = np.zeros(dim, dtype=np.float32)
-        return thumb
-
     def predict(self):
         status = derp.util.extractList(self.config["status"], self.state)
         frame = self.state[self.config["thumb"]["component"]]

@@ -1,6 +1,7 @@
 """
 Common utilities for derp used by various classes.
 """
+from collections import namedtuple
 import csv
 import cv2
 from datetime import datetime
@@ -21,6 +22,8 @@ import capnp
 import messages_capnp
 import scipy.signal as signal
 from scipy.interpolate import interp1d
+
+Bbox = namedtuple('Bbox', ['x', 'y', 'w', 'h'])
 
 TOPICS = {
     "camera": messages_capnp.Camera,
@@ -119,7 +122,7 @@ def get_patch_bbox(target_config, source_config):
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
+    #print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
     if x >= 0 and x + patch_width <= source_width and y >= 0 and y + patch_height <= source_height:
         return Bbox(x, y, patch_width, patch_height)
     return None
@@ -138,11 +141,11 @@ def resize(image, size):
     return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
 
 
-def perturb(frame, config, perts):
+def perturb(frame, config, perturbs):
 
     # Estimate how many pixels to rotate by, assuming fixed degrees per pixel
     pixels_per_degree = config["width"] / config["hfov"]
-    rotate_pixels = (perts["rotate"] if "rotate" in perts else 0) * pixels_per_degree
+    rotate_pixels = (perturbs["rotate"] if "rotate" in perturbs else 0) * pixels_per_degree
 
     # Figure out where the horizon is in the image
     horizon_frac = ((config["vfov"] / 2) + config["pitch"]) / config["vfov"]
@@ -158,11 +161,11 @@ def perturb(frame, config, perts):
         magnitude = rotate_pixels
 
         # based on the distance adjust for shift
-        if "shift" in perts and vertical_frac > horizon_frac:
+        if "shift" in perturbs and vertical_frac > horizon_frac:
             ground_angle = (vertical_frac - horizon_frac) * config["vfov"]
             ground_distance = config["z"] / np.tan(deg2rad(ground_angle))
             ground_width = 2 * ground_distance * np.tan(deg2rad(config["hfov"]) / 2)
-            shift_pixels = (perts["shift"] / ground_width) * config["width"]
+            shift_pixels = (perturbs["shift"] / ground_width) * config["width"]
             magnitude += shift_pixels
 
         # Find the nearest integer
@@ -325,7 +328,7 @@ def smooth(vals):
     b, a = signal.butter(3, 0.05, output="ba")
     return signal.filtfilt(b, a, vals)
 
-def latest_messages(desired_times, source_times, source_values):
+def extract_latest(desired_times, source_times, source_values):
     out = []
     pos = 0
     val = 0
@@ -368,3 +371,19 @@ def replay(topics):
 
 def decode_jpg(jpg):
     return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)    
+
+
+def extract_car_controls(topics):
+    out = []
+    auto = False
+    speed_offset = 0
+    steer_offset = 0
+    for timestamp, topic, msg in replay(topics):
+        if topic == 'state':
+            auto = msg.auto
+            speed_offset = msg.speedOffset
+            steer_offset = msg.steerOffset
+        elif topic == 'control':
+            if auto or msg.manual:
+                out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
+    return np.array(out)

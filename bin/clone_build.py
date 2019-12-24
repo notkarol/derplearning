@@ -10,162 +10,75 @@ import numpy as np
 import derp.util
 
 
-def prepare_predict(config, frame_id, state_headers, state_timestamps, states, perts):
-    """
-    Prepares the output that the model needs to predict at the current frame, depending on
-    perturbations and the delay.
-    """
-    predict = np.zeros(len(config["predict"]), dtype=np.float)
-    for pos, predict_dict in enumerate(config["predict"]):
-        if predict_dict["field"] in state_headers:
-            state_pos = state_headers.index(predict_dict["field"])
-            timestamp = state_timestamps[frame_id] + predict_dict["time_offset"]
-            predict[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
-        elif predict_dict["field"] in perts:
-            predict[pos] = perts[predict_dict["field"]]
-            if "time_offset" in predict_dict:
-                print("Time offset is not implemented for fields in perts")
-                return False
-        else:
-            print("Unable to find field [%s] in perts or states" % predict_dict["field"])
-            return False
-        predict[pos] *= predict_dict["scale"]
-    return predict
+def sample_perturbs(config):
+    """ Sample each value of the perurbs we do """
+    sample = {}
+    for perturb in config:
+        sample[perturb] = np.random.uniform(*config[perturb]['range'])
+    return sample
 
+METADATA_HEADER = ['timestamp', 'perturb_i', 'shift', 'rotate',
+                   'speed-1.0', 'steer-1.0', 'speed-0.9', 'steer-0.9',
+                   'speed-0.8', 'steer-0.8', 'speed-0.7', 'steer-0.7',
+                   'speed-0.6', 'steer-0.6', 'speed-0.5', 'steer-0.5', 
+                   'speed-0.4', 'steer-0.4', 'speed-0.3', 'steer-0.3',
+                   'speed-0.2', 'steer-0.2', 'speed-0.1', 'steer-0.1',
+                   'speed', 'steer',
+                   'speed+0.1', 'steer+0.1', 'speed+0.2', 'steer+0.2',
+                   'speed+0.3', 'steer+0.3', 'speed+0.4', 'steer+0.4',
+                   'speed+0.5', 'steer+0.5', 'speed+0.6', 'steer+0.6',
+                   'speed+0.7', 'steer+0.7', 'speed+0.8', 'steer+0.8',
+                   'speed+0.9', 'steer+0.9', 'speed+1.0', 'steer+1.0']
+                    
 
-def prepare_status(config, frame_id, state_headers, state_timestamps, states):
-    """
-    Prepares the status array, which is a vector of inputs that gets attached to the fully
-    connected layer of a model.
-    """
-    status = np.zeros(len(config["status"]), dtype=np.float)
-    for pos, status_dict in enumerate(config["status"]):
-        if status_dict["field"] not in state_headers:
-            print("Unable to find field [%s]" % status_dict["field"])
-            return False
-
-        state_pos = state_headers.index(status_dict["field"])
-        timestamp = state_timestamps[frame_id]
-        status[pos] = derp.util.find_value(state_timestamps, timestamp, states[:, state_pos])
-        status[pos] *= status_dict["scale"]
-    return status
-
-
-def prepare_pert_magnitudes(config, zero=False):
-    """
-    For each perturbation we uniformly sample its range to generate a perturbation.
-    """
-    perts = {}
-    for pert in sorted(config):
-        if zero:
-            perts[pert] = 0.0
-        else:
-            perts[pert] = np.random.uniform(-config[pert]["max"], config[pert]["max"])
-    return perts
-
-
-def prepare_store_name(frame_id, pert_id, perts, predict):
-    """
-    Build the name of the image by conjoining the perturbations and predicted values.
-    """
-    store_name = "%06i_%02i" % (frame_id, pert_id)
-    for pert in sorted(perts):
-        store_name += "_%s%05.2f" % (pert[0], perts[pert])
-    for pred in predict:
-        store_name += "_%06.3f" % (pred)
-    store_name += ".png"
-    return store_name
-
-
-def perturb(config, frame_config, frame, predict, status, perts):
-    """
-    Apply perturbations to the frame so that the frame appears to be located
-    - shift: at a parallel offset with respect to its current heading
-    - rotate: at heading in a different direction with respect to its current position
-    """
-
-    # figure out steer correction based on perturbations
-    steer_correction = 0
-    for pert in perts:
-        pertd = config["build"]["perts"][pert]
-        steer_correction += pertd["fudge"] * perts[pert]
-
-    # skip if we have nothing to correct
-    if steer_correction == 0:
-        return
-
-    # apply steer corrections TODO is this doing what we think it is?
-    for i, status_dict in enumerate(config["status"]):
-        if status_dict["field"] == "steer":
-            status[i] += steer_correction * (1 - min(status_dict["time_offset"], 1))
-            status[i] = min(1, status[i])
-            status[i] = max(-1, status[i])
-    for i, predict_dict in enumerate(config["predict"]):
-        if predict_dict["field"] == "steer":
-            predict[i] += steer_correction * (1 - min(predict_dict["time_offset"], 1))
-            predict[i] = min(1, predict[i])
-            predict[i] = max(-1, predict[i])
-
-    # Apply perturbation to pixel values
-    derp.util.perturb(frame, frame_config, perts)
+def prepare_metadata(timestamp, perturb_i, camera_times, camera_speeds, camera_steers, perturbs):
+    out = [str(timestamp), '%.3f' % perturb_i,
+           '%.3f' % perturbs['shift'], '%.3f' % perturbs['rotate']]
+    for offset in np.linspace(-1, 1, 21):
+        index = np.searchsorted(camera_times, timestamp + offset * 1E6)
+        out.append('%.3f' % camera_speeds[index])
+        out.append('%.3f' % camera_steers[index])
+    return out
 
 
 def process_recording(args):
     """
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
-    config, folder, folders = args
-    camera_config = derp.util.load_config(folder / "config.yaml")['camera']
-    n_perts = config["build"]["n_perts"] if camera_config["hfov"] > config["thumb"]["hfov"] else 1
+    config, recording_folder, out_folder = args
+    print("Processing %s into %s" % (recording_folder, out_folder))
+    camera_config = derp.util.load_config(recording_folder / 'config.yaml')['camera']
+    state_fd = open(str(out_folder / 'state.csv'), 'w')
+    state_fd.write(','.join(METADATA_HEADER) + '\n')
+    
+    topics = derp.util.load_topics(recording_folder)
+    assert 'label' in topics and topics['label']
 
-    # Prepare folders and status files
-    metadata_fds = {}
-    for part in folders:
-        out_path = folders[part] / folder.name
-        if out_path.exists():
-            return False
-        out_path.mkdir(parents=True)
-        metadata_fds[part] = open(str(out_path / "metadata.csv"), "a")
-
-    # Load data, if there are no labels the don't run ourselves
-    topics = derp.util.load_topics(folder)
-    if 'label' not in topics:
-        print(folder, "has no labels")
-        return False
-
-    print("Processing", folder.name)
-    state = {topic: derp.util.TOPICS[topic].new_message() for topic in topics}
-    for timestamp, topic, msg in derp.util.replay(topics):
-        state[topic] = msg
-        if topic != 'camera' or state['label'].quality != "good":
+    camera_times = [msg.timePublished for msg in topics["camera"]]
+    controls = derp.util.extract_car_controls(topics)                                       
+    camera_speeds = derp.util.extract_latest(camera_times, controls[:, 0], controls[:, 1])
+    camera_steers = derp.util.extract_latest(camera_times, controls[:, 0], controls[:, 2])
+        
+    for camera_i, timestamp in enumerate(camera_times):
+        if topics['label'][camera_i].quality != 'good':
             continue
-
-        partition = 'train' if np.random.rand() < config["build"]["train_chance"] else 'val'
-        data_dir = folders[partition] / folder.name
-
-        # Create each perturbation for dataset
-        for pert_id in range(n_perts):
-
-            # Prepare variables to store for this example
-            perts = prepare_pert_magnitudes(config["build"]["perts"], pert_id == 0)
-            predict = prepare_predict(
-                config, frame_id, state_headers, state_timestamps, states, perts
+        # Skip the first/last 2 seconds of video no matter how it's labeled
+        if timestamp < camera_times[0] + 2E6 or timestamp > camera_times[-1] - 2E6:
+            continue
+        for perturb_i in range(config['build']['n_samples']):
+            store_name = '%i_%03i.png' % (timestamp, perturb_i)
+            perturbs = sample_perturbs(config['build']['perturbs'])
+            metadata = prepare_metadata(
+                timestamp, perturb_i, camera_times, camera_speeds, camera_steers, perturbs
             )
-            status = prepare_status(config, frame_id, state_headers, state_timestamps, states)
-
-            # Perturb the image and status/predictions
-            frame = brain.state[component_name]
-            perturb(config, frame_config, frame, predict, status, perts)
-
-            # Get thumbnail
-            thumb = brain.prepare_thumb(frame)
-
-            # Prepare store name
-            store_name = prepare_store_name(frame_id, pert_id, perts, predict)
-            write_thumb(thumb, data_dir, store_name)
-            write_csv(predict_fds[part], predict, data_dir, store_name)
-            write_csv(status_fds[part], status, data_dir, store_name)
-
+            frame = derp.util.decode_jpg(topics['camera'][camera_i].jpg)
+            derp.util.perturb(frame, camera_config, perturbs)
+            bbox = derp.util.get_patch_bbox(config['thumb'], camera_config)
+            patch = derp.util.crop(frame, bbox)
+            thumb = derp.util.resize(patch, (config['thumb']['width'], config['thumb']['height']))
+            derp.util.save_image(out_folder / store_name, thumb)
+            state_fd.write(','.join(metadata) + '\n')
+    state_fd.close()
     return True
 
 
@@ -174,40 +87,25 @@ def main():
     Builds cloning datasets for use in the clone_train.py script.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--brain", type=Path, required=True, help="brain we wish to train")
-    parser.add_argument("--car", type=Path, required=True, help="physical car we wish to train for")
-    parser.add_argument("--count", type=int, default=4, help="number of parallel processes")
+    parser.add_argument('brain', type=Path, help='brain we wish to train')
+    parser.add_argument('--count', type=int, default=4, help='number of parallel processes')
+    parser.add_argument('--seed', type=int, default=0, help='seed')
     args = parser.parse_args()
 
-    # Import configs that we wish to train for
-    brain_config = derp.util.load_config(args.brain)
-    car_config = derp.util.load_config(args.car)
+    np.random.seed(args.seed)
+    config = derp.util.load_config(args.brain)
+    experiment_path = derp.util.ROOT / 'scratch' / config['name']
+    experiment_path.mkdir(parents=True, exist_ok=True)
 
-    experiment_path = derp.util.ROOT / 'scratch' / brain_config['name']
-    print(experiment_path)
-    if not experiment_path.exists():
-        experiment_path.mkdir(parents=True, exist_ok=True)
-
-    # Prepare folders and file descriptors
-    parts = ["train", "val"]
-    folders = {}
-    for part in parts:
-        folders[part] = experiment_path / part
-        if not folders[part].exists():
-            folders[part].mkdir(parents=True, exist_ok=True)
-
-    # Run through each folder and include it in dataset
     process_args = []
-    for data_folder in brain_config["build"]["data_folders"]:
-        data_folder = Path(data_folder)
-        if not data_folder.is_absolute():
-            data_folder = derp.util.ROOT / "data" / data_folder
-        for filename in data_folder.glob("*"):
-            folder = data_folder / filename
-            if folder.is_dir():
-                process_args.append([brain_config, folder, folders])
+    for folder in [derp.util.ROOT / 'data' / x for x in config['build']['folders']]:
+        for recording_folder in folder.glob('recording-*-*-*'):
+            partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'val'
+            out_folder = experiment_path / partition / recording_folder.stem
+            if not out_folder.exists():
+                out_folder.mkdir(parents=True)
+                process_args.append([config, recording_folder, out_folder])
 
-    # Prepare pool of workers
     if args.count <= 0:
         for arg in process_args:
             process_recording(arg)
@@ -216,5 +114,5 @@ def main():
         pool.map(process_recording, process_args)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
