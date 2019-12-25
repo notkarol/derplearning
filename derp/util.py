@@ -207,7 +207,7 @@ def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
     hn = socket.gethostname()
-    path = ROOT / "data" / ("%s-%s" % (dt, hn))
+    path = ROOT / "data" / ("recording-%s-%s" % (dt, hn))
     path.mkdir(parents=True, exist_ok=True)
     return path
 

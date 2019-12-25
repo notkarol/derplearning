@@ -1,4 +1,4 @@
-#!/usr/bin/env/python3
+#!/usr/bin/env python3
 """
 The main driver program that loops the live internal state.
 """

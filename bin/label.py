@@ -27,7 +27,7 @@ class Labeler:
         self.f_h = self.frame.shape[0]
         self.f_w = self.frame.shape[1]
         self.l_h = int(self.bhh // 10)
-        self.window = np.zeros([self.f_h + self.bhh * 2 + self.l_h, self.f_w, 3], dtype=np.uint8)
+        self.window = np.zeros([self.f_h + self.bhh * 2 + self.l_h + 2, self.f_w, 3], dtype=np.uint8)
         self.paused = True
         self.show = False
 
