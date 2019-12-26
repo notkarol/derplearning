@@ -11,10 +11,9 @@ class Camera:
     def __init__(self, config):
         """The Camera manages the camera interface and sends camera messages."""
         self.config = config['camera']
+        self.quality = [cv2.IMWRITE_JPEG_QUALITY, self.config['quality']]
         self.cap = None
-        self.__connect()
-        self.width = int(self.config["width"] * self.config["resize"] + 0.5)
-        self.height = int(self.config["height"] * self.config["resize"] + 0.5)
+        self.ready = self.__connect()
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_camera")
 
     def __del__(self):
@@ -27,34 +26,36 @@ class Camera:
         if self.cap:
             del self.cap
             self.cap = None
-        if self.config["index"] is None:
-            devices = [
-                int(f[-1]) for f in sorted(os.listdir("/dev")) if re.match(r"^video[0-9]", f)
-            ]
-            if len(devices) == 0:
-                return False
-            self.index = devices[-1]
+        if self.config['index'] is None:
+            device = 'autovideosrc'
         else:
-            self.index = self.config["index"]
+            device ='device=/dev/video%i' % self.config['index']
+        width = self.config['width']
+        height = self.config['height']
+        fps = self.config['fps']
 
-        # Connect to camera, exit if we can't
-        self.cap = cv2.VideoCapture(self.index)
-        if not self.cap or not self.cap.isOpened():
-            self.cap = None
+        if self.config['mode'] == 'video':
+            gst = ('v4l2src %s ! video/x-raw,format=YUY2,width=%i,height=%i,framerate=%i/1 '
+                   '! videoconvert ! appsink' % (device, width, height, fps))
+        elif self.config['mode'] == 'image':
+            gst = ('v4l2src %s ! image/jpeg,width=%i,height=%i,framerate=%i/1 '
+                   '! jpegparse ! jpegdec ! videoconvert ! appsink' % (device, width, height, fps))
+        else:
             return False
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.config["width"])
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.config["height"])
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        return True
+        self.cap = cv2.VideoCapture(gst, cv2.CAP_GSTREAMER)
+        return bool(self.cap) and self.cap.isOpened()
 
     def run(self):
         """Get and publish the camera frame"""
         ret, frame = self.cap.read()
-        if not ret or frame is None:
-            self.__connect()
+        recv_timestamp = derp.util.get_timestamp()
+        if not ret:
+            self.ready = self.__connect()
             return
+        jpg = cv2.imencode(".jpg", frame, self.quality)[1].tostring()
         msg = derp.util.TOPICS['camera'].new_message(
-            timeCreated=derp.util.get_timestamp(),
+            timeCreated=recv_timestamp,
+            timePublished=derp.util.get_timestamp(),
             yaw=self.config["yaw"],
             pitch=self.config["pitch"],
             roll=self.config["roll"],
@@ -67,10 +68,8 @@ class Camera:
             hfov=self.config["hfov"],
             vfov=self.config["vfov"],
             fps=self.config["fps"],
+            jpg=jpg,
         )
-        frame = derp.util.resize(frame, (self.width, self.height))
-        msg.jpg = cv2.imencode(".jpg", frame)[1].tostring()
-        msg.timePublished = derp.util.get_timestamp()
         self.__publisher.send_multipart([b"camera", msg.to_bytes()])
 
 
