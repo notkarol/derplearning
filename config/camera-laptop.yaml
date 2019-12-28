@@ -1,0 +1,14 @@
+index: null
+fov: 75
+fps: 30
+height: 480
+width: 640
+depth: 3
+x: 0
+y: 0
+z: 0
+roll: 0
+pitch: 0
+yaw: 0
+mode: image
+quality: 0.95

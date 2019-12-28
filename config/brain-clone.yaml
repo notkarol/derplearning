@@ -1,3 +1,5 @@
+seed: 0
+
 # Training related parameters
 build:
   folders: ['debug']
@@ -13,7 +15,13 @@ build:
 
 # Training related parameters
 train:
-  perturbs:
+  model: StarTree
+  criterion: MSELoss
+  optimizer: AdamW
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 32
+  transforms:
     - name: 'colorjitter'
       brightness: 0.5
       contrast: 0.5

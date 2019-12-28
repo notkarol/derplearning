@@ -1,7 +1,0 @@
-camera:
-  path: camera-OV2710.yaml
-input:
-  type: joystick
-  deadzone: 8
-writer:
-  root_path: '/tmp'  
