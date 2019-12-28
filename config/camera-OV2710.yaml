@@ -14,3 +14,4 @@ roll:   0.0 # degrees left tilt. Assume zero for now
 pitch: -28.0 # degrees incline
 yaw:    0.0 # degrees left turn. Assume zero for now
 mode: image
+quality: 0.9

@@ -8,10 +8,17 @@ sudo apt install -y \
      cmake \
      ffmpeg \
      libatlas-base-dev \
+     libavcodec-dev \
+     libavformat-dev \
      libbluetooth-dev \
      libffi-dev \
+     libgstreamer1.0-dev \
+     libgstreamer-plugins-base1.0-dev \
+     libgtk2.0-dev \
      libjpeg-dev \
+     libswscale-dev \
      libusb-1.0-0-dev \
+     pkg-config \
      python3-dev \
      python3-matplotlib \
      python3-numpy \
@@ -56,7 +63,7 @@ if ! [[ -e $maestro_path ]] ; then
 fi
 hidraw_path=/etc/udev/rules.d/99-hidraw-permissions.rules
 if ! [[ -e $hidraw_path ]] ; then
-    echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0666", GROUP="plugdev"' | sudo tee $hidraw_path
+    echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0660", GROUP="plugdev"' | sudo tee $hidraw_path
     sudo udevadm control --reload-rules
 fi
 if [[ -e $(groups | grep i2c) ]] ; then 
