@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import derp.util
 
-
 class Brain:
     """
     The root class of any object that manipulate's the car state based on some heuristic.
@@ -89,8 +88,7 @@ class Clone(Brain):
             return False
         frame = derp.util.decode_jpg(self.messages['camera'].jpg)
         patch = derp.util.crop(frame, self.bbox)
-        thumb = derp.util.resize(patch, self.size)
-
+        thumb = derp.util.resize(patch, self.size) / 255
         status_batch = self.batch_vector([])
         thumb_batch = self.batch_tensor(thumb)
 

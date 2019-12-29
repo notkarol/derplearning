@@ -16,7 +16,7 @@ build:
 
 # Training related parameters
 train:
-  model: StarTree
+  model: Tiny
   criterion: MSELoss
   optimizer: AdamW
   batch_size: 64
@@ -32,15 +32,15 @@ train:
 # What we expect for input from the camera
 thumb:
   hfov: 75
-  vfov: 18.75
-  height: 32
+  vfov: 37.5
+  height: 64
   width: 128
   depth: 3
   x: -0.21
   y: 0.0
   z: 0.43
   roll: 0
-  pitch: -10
+  pitch: 0
   yaw: 0
 
 # The status we feed into the network

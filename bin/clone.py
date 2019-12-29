@@ -42,6 +42,8 @@ def build_recording(args):
     camera['speed'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 1])
     camera['steer'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 2])
 
+    bbox = derp.util.get_patch_bbox(config['thumb'], camera_config)
+    size = (config['thumb']['width'], config['thumb']['height'])
     n_frames_processed = 0
     for camera_i, timestamp in enumerate(camera['times']):
         if topics['label'][camera_i].quality != 'good':
@@ -65,9 +67,8 @@ def build_recording(args):
 
             frame = derp.util.decode_jpg(topics['camera'][camera_i].jpg)
             derp.util.perturb(frame, camera_config, perturbs)
-            bbox = derp.util.get_patch_bbox(config['thumb'], camera_config)
             patch = derp.util.crop(frame, bbox)
-            thumb = derp.util.resize(patch, (config['thumb']['width'], config['thumb']['height']))
+            thumb = derp.util.resize(patch, size)
             derp.util.save_image(out_folder / store_name, thumb)
 
             predict_row = ['%.6f' % x if isinstance(x, float) else x for x in  predict]
