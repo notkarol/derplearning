@@ -1,8 +1,9 @@
-seed: 0
+seed: 13
+class: Clone
 
 # Training related parameters
 build:
-  folders: ['debug']
+  folders: ['clone']
   train_chance: 0.8
   n_samples: 1
   perturbs:
@@ -49,8 +50,3 @@ status: []
 predict:
   - {name: 'steer', field: 'steer', time_offset: 0}
   - {name: 'speed', field: 'speed', time_offset: 0}
-
-# Other parameters that will affect things during autonomous mode
-scale: 0.5
-power: 2
-use_min_for_speed: true

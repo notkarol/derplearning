@@ -5,6 +5,7 @@ The main driver program that loops the live internal state.
 import argparse
 from pathlib import Path
 import derp.util
+import derp.brain
 import derp.camera
 import derp.joystick
 import derp.writer
@@ -28,11 +29,13 @@ def main():
 
     config = derp.util.load_config(args.config)
 
-    component_map = {'camera': derp.camera.run,
+    component_map = {'brain': derp.brain.run,
+                     'camera': derp.camera.run,
                      'joystick': derp.joystick.run,
                      'writer': derp.writer.run}
     processes = []
     for name in sorted(component_map):
+        print('Starting', name)
         proc = Process(target=component_map[name], args=(config,))
         proc.start()
         processes.append(proc)

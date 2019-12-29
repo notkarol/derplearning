@@ -13,7 +13,7 @@ class Camera:
         self.config = config['camera']
         self.quality = [cv2.IMWRITE_JPEG_QUALITY, self.config['quality']]
         self.cap = None
-        self.ready = self.__connect()
+        self.is_connected = self.__connect()
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_camera")
 
     def __del__(self):
@@ -26,10 +26,7 @@ class Camera:
         if self.cap:
             del self.cap
             self.cap = None
-        if self.config['index'] is None:
-            device = 'autovideosrc'
-        else:
-            device ='device=/dev/video%i' % self.config['index']
+        device ='device=/dev/video%i' % self.config['index']
         width = self.config['width']
         height = self.config['height']
         fps = self.config['fps']
@@ -76,5 +73,6 @@ class Camera:
 def run(config):
     """Run the camera in a loop"""
     camera = Camera(config)
-    while True:
+    while camera.is_connected:
         camera.run()
+    print("Exiting camera")

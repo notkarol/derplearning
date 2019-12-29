@@ -30,7 +30,6 @@ def build_recording(args):
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
     config, recording_folder, out_folder = args
-    print("Processing %s into %s" % (recording_folder, out_folder))
     camera_config = derp.util.load_config(recording_folder / 'config.yaml')['camera']
     predict_fd = open(str(out_folder / 'predict.csv'), 'w')
     status_fd = open(str(out_folder / 'status.csv'), 'w')
@@ -42,7 +41,8 @@ def build_recording(args):
     camera = {'times': [msg.timePublished for msg in topics["camera"]]}
     camera['speed'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 1])
     camera['steer'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 2])
-        
+
+    n_frames_processed = 0
     for camera_i, timestamp in enumerate(camera['times']):
         if topics['label'][camera_i].quality != 'good':
             continue
@@ -57,11 +57,11 @@ def build_recording(args):
             for predictor_config in config['predict']:
                 predictor_timestamp = int(timestamp + predictor_config['time_offset'] * 1E6)
                 index = np.searchsorted(camera['times'], predictor_timestamp)
-                predict.append(camera[predictor_config['field']][index])
+                predict.append(float(camera[predictor_config['field']][index]))
 
             status = [store_name]
             for status_config in config['status']:
-                status.append(camera[status_config['field']][camera_index - 1])
+                status.append(float(camera[status_config['field']][camera_index - 1]))
 
             frame = derp.util.decode_jpg(topics['camera'][camera_i].jpg)
             derp.util.perturb(frame, camera_config, perturbs)
@@ -74,16 +74,19 @@ def build_recording(args):
             predict_fd.write(','.join(predict_row) + '\n')
             status_row = ['%.6f' % x if isinstance(x, float) else x for x in  status]
             status_fd.write(','.join(status_row) + '\n')
+        n_frames_processed += 1
+    print("Build %s %5i %s" % (recording_folder, n_frames_processed, out_folder))
     predict_fd.close()
     status_fd.close()
     return True
 
 
 def build(config, experiment_path, count):
+    np.random.seed(config['seed'])
     process_args = []
     for folder in [derp.util.ROOT / 'data' / x for x in config['build']['folders']]:
         for recording_folder in folder.glob('recording-*-*-*'):
-            partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'val'
+            partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
             out_folder = experiment_path / partition / recording_folder.stem
             if not out_folder.exists():
                 out_folder.mkdir(parents=True)
@@ -145,16 +148,19 @@ class CloneTrainer:
         # Prepare transforms
         transforms = compose_transforms(self.config['train']['transforms'])
         train_fetcher = Fetcher(experiment_path / 'train', transforms, config['predict'])
+        assert len(train_fetcher)
         test_fetcher = Fetcher(experiment_path / 'test', transforms, config['predict'])
+        assert len(test_fetcher)
         self.train_loader = DataLoader(train_fetcher, self.config['train']['batch_size'],
                                        shuffle=True, num_workers=3)
         self.test_loader = DataLoader(test_fetcher, self.config['train']['batch_size'],
                                       num_workers=3)
-        self.test_loader = self.train_loader
         print('Train Loader: %6i' % len(self.train_loader.dataset))
         print('Test  Loader: %6i' % len(self.test_loader.dataset))
 
     def train(self):
+        np.random.seed(self.config['seed'])
+        torch.manual_seed(self.config['seed'])
         n_status = len(self.config["status"])
         n_predict = len(self.config["predict"])
         model = self.model_fn(self.dim_in, n_status, n_predict).to(self.device)

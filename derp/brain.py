@@ -15,13 +15,14 @@ class Brain:
         """Preset some common constructor parameters"""
         self.config = config['brain']
         self.car_config = config
-        self.messages = [derp.util.TOPICS[topic].new_message() for topic in derp.util.TOPICS]
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.messages = {topic: derp.util.TOPICS[topic].new_message() for topic in derp.util.TOPICS}
         self.speed = 0
         self.steer = 0
         self.__sub_context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
                                                                       '/tmp/derp_joystick',
                                                                       '/tmp/derp_imu'])
-        self.__pub_context, self.__publisher = derp.util.subscriber('/tmp/derp_brain')
+        self.__pub_context, self.__publisher = derp.util.publisher('/tmp/derp_brain')
 
     def __del__(self):
         self.__subscriber.close()
@@ -47,93 +48,68 @@ class Brain:
         topic = topic_bytes.decode()
         self.messages[topic] = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
         if topic == 'camera' and self.predict():
-            msg = derp.util.TOPICS['control'].new_messsage(
+            msg = derp.util.TOPICS['control'].new_message(
                 timeCreated=recv_timestamp,
                 timePublished=derp.util.get_timestamp(),
-                speed=self.speed,
-                steer=self.steer,
+                speed=float(self.speed),
+                steer=float(self.steer),
                 manual=False,
             )
             self.__publisher.send_multipart([b'control', msg.to_bytes()])
+            
+    def batch_vector(self, vector):
+        numpy_batch = np.reshape(vector, [1, len(vector)])
+        torch_batch = torch.from_numpy(numpy_batch).float().to(self.device)
+        return torch_batch
+
+    def batch_tensor(self, tensor):
+        numpy_batch = np.reshape(tensor, [1] * (4 - len(tensor.shape)) + list(tensor.shape))
+        torch_batch = torch.from_numpy(numpy_batch.transpose((0, 3, 1, 2))).float().to(self.device)
+        return torch_batch
+
+    def unbatch(self, batch):
+        if torch.cuda.is_available():
+            out = batch.data.cpu().numpy()
+        else:
+            out = batch.data.numpy()
+        return out
+
 
 class Clone(Brain):
     def __init__(self, config):
         super(Clone, self).__init__(config)
+        model_path = derp.util.ROOT / 'scratch' / self.config['name'] / 'model.pt'
+        self.model = torch.load(model_path).to(self.device) if model_path.exists() else None
         self.camera_config = self.car_config['camera']
-
-        # Show the user what we're working with
-        derp.util.print_image_config("Source", self.camera_config)
-        derp.util.print_image_config("Target", self.config["thumb"])
-        for key in sorted(self.camera_config):
-            print("Camera %s: %s" % (key, self.camera_config[key]))
-        for key in sorted(self.config["thumb"]):
-            print("Target %s: %s" % (key, self.config["thumb"][key]))
-
-        # Prepare camera inputs
-        self.bbox = derp.util.get_patch_bbox(self.config["thumb"], self.camera_config)
-        self.size = (config["thumb"]["width"], config["thumb"]["height"])
-
-        # Prepare model
-        self.model_dir = derp.util.get_brain_config_path(self.config["name"])
-        self.model_path = derp.util.find_matching_file(self.model_dir, "clone.pt$")
-        if self.model_path is not None and self.model_path.exists():
-            self.model = torch.load(str(self.model_path))
-            self.model.eval()
-        else:
-            self.model = None
-            print("Clone: Unable to find model path [%s]" % self.model_path)
-
-        # Useful variables for params
-        self.prev_steer = 0
-        self.prev_speed = 0
-
-        # Data saving
-        self.frame_counter = 0
-
+        self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
+        self.size = (self.config['thumb']['width'], self.config['thumb']['height'])
+        
     def predict(self):
-        status = derp.util.extractList(self.config["status"], self.state)
-        frame = self.state[self.config["thumb"]["component"]]
-        self.state["thumb"] = self.prepare_thumb(frame)
-        status_batch = derp.util.prepareVectorBatch(status)
-        thumb_batch = derp.util.prepareImageBatch(self.state["thumb"])
-        status_batch = derp.util.prepareVectorBatch(status)
-        if self.model:
-            prediction_batch = self.model(thumb_batch, status_batch)
-            prediction = derp.util.unbatch(prediction_batch)
-            derp.util.unscale(self.config["predict"], prediction)
-        else:
-            prediction = np.zeros(len(self.config["predict"]), dtype=np.float32)
-        self.state["prediction"] = prediction
+        if self.model is None:
+            return False
+        frame = derp.util.decode_jpg(self.messages['camera'].jpg)
+        patch = derp.util.crop(frame, self.bbox)
+        thumb = derp.util.resize(patch, self.size)
 
+        status_batch = self.batch_vector([])
+        thumb_batch = self.batch_tensor(thumb)
 
-class CloneAdaSpeed(Clone):
-    def __init__(self, config, car_config, state):
-        super(CloneAdaSpeed, self).__init__(config, car_config, state)
+        prediction_batch = self.model(thumb_batch, status_batch)
+        predictions = derp.util.unbatch(prediction_batch)
 
-    def run(self):
-        self.predict()
-        if self.state["auto"]:
-            return
+        self.speed = self.messages['state'].speedOffset
+        for prediction, config in zip(predictions, self.config['predict']):
+            if config['name'] == 'steer':
+                self.steer = float(prediction)
+            elif config['name'] == 'speed':
+                self.speed = float(prediction)
+            elif config['name'] == 'future_steer':
+                self.speed *= 1 + (1 - abs(float(prediction)))
+        return True
 
-        # Future steering angle magnitude dictates speed
-        if self.config["use_min_for_speed"]:
-            # predict is assumed to be a list of present and future stearing values
-            future_steer = float(min(abs(self.state["prediction"])))
-        else:
-            future_steer = float(abs(self.state["prediction"][1]))
-        multiplier = 1 + self.config["scale"] * (1 - future_steer) ** self.config["power"]
-
-        self.state["speed"] = self.state["offset_speed"] * multiplier
-        self.state["steer"] = float(self.state["predictions"][0])
-
-
-class CloneFixSpeed(Clone):
-    def __init__(self, config, car_config, state):
-        super(CloneFixSpeed, self).__init__(config, car_config, state)
-
-    def run(self):
-        self.predict()
-        if not self.state["auto"]:
-            return
-        self.state["speed"] = self.state["offset_speed"]
-        self.state["steer"] = float(self.state["prediction"][0])
+def run(config):
+    brain_class = eval(config['brain']['class'])
+    brain = brain_class(config)
+    while True:
+        brain.run()
+    

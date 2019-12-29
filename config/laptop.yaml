@@ -1,3 +1,5 @@
+brain:
+  path: brain-clone.yaml
 camera:
   path: camera-laptop.yaml
 joystick:

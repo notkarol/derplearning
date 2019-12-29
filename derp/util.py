@@ -142,7 +142,6 @@ def resize(image, size):
 
 
 def perturb(frame, config, perturbs):
-
     # Estimate how many pixels to rotate by, assuming fixed degrees per pixel
     pixels_per_degree = config["width"] / config["hfov"]
     rotate_pixels = (perturbs["rotate"] if "rotate" in perturbs else 0) * pixels_per_degree
@@ -156,21 +155,14 @@ def perturb(frame, config, perturbs):
 
     # For each vertical line, apply shift/rotation rolls
     for index, vertical_frac in zip(indexs, vertical_fracs):
-
-        # We always adjust for rotation
         magnitude = rotate_pixels
-
-        # based on the distance adjust for shift
         if "shift" in perturbs and vertical_frac > horizon_frac:
             ground_angle = (vertical_frac - horizon_frac) * config["vfov"]
             ground_distance = config["z"] / np.tan(deg2rad(ground_angle))
             ground_width = 2 * ground_distance * np.tan(deg2rad(config["hfov"]) / 2)
             shift_pixels = (perturbs["shift"] / ground_width) * config["width"]
             magnitude += shift_pixels
-
-        # Find the nearest integer
         magnitude = int(magnitude + 0.5 * np.sign(magnitude))
-
         if magnitude > 0:
             frame[index, magnitude:, :] = frame[index, : frame.shape[1] - magnitude]
             frame[index, :magnitude, :] = 0
@@ -223,6 +215,8 @@ def load_config(config_path):
                 component_config = yaml.load(component_fd, Loader=yaml.FullLoader)
             component_config.update(config[component])
             config[component] = component_config
+            if 'name' not in config[component]:
+                config[component]['name'] = component_path.stem
     if 'name' not in config:
         config['name'] = config_path.stem
     return config
@@ -260,43 +254,6 @@ def unbatch(batch):
     if len(out) == 1:
         return out[0]
     return out
-
-
-def prepareVectorBatch(vector, cuda=True):
-    """ Common vector to batch preparation script for training and inference """
-    if vector is None:
-        return
-
-    # Treat it as if it"s a row in a larger batch
-    if len(vector.shape) == 1:
-        vector = np.reshape(vector, [1] + list(vector.shape))
-
-    # Pepare the torch representation
-    batch = torch.from_numpy(vector).float()
-    if cuda:
-        batch = batch.cuda()
-    return batch
-
-
-def prepareImageBatch(image, cuda=True):
-    """ Common image to batch preparation script for training and inference """
-    if image is None:
-        return
-
-    # Make sure it's a 4d tensor
-    if len(image.shape) < 4:
-        batch = np.reshape(image, [1] * (4 - len(image.shape)) + list(image.shape))
-
-    # Make sure that we have BCHW
-    batch = batch.transpose((0, 3, 1, 2))
-
-    # Normalize input to range [0, 1)
-    batch = torch.from_numpy(batch).float()
-    if cuda:
-        batch = batch.cuda()
-        batch /= 256
-
-    return batch
 
 
 def plot_batch(path, example, status, label, guess):

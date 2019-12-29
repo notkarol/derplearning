@@ -1,5 +1,6 @@
 index: null
-fov: 100
+hfov: 100
+vfov: 56.25
 fps: 60
 height: 1080
 width: 1920

@@ -512,5 +512,6 @@ def run(config):
     joystick = Dualshock4(config)
     if not joystick.is_connected:
         joystick = Keyboard(config)
-    while True:
+    while joystick.is_connected:
         joystick.run()
+    print("Exiting joystick")
