@@ -15,7 +15,7 @@ class Writer:
                 "/tmp/derp_camera",
                 "/tmp/derp_imu",
                 "/tmp/derp_brain",
-                "/tmp/derp_input",
+                "/tmp/derp_joystick",
             ]
         )
         self.files = {}

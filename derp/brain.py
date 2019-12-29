@@ -19,7 +19,7 @@ class Brain:
         self.speed = 0
         self.steer = 0
         self.__sub_context, self.__subscriber = derp.util.subscriber(['/tmp/derp_camera',
-                                                                      '/tmp/derp_input',
+                                                                      '/tmp/derp_joystick',
                                                                       '/tmp/derp_imu'])
         self.__pub_context, self.__publisher = derp.util.subscriber('/tmp/derp_brain')
 
