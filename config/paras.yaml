@@ -2,6 +2,8 @@ brain:
   path: brain-clone.yaml
 camera:
   path: camera-OV2710.yaml
+imu:
+  busnum: 0
 joystick:
   keyboard_names:
     - keyboard

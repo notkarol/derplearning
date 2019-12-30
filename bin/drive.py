@@ -7,6 +7,7 @@ from pathlib import Path
 import derp.util
 import derp.brain
 import derp.camera
+import derp.imu
 import derp.joystick
 import derp.servo
 import derp.writer
@@ -32,6 +33,7 @@ def main():
 
     component_map = {'brain': derp.brain.run,
                      'camera': derp.camera.run,
+                     'imu': derp.imu.run,
                      'joystick': derp.joystick.run,
                      'servo': derp.servo.run,
                      'writer': derp.writer.run}
