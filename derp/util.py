@@ -187,14 +187,6 @@ def save_image(path, image):
     return cv2.imwrite(str(path), image)
 
 
-def write_csv(path, table):
-    with open(path, 'a') as csv_fd:
-        writer = csv.writer(csv_fd)
-        for row in table:
-            writer.writerow(row)
-    return True
-
-
 def create_record_folder():
     """ Generate the name of the record folder and created it """
     dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
@@ -222,68 +214,10 @@ def load_config(config_path):
     return config
 
 
-def find_value(haystack, key, values, interpolate=False):
-    """
-    Find the nearest value in the sorted haystack to the specified key.
-    """
-
-    nearest = 0
-    diff = np.abs(haystack - key)
-    if interpolate:
-        nearest = diff.argsort()[:2]
-        return (values[nearest[0]] + values[nearest[1]]) / 2
-
-    nearest = diff.argmin()
-    return values[nearest]
-
-
-def unscale(config, vector):
-    if len(config) == 0:
-        return
-    for i, d in enumerate(config):
-        scale = d["scale"] if "scale" in d else 1
-        vector[i] /= scale
-    return vector
-
-
-def unbatch(batch):
-    if torch.cuda.is_available():
-        out = batch.data.cpu().numpy()
-    else:
-        out = batch.data.numpy()
-    if len(out) == 1:
-        return out[0]
-    return out
-
-
-def plot_batch(path, example, status, label, guess):
-    import matplotlib.pyplot as plt
-
-    dim = int(len(example) ** 0.5)
-    if (dim * dim) < len(example):
-        dim += 1
-    fig, axs = plt.subplots(dim, dim, figsize=(dim, dim))
-
-    # Change from CHW to HWC, and move RGB to GBR
-    example = np.transpose(example, (0, 2, 3, 1))[..., [2, 1, 0]]
-    for i in range(len(example)):
-        x, y = i % dim, int(i // dim)
-        axs[y, x].imshow(example[i])
-
-        # Prepare Title
-        label_str = " ".join(["%5.2f" % x for x in label[i]])
-        guess_str = " ".join(["%5.2f" % x for x in guess[i]])
-        axs[y, x].set_title("L: %s\nG: %s" % (label_str, guess_str), fontsize=8)
-        axs[y, x].set_xticks([])
-        axs[y, x].set_yticks([])
-
-    plt.savefig("%s.png" % str(path), bbox_inches="tight", dpi=160)
-    print("Saved batch %s" % path)
-
-
 def smooth(vals):
     b, a = signal.butter(3, 0.05, output="ba")
     return signal.filtfilt(b, a, vals)
+
 
 def extract_latest(desired_times, source_times, source_values):
     out = []
@@ -295,6 +229,7 @@ def extract_latest(desired_times, source_times, source_values):
             pos += 1
         out.append(val)
     return np.array(out)
+
 
 def interpolate(vals, n_out, intmult=None):
     fn_interpolate = interp1d(np.linspace(0, 1, len(vals)), vals)
