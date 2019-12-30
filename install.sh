@@ -7,6 +7,7 @@ sudo apt install -y \
      git \
      cmake \
      ffmpeg \
+     gfortran \
      libatlas-base-dev \
      libavcodec-dev \
      libavformat-dev \
@@ -21,29 +22,26 @@ sudo apt install -y \
      pkg-config \
      python3-dev \
      python3-matplotlib \
-     python3-numpy \
      python3-pillow \
      python3-pip \
-     python3-seaborn \
-     python3-scipy \
      python3-skimage \
      python3-pyudev \
      python3-zmq \
      xserver-xorg-input-evdev \
      zlib1g-dev
 
+# Install python packages
+pip3 install --user pycapnp numpy scipy
+
 # Install Pytorch
 if [[ "$(uname -m)" == "x86_64" ]] ; then
-    pip3 install --user torch torchvision opencv-python
-else
+    pip3 install --user torch torchvision
+elif [[ $(cat /proc/device-tree/model) == "jetson-nano" ]] ; then
     if [[ -z $(pip3 freeze | grep torch) ]] ; then
 	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
 	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
     fi
 fi
-
-# Install messages
-pip3 install --user pycapnp
 
 # Install IMU software
 if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
@@ -80,6 +78,7 @@ fi
 if ! [[ -e $PWD/recordings ]] ; then 
     mkdir -p $PWD/models $PWD/recordings $PWD/scratch
     echo "export DERP_ROOT=$PWD" >> ~/.bashrc
+    echo "export PYTHONPATH=$PYTHONPATH:$DERP_ROOTE/capnp" >> ~/.bashrc
     source ~/.bashrc
 fi
 
