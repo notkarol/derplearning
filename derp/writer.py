@@ -1,4 +1,7 @@
 """The disk writer class that records all derp agent messages."""
+from datetime import datetime
+import socket
+import time
 import yaml
 import derp.util
 
@@ -26,7 +29,9 @@ class Writer:
         self.__context.term()
 
     def create_recording(self):
-        folder = derp.util.create_record_folder()
+        date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
+        folder = derp.util.ROOT / 'data' / ("recording-%s-%s" % (date, socket.gethostname()))
+        folder.mkdir(parents=True)
         self.files = {t: derp.util.topic_file_writer(folder, t) for t in derp.util.TOPICS}
         with open(str(folder / "config.yaml"), "w") as config_fd:
             yaml.dump(self.car_config, config_fd)

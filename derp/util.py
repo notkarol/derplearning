@@ -2,20 +2,13 @@
 Common utilities for derp used by various classes.
 """
 from collections import namedtuple
-import csv
 import cv2
-from datetime import datetime
 import evdev
 import heapq
 import pathlib
 import numpy as np
 import os
-import re
-import scipy.misc
-import socket
-import subprocess
 import time
-import torch
 import yaml
 import zmq
 import capnp
@@ -34,7 +27,6 @@ TOPICS = {
 }
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
-
 
 def get_timestamp():
     return time.time_ns() // 1000
@@ -185,15 +177,6 @@ def load_image(path):
 
 def save_image(path, image):
     return cv2.imwrite(str(path), image)
-
-
-def create_record_folder():
-    """ Generate the name of the record folder and created it """
-    dt = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
-    hn = socket.gethostname()
-    path = ROOT / "data" / ("recording-%s-%s" % (dt, hn))
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def load_config(config_path):

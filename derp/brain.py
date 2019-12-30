@@ -93,7 +93,7 @@ class Clone(Brain):
         thumb_batch = self.batch_tensor(thumb)
 
         prediction_batch = self.model(thumb_batch, status_batch)
-        predictions = derp.util.unbatch(prediction_batch)
+        predictions = self.unbatch(prediction_batch)[0]
 
         self.speed = self.messages['state'].speedOffset
         for prediction, config in zip(predictions, self.config['predict']):
