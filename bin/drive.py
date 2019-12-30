@@ -8,6 +8,7 @@ import derp.util
 import derp.brain
 import derp.camera
 import derp.joystick
+import derp.servo
 import derp.writer
 from multiprocessing import Process
 import time
@@ -32,6 +33,7 @@ def main():
     component_map = {'brain': derp.brain.run,
                      'camera': derp.camera.run,
                      'joystick': derp.joystick.run,
+                     'servo': derp.servo.run,
                      'writer': derp.writer.run}
     processes = []
     for name in sorted(component_map):

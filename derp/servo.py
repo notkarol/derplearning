@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-import os
 import usb.core
 import usb.util
-
+import derp.util
 
 class Servo:
     """
@@ -52,11 +51,11 @@ class Servo:
         topic = topic_bytes.decode()
         message = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
 
-        if topic == "control":
+        if topic == "state":
             self.auto = message.auto
             self.speed_offset = message.speedOffset
             self.steer_offset = message.steerOffset
-        elif topic == "state":
+        elif topic == "control":
             if self.auto or message.manual:
                 self.__send(
                     message.speed + self.speed_offset,
