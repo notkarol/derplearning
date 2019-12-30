@@ -419,6 +419,7 @@ class Dualshock4:
         """
         state_changed = False
         control_changed = False
+        assert not self.status['button_trackpad']
         if not self.__in_deadzone(self.status["left_analog_x"]):
             steer = self.__normalize_stick(
                 self.status["left_analog_x"], self.config["deadzone"]
@@ -472,7 +473,7 @@ class Dualshock4:
             state_changed = True
         if self.status["button_circle"] and not self.last_status["button_circle"]:
             self.record = True
-            state_changed = True
+            state_changed = True            
         return control_changed, state_changed
 
     def run(self):
