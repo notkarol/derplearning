@@ -29,7 +29,7 @@ TOPICS = {
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 def get_timestamp():
-    return time.time_ns() // 1000
+    return int(time.time() * 1E6)
 
 
 def publisher(path):

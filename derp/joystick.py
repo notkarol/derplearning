@@ -276,8 +276,6 @@ class Dualshock4:
             pass
         if self.__fd is not None:
             self.__fd.close()
-        if self.__report_fd is not None:
-            self.__report_fd.close()
         if self.__input_device is not None:
             self.__input_device.ungrab()
 
@@ -497,7 +495,7 @@ class Dualshock4:
             )
             self.__publisher.send_multipart([b"state", state_message.to_bytes()])
         if control_changed:
-            control_messsage = derp.util.TOPICS['control'].new_message(
+            control_message = derp.util.TOPICS['control'].new_message(
                 timeCreated=self.recv_timestamp,
                 timePublished = derp.util.get_timestamp(),
                 speed=self.speed,

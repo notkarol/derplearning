@@ -54,8 +54,8 @@ class Servo:
 
         if topic == "control":
             self.auto = message.auto
-            self.speed_offset = messsage.speedOffset
-            self.steer_offset = messsage.steerOffset
+            self.speed_offset = message.speedOffset
+            self.steer_offset = message.steerOffset
         elif topic == "state":
             if self.auto or message.manual:
                 self.__send(

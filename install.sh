@@ -31,7 +31,7 @@ sudo apt install -y \
      zlib1g-dev
 
 # Install python packages
-pip3 install --user pycapnp numpy scipy
+pip3 install --user pycapnp numpy scipy=1.1.0 PyYAML
 
 # Install Pytorch
 if [[ "$(uname -m)" == "x86_64" ]] ; then
