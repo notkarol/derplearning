@@ -504,7 +504,7 @@ class Dualshock4:
                 manual=True,
             )
             self.__publisher.send_multipart([b"control", control_message.to_bytes()])
-        time.sleep(0.005)
+        time.sleep(0.001)
 
 def run(config):
     """Run the joystick in a loop"""
