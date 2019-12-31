@@ -20,6 +20,7 @@ class BNO055:
         self.config = config['imu']
         self.bno = None
         self.calibration = None
+        self.last_read_calibration = None
         self.is_connected = self.__connect()
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_imu")
 
@@ -46,6 +47,7 @@ class BNO055:
             y_sign=Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
             z_sign=Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
         )
+        self.last_read_calibration = derp.util.get_timestamp()
         self.calibration = self.bno.get_calibration()
         return True
 
@@ -55,6 +57,9 @@ class BNO055:
         Otherwise get data from the IMU to update state variable.
         """
         recv_time = derp.util.get_timestamp()
+        if recv_time - self.last_read_calibration > 1E6:
+            self.last_read_calibration = derp.util.get_timestamp()
+            self.calibration = self.bno.get_calibration()
         calibration_status = self.bno.get_calibration_status()
         accelerometer = self.bno.read_linear_acceleration()
         gravity = self.bno.read_gravity()
