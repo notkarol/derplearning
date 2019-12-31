@@ -31,6 +31,12 @@ def get_timestamp():
     return int(time.time() * 1E6)
 
 
+def sleep_hertz(start_timestamp, hertz):
+    end_timestamp = start_timestamp + 1E6 / hertz
+    duration = (end_timestamp - get_timestamp() - 100) / 1E6
+    if duration > 0:
+        time.sleep(duration)
+
 def publisher(path):
     context = zmq.Context()
     sock = context.socket(zmq.PUB)

@@ -63,5 +63,5 @@ struct Imu {
   gravity @8 :List(Float32);
   gyroscope @9 :List(Float32);
   magnetometer @10 :List(Float32);
-  quaterion @11 :List(Float32);
+  quaternion @11 :List(Float32);
 }

@@ -7,6 +7,7 @@ from io import FileIO
 import os
 from struct import Struct
 import time
+from evdev import InputDevice
 from binascii import crc32
 from pynput import keyboard
 from pyudev import Context
@@ -35,7 +36,7 @@ class Keyboard:
     def __process(self, key):
         control_changed = False
         state_changed = False
-        assert key != keyboard.Key.esc
+        end = key == keyboard.Key.esc
         if 'char' in key.__dict__:
             key = key.char
         if key == keyboard.Key.left:
@@ -76,15 +77,11 @@ class Keyboard:
             self.auto = False
             state_changed = True
             control_changed = True
-        return control_changed, state_changed
-
-    def create_control_message(self):
-        """Prepare the control speed/steer message to control the car"""
-        return msg
+        return control_changed, state_changed, end
 
     def handle_key(self, key):
         recv_timestamp = derp.util.get_timestamp()
-        control_changed, state_changed = self.__process(key)
+        control_changed, state_changed, end = self.__process(key)
         if control_changed:
             control_message = derp.util.TOPICS['control'].new_message(
                 timeCreated=recv_timestamp,
@@ -104,12 +101,13 @@ class Keyboard:
                 record=self.record,
             )
             self.__publisher.send_multipart([b"state", state_message.to_bytes()])
-        return False
+        return not end
     
     def run(self):
         """Query the keyboard for inputs and send it out"""
         with keyboard.Listener(on_press=self.handle_key) as listener:
             listener.join()
+        return False
 
 
 class Dualshock4:
@@ -292,7 +290,7 @@ class Dualshock4:
         """
         state_changed = False
         control_changed = False
-        assert not self.status['button_trackpad']
+        end = self.status['button_trackpad']
         if not self.__in_deadzone(self.status["left_analog_x"]):
             steer = self.__normalize_stick(
                 self.status["left_analog_x"], self.config["deadzone"]
@@ -347,13 +345,15 @@ class Dualshock4:
         if self.status["button_circle"] and not self.last_status["button_circle"]:
             self.record = True
             state_changed = True            
-        return control_changed, state_changed
+        return control_changed, state_changed, end
 
     def run(self):
         """Query one set of inputs from the joystick and send it out."""
+        start_time = derp.util.get_timestamp()
         while self.__read() is False:
+            time.sleep(0.001)
             continue
-        control_changed, state_changed = self.__process()
+        control_changed, state_changed, end = self.__process()
         if state_changed:
             if self.auto:
                 self.send(green=1)
@@ -377,13 +377,13 @@ class Dualshock4:
                 manual=True,
             )
             self.__publisher.send_multipart([b"control", control_message.to_bytes()])
-        time.sleep(0.001)
+        return not end
 
 def run(config):
     """Run the joystick in a loop"""
     joystick = Dualshock4(config)
     if not joystick.is_connected:
         joystick = Keyboard(config)
-    while joystick.is_connected:
-        joystick.run()
+    while joystick.run():
+        pass
     print("Exiting joystick")

@@ -14,7 +14,6 @@ import derp.writer
 from multiprocessing import Process
 import time
 
-
 def all_running(processes):
     for proc in processes:
         proc.join(timeout=0)
@@ -33,13 +32,17 @@ def main():
 
     component_map = {'brain': derp.brain.run,
                      'camera': derp.camera.run,
-                     #'imu': derp.imu.run,
+                     'imu': derp.imu.run,
                      'joystick': derp.joystick.run,
                      'servo': derp.servo.run,
                      'writer': derp.writer.run}
     processes = []
     for name in sorted(component_map):
-        print('Starting', name)
+        if name in config:
+            print('Starting', name)
+        else:
+            print('Skipping', name)
+            continue
         proc = Process(target=component_map[name], args=(config,))
         proc.start()
         processes.append(proc)
