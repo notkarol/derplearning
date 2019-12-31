@@ -27,7 +27,6 @@ sudo apt install -y \
      python3-skimage \
      python3-pyudev \
      python3-zmq \
-     xserver-xorg-input-evdev \
      zlib1g-dev
 
 # Install python packages
@@ -45,7 +44,7 @@ fi
 
 # Install IMU software
 if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
-    pip3 install --user --upgrade Adafruit-BNO055 evdev pybluez pyserial pyusb
+    pip3 install --user --upgrade Adafruit-BNO055 pybluez pyserial pyusb
 fi
 
 # Enable bluetooth
@@ -66,9 +65,6 @@ if ! [[ -e $hidraw_path ]] ; then
 fi
 if [[ -e $(groups | grep i2c) ]] ; then 
     sudo usermod -a -G i2c $USER # gpio
-fi
-if [[ -e $(groups | grep input) ]] ; then 
-    sudo usermod -a -G input $USER # input devices
 fi
 if [[ -e $(groups | grep netdev) ]] ; then 
     sudo usermod -a -G netdev $USER # bluetooth

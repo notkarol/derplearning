@@ -8,7 +8,7 @@ import os
 from struct import Struct
 import time
 from binascii import crc32
-from evdev import InputDevice
+from pynput import keyboard
 from pyudev import Context
 import derp.util
 
@@ -18,108 +18,6 @@ class Keyboard:
     def __init__(self, config):
         """Keyboard class to control the car"""
         self.config = config['joystick'] if 'joystick' in config else {}
-
-        # Prepare key code map so we can use strings to understand what key was pressed
-        self.code_map = {
-            1: "escape",
-            2: "1",
-            3: "2",
-            4: "3",
-            5: "4",
-            6: "5",
-            7: "6",
-            8: "7",
-            9: "8",
-            10: "9",
-            11: "0",
-            12: "-_",
-            13: "=+",
-            14: "backspace",
-            15: "tab",
-            16: "q",
-            17: "w",
-            18: "e",
-            19: "r",
-            20: "t",
-            21: "y",
-            22: "u",
-            23: "i",
-            24: "o",
-            25: "p",
-            26: "[",
-            27: "]",
-            28: "enter",
-            29: "left_ctrl",
-            30: "a",
-            31: "s",
-            32: "d",
-            33: "f",
-            34: "g",
-            35: "h",
-            36: "j",
-            37: "k",
-            38: "l",
-            39: ";",
-            40: "'",
-            41: "`",
-            42: "left_shift",
-            43: "\\",
-            44: "z",
-            45: "x",
-            46: "c",
-            47: "v",
-            48: "b",
-            49: "n",
-            50: "m",
-            51: ",",
-            52: ".",
-            53: "/",
-            54: "right_shift",
-            55: "right_*",
-            56: "left_alt",
-            57: "space",
-            58: "capslock",
-            59: "f1",
-            60: "f2",
-            61: "f3",
-            62: "f4",
-            63: "f5",
-            64: "f6",
-            65: "f7",
-            66: "f8",
-            67: "f9",
-            68: "f10",
-            69: "numlock",
-            70: "scrolllock",
-            71: "keypad_7",
-            72: "keypad_8",
-            73: "keypad_9",
-            74: "keypad_-",
-            75: "keypad_4",
-            76: "keypad_5",
-            77: "keypad_6",
-            78: "keypad_+",
-            79: "keypad_1",
-            80: "keypad_2",
-            81: "keypad_3",
-            82: "keypad_0",
-            83: "keypad_..",
-            96: "keypad_enter",
-            97: "right_ctrl",
-            98: "keypad_/",
-            100: "right_alt",
-            102: "home",
-            103: "arrow_up",
-            104: "pagedown",
-            105: "arrow_left",
-            106: "arrow_right",
-            107: "end",
-            108: "arrow_down",
-            109: "pagedown",
-            110: "insert",
-            111: "delete",
-            125: "super",
-        }
         self.device = None
         self.speed = 0
         self.steer = 0
@@ -127,60 +25,50 @@ class Keyboard:
         self.steer_offset = 0
         self.record = False
         self.auto = False
-        self.control_message = None
-        self.state_message = None
-
-        self.is_connected = self.__connect()
-        if not self.is_connected:
-            return
+        self.is_connected = True
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
 
     def __del__(self):
-        if self.device is not None:
-            self.device.close()
         self.__publisher.close()
         self.__context.term()
 
-    def __connect(self):
-        self.device = derp.util.find_evdev_device(self.config["keyboard_names"])
-        return self.device is not None
-
-    def __process(self, event):
+    def __process(self, key):
         control_changed = False
         state_changed = False
-        if event.code == 0 or event.type == 4 or not event.value:
-            return control_changed, state_changed
-        if self.code_map[event.code] == "arrow_left":
+        assert key != keyboard.Key.esc
+        if 'char' in key.__dict__:
+            key = key.char
+        if key == keyboard.Key.left:
             self.steer -= 15 / 255
             control_changed = True
-        elif self.code_map[event.code] == "arrow_right":
+        elif key == keyboard.Key.right:
             self.steer += 15 / 255
             control_changed = True
-        elif self.code_map[event.code] == "arrow_up":
+        elif key == keyboard.Key.up:
             self.speed += 5 / 255
             control_changed = True
-        elif self.code_map[event.code] == "arrow_down":
+        elif key == keyboard.Key.down:
             self.speed -= 5 / 255
             control_changed = True
-        elif self.code_map[event.code] == "1":
+        elif key == '1':
             self.steer_offset -= 1 / 255
             state_changed = True
-        elif self.code_map[event.code] == "2":
+        elif key == '2':
             self.steer_offset += 1 / 255
             state_changed = True
-        elif self.code_map[event.code] == "3":
+        elif key == '3':
             self.speed_offset -= 5 / 255
             state_changed = True
-        elif self.code_map[event.code] == "4":
+        elif key == '4':
             self.speed_offset += 5 / 255
             state_changed = True
-        elif self.code_map[event.code] == "r":
+        elif key == 'r':
             self.record = True
             state_changed = True
-        elif self.code_map[event.code] == "a":
+        elif key == 'a':
             self.auto = True
             state_changed = True
-        elif self.code_map[event.code] == "escape":
+        elif key == 's':
             self.speed = 0
             self.steer = 0
             self.speed_offset = 0
@@ -192,51 +80,36 @@ class Keyboard:
 
     def create_control_message(self):
         """Prepare the control speed/steer message to control the car"""
-        msg = derp.util.TOPICS['control'].new_message(
-            timeCreated=derp.util.get_timestamp(),
-            speed=self.speed,
-            steer=self.steer,
-            manual=True,
-        )
         return msg
 
-    def create_state_message(self):
-        """Prepare the state variables to adjust the car and othe rparams"""
-        msg = derp.util.TOPICS['state'].new_message(
-            timeCreated=derp.util.get_timestamp(),
-            speedOffset=self.speed_offset,
-            steerOffset=self.steer_offset,
-            auto=self.auto,
-            record=self.record,
-        )
-        return msg
-
-    def read(self):
-        """Loop through all available messages from the keyboard"""
-        self.control_message = None
-        self.state_message = None
-        try:
-            for msg in self.device.read():
-                has_control, has_speed = self.__process(msg)
-                if has_control:
-                    self.control_message = self.create_control_message()
-                if has_speed:
-                    self.state_message = self.create_state_message()
-            return True
-        except BlockingIOError:
-            return True
+    def handle_key(self, key):
+        recv_timestamp = derp.util.get_timestamp()
+        control_changed, state_changed = self.__process(key)
+        if control_changed:
+            control_message = derp.util.TOPICS['control'].new_message(
+                timeCreated=recv_timestamp,
+                timePublished=derp.util.get_timestamp(),
+                speed=self.speed,
+                steer=self.steer,
+                manual=True,
+            )
+            self.__publisher.send_multipart([b"control", control_message.to_bytes()])
+        if state_changed:
+            state_message = derp.util.TOPICS['state'].new_message(
+                timeCreated=recv_timestamp,
+                timePublished=derp.util.get_timestamp(),
+                speedOffset=self.speed_offset,
+                steerOffset=self.steer_offset,
+                auto=self.auto,
+                record=self.record,
+            )
+            self.__publisher.send_multipart([b"state", state_message.to_bytes()])
         return False
-
+    
     def run(self):
         """Query the keyboard for inputs and send it out"""
-        if not self.read():
-            self.__connect()
-        if self.control_message:
-            self.control_message.timePublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b"control", self.control_message.to_bytes()])
-        if self.state_message:
-            self.state_message.timePublished = derp.util.get_timestamp()
-            self.__publisher.send_multipart([b"state", self.state_message.to_bytes()])
+        with keyboard.Listener(on_press=self.handle_key) as listener:
+            listener.join()
 
 
 class Dualshock4:

@@ -3,7 +3,6 @@ Common utilities for derp used by various classes.
 """
 from collections import namedtuple
 import cv2
-import evdev
 import heapq
 import pathlib
 import numpy as np
@@ -61,21 +60,6 @@ def topic_exists(folder, topic):
 
 def topic_file_writer(folder, topic):
     return open("%s/%s.bin" % (folder, topic), "wb")     
-
-
-def find_evdev_device(names):
-    """
-    Searches for an input devices. Assuming it is found that device is returned
-    """
-    for filename in sorted(evdev.list_devices()):
-        device = evdev.InputDevice(filename)
-        device_name = device.name.lower()
-        for name in names:
-            if name in device_name:
-                print("Using evdev:", device_name)
-                return device
-    print("Could not find devices", names, "in", evdev.list_devices())
-    return None
 
 
 def print_image_config(name, config):
