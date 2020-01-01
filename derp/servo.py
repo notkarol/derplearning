@@ -21,11 +21,15 @@ class Servo:
             ["/tmp/derp_brain", "/tmp/derp_joystick"]
         )
         self.__connect()
+        self.reset()
 
+    def reset(self):
+        self.__send(self.config["speed_index"], 0, 0, 0)
+        self.__send(self.config["steer_index"], 0, 0, 0)
+        
     def __del__(self):
         if self.device:
-            self.__send(self.config["speed_index"], 0, 0, 0)
-            self.__send(self.config["steer_index"], 0, 0, 0)
+            self.reset()
 
     def __connect(self):
         """ Re-initialize connection to USB servo """

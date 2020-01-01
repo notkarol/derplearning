@@ -9,105 +9,8 @@ from struct import Struct
 import time
 from evdev import InputDevice
 from binascii import crc32
-from pynput import keyboard
 from pyudev import Context
 import derp.util
-
-
-class Keyboard:
-    """Keyboard class to control the car"""
-    def __init__(self, config):
-        """Keyboard class to control the car"""
-        self.config = config['joystick'] if 'joystick' in config else {}
-        self.device = None
-        self.speed = 0
-        self.steer = 0
-        self.speed_offset = 0
-        self.steer_offset = 0
-        self.record = False
-        self.auto = False
-        self.is_connected = True
-        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
-
-    def __del__(self):
-        self.__publisher.close()
-        self.__context.term()
-
-    def __process(self, key):
-        control_changed = False
-        state_changed = False
-        end = key == keyboard.Key.esc
-        if 'char' in key.__dict__:
-            key = key.char
-        if key == keyboard.Key.left:
-            self.steer -= 15 / 255
-            control_changed = True
-        elif key == keyboard.Key.right:
-            self.steer += 15 / 255
-            control_changed = True
-        elif key == keyboard.Key.up:
-            self.speed += 5 / 255
-            control_changed = True
-        elif key == keyboard.Key.down:
-            self.speed -= 5 / 255
-            control_changed = True
-        elif key == '1':
-            self.steer_offset -= 1 / 255
-            state_changed = True
-        elif key == '2':
-            self.steer_offset += 1 / 255
-            state_changed = True
-        elif key == '3':
-            self.speed_offset -= 5 / 255
-            state_changed = True
-        elif key == '4':
-            self.speed_offset += 5 / 255
-            state_changed = True
-        elif key == 'r':
-            self.record = True
-            state_changed = True
-        elif key == 'a':
-            self.auto = True
-            state_changed = True
-        elif key == 's':
-            self.speed = 0
-            self.steer = 0
-            self.speed_offset = 0
-            self.record = False
-            self.auto = False
-            state_changed = True
-            control_changed = True
-        return control_changed, state_changed, end
-
-    def handle_key(self, key):
-        recv_timestamp = derp.util.get_timestamp()
-        control_changed, state_changed, end = self.__process(key)
-        if control_changed:
-            control_message = derp.util.TOPICS['control'].new_message(
-                timeCreated=recv_timestamp,
-                timePublished=derp.util.get_timestamp(),
-                speed=self.speed,
-                steer=self.steer,
-                manual=True,
-            )
-            self.__publisher.send_multipart([b"control", control_message.to_bytes()])
-        if state_changed:
-            state_message = derp.util.TOPICS['state'].new_message(
-                timeCreated=recv_timestamp,
-                timePublished=derp.util.get_timestamp(),
-                speedOffset=self.speed_offset,
-                steerOffset=self.steer_offset,
-                auto=self.auto,
-                record=self.record,
-            )
-            self.__publisher.send_multipart([b"state", state_message.to_bytes()])
-        return not end
-    
-    def run(self):
-        """Query the keyboard for inputs and send it out"""
-        with keyboard.Listener(on_press=self.handle_key) as listener:
-            listener.join()
-        return False
 
 
 class Dualshock4:
@@ -382,8 +285,6 @@ class Dualshock4:
 def run(config):
     """Run the joystick in a loop"""
     joystick = Dualshock4(config)
-    if not joystick.is_connected:
-        joystick = Keyboard(config)
     while joystick.run():
         pass
     print("Exiting joystick")
