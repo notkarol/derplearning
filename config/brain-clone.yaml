@@ -1,0 +1,52 @@
+seed: 13
+class: Clone
+
+# Training related parameters
+build:
+  folders: ['clone']
+  train_chance: 0.8
+  n_samples: 1
+  perturbs:
+    shift:
+      range: [0, 0] # meters
+      fudge: 0.5
+    rotate:
+      range: [0, 0] # degrees
+      fudge: 0.02
+
+# Training related parameters
+train:
+  model: Tiny
+  criterion: MSELoss
+  optimizer: AdamW
+  batch_size: 64
+  learning_rate: 0.001
+  epochs: 32
+  transforms:
+    - name: 'colorjitter'
+      brightness: 0.5
+      contrast: 0.5
+      saturation: 0.5
+      hue: 0.1
+
+# What we expect for input from the camera
+thumb:
+  hfov: 75
+  vfov: 37.5
+  height: 64
+  width: 128
+  depth: 3
+  x: -0.21
+  y: 0.0
+  z: 0.43
+  roll: 0
+  pitch: 0
+  yaw: 0
+
+# The status we feed into the network
+status: []
+
+# States we will predict
+predict:
+  - {name: 'steer', field: 'steer', time_offset: 0}
+  - {name: 'speed', field: 'speed', time_offset: 0}

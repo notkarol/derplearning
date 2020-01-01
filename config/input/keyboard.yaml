@@ -1,9 +1,0 @@
-name: 'input'
-required: False
-class: 'Keyboard'
-exact: False
-device_names:
-  - keyboard
-  - kbd
-  - logitech k400 plus
-  - gaming kb
