@@ -1,8 +1,7 @@
 #!/bin/bash -x
 
-# Make sure we're working off of latest packages
+# Install necessary distribution packages
 sudo apt update
-sudo apt upgrade -y
 sudo apt install -y \
      git \
      cmake \
@@ -21,6 +20,7 @@ sudo apt install -y \
      libusb-1.0-0-dev \
      pkg-config \
      python3-dev \
+     python3-evdev \
      python3-matplotlib \
      python3-pillow \
      python3-pip \
@@ -29,10 +29,12 @@ sudo apt install -y \
      python3-zmq \
      zlib1g-dev
 
-# Install python packages
-pip3 install --user cython pycapnp numpy scipy==1.1.0 PyYAML
+# Install python packages one at a time to ensure it works
+for package in cython pycapnp numpy scipy==1.1.0 PyYAML Adafruit-BNO055 pybluez pyserial pyusb ; do
+    pip3 install --user $package
+done
 
-# Install Pytorch
+# Install Pytorch, separate platforms require separate solutions
 if [[ "$(uname -m)" == "x86_64" ]] ; then
     pip3 install --user torch torchvision
 elif [[ -n $(egrep -i "jetson.nano" /proc/device-tree/model) ]] ; then
@@ -40,11 +42,6 @@ elif [[ -n $(egrep -i "jetson.nano" /proc/device-tree/model) ]] ; then
 	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
 	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
     fi
-fi
-
-# Install IMU software
-if [[ -z $(pip3 freeze | grep Adafruit-BNO055) ]] ; then
-    pip3 install --user --upgrade Adafruit-BNO055 pybluez pyserial pyusb
 fi
 
 # Enable bluetooth
@@ -83,3 +80,5 @@ fi
 
 # Install the derp python package
 python3 setup.py install --user
+
+echo "Please reboot your machine"

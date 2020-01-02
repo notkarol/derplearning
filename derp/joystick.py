@@ -24,27 +24,71 @@ class Dualshock4:
         self.steer = 0
         self.speed_offset = 0
         self.steer_offset = 0
-        self.record = False
-        self.auto = False
+        self.calibrated = False
+        self.is_recording = False
+        self.is_autonomous = False
+        self.recv_timestamp = derp.util.get_timestamp()
 
         # Prepare buffers and status variables
-        self.status = None
-        self.last_status = None
+        self.status = {
+            "left_analog_x": 128,
+            "left_analog_y": 128,
+            "right_analog_x": 128,
+            "right_analog_y": 128,
+            "up": 0,
+            "down": 0,
+            "left": 0,
+            "right": 0,
+            "button_square": 0,
+            "button_cross": 0, 
+            "button_circle": 0,
+            "button_triangle": 0,
+            "button_l1": 0,
+            "button_l2": 0,
+            "button_l3": 0,
+            "button_r1": 0,
+            "button_r2": 0,
+            "button_r3": 0,
+            "button_share": 0,
+            "button_options": 0,
+            "button_trackpad": 0,
+            "button_ps": 0,
+            "timestamp": 0,
+            "left_trigger": 0,
+            "right_trigger": 0,
+            "accel_y": 0,
+            "accel_x": 0,
+            "accel_z": 0,
+            "orientation_roll": 0,
+            "orientation_yaw": 0,
+            "orientation_pitch": 0,
+            "trackpad_0_id": -1,
+            "trackpad_0_active": False,
+            "trackpad_0_x": 0,
+            "trackpad_0_y": 0,
+            "trackpad_1_id": -1,
+            "trackpad_2_active": False,
+            "trackpad_3_x": 0,
+            "trackpad_4_y": 0,
+            "battery_level": 0,
+            "usb": False,
+            "audio": False,
+            "mic": False,
+        }
+        self.last_status = self.status
         self.__fd = None
         self.__input_device = None
         self.__report_fd = None
         self.__report_id = 0x11
         self.__report_size = 78
         self.is_connected = self.__connect()
-        if not self.is_connected:
-            return
-        while self.__read() is False:
-            continue
-        self.send(green=1, red=1)
+        self.keep_running = self.is_connected
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
 
     def __del__(self):
         try:
+            self.send(red=1, rumble_high=1)
+            time.sleep(0.5)
             self.send(blue=1)
         except:
             pass
@@ -53,7 +97,7 @@ class Dualshock4:
         if self.__input_device is not None:
             self.__input_device.ungrab()
 
-    def __find(self):
+    def __find_device(self):
         context = Context()
         for hidraw_device in context.list_devices(subsystem="hidraw"):
             hid_device = hidraw_device.parent
@@ -71,7 +115,7 @@ class Dualshock4:
         return None, None, None
 
     def __connect(self):
-        device_addr, hidraw_device, event_device = self.__find()
+        device_addr, hidraw_device, event_device = self.__find_device()
         if device_addr is None:
             return False
         self.__report_fd = os.open(hidraw_device, os.O_RDWR | os.O_NONBLOCK)
@@ -101,18 +145,36 @@ class Dualshock4:
         value /= 127 - deadzone
         return value
 
-    def __read(self):
+    def poll_device(self):
         """Read a message from the controller and process it into a dict"""
-        if self.__fd is None:
-            return False
         try:
             ret = self.__fd.readinto(self.__buffer)
         except IOError:
             return False
+        except AttributeError:
+            return False
         if ret is None or ret < self.__report_size or self.__buffer[0] != self.__report_id:
             return False
+        return True
 
-        self.recv_timestamp = derp.util.get_timestamp()
+    def recv(self, limit=100, duration=0.001):
+        """
+        Attempt to get a message from the device. 
+        Args:
+            limit (int): number of device polls to do
+            duration (int): how long to wait between polls
+        Returns:
+            Whether we have successfully updated the status of the program
+        """
+        for i in range(limit):
+            if self.poll_device():
+                self.recv_timestamp = derp.util.get_timestamp()
+                self.update_status()
+                return True
+            time.sleep(duration)
+        return False
+
+    def update_status(self):
         self.last_status = self.status
         short = Struct("<h")
         dpad = self.__buffer[7] % 16
@@ -142,7 +204,6 @@ class Dualshock4:
             "timestamp": self.__buffer[9] >> 2,
             "left_trigger": self.__buffer[10],
             "right_trigger": self.__buffer[11],
-            "battery": self.__buffer[32] % 16,
             "accel_y": short.unpack_from(self.__buffer, 15)[0],
             "accel_x": short.unpack_from(self.__buffer, 17)[0],
             "accel_z": short.unpack_from(self.__buffer, 19)[0],
@@ -163,6 +224,35 @@ class Dualshock4:
             "mic": (self.__buffer[32] & 64) != 0,
         }
         return True
+
+    def update_controller(self):
+        """Send the state of the system to the controller"""
+        red = 1.0 if self.is_recording else 0.5
+        green = 1.0 if self.is_autonomous else 0.5
+        light_on = 0.0 if self.calibrated else 0.8
+        light_off = 0.0 if self.calibrated else 0.8
+        self.send(red=red, green=green, blue=0.5, light_on=light_on, light_off=light_off)
+
+    def publish_controller(self):
+        message = derp.util.TOPICS['controller'].new_message(
+            timeCreated=self.recv_timestamp,
+            timePublished=derp.util.get_timestamp(),
+            isRecording=self.is_recording,
+            isAutonomous=self.is_autonomous,
+            speedOffset=self.speed_offset,
+            steerOffset=self.steer_offset,
+        )
+        self.__publisher.send_multipart([b"controller", message.to_bytes()])
+
+    def publish_action(self):
+        message = derp.util.TOPICS['action'].new_message(
+            timeCreated=self.recv_timestamp,
+            timePublished = derp.util.get_timestamp(),
+            isManual=True,
+            speed=self.speed,
+            steer=self.steer,
+        )
+        self.__publisher.send_multipart([b"action", message.to_bytes()])
 
     def send(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0, light_on=0, light_off=0):
         """Actuate the controller by setting its rumble or light color/blink"""
@@ -186,105 +276,85 @@ class Dualshock4:
             return True
         return False
 
-    def __process(self):
+    def process_status(self):
         """
         For the given status input, figure out how we should affect the state
         and put that into out.
         """
-        state_changed = False
-        control_changed = False
-        end = self.status['button_trackpad']
+        self.controller_changed = False
+        self.action_changed = False
+        self.keep_running = not self.status['button_trackpad']
         if not self.__in_deadzone(self.status["left_analog_x"]):
             steer = self.__normalize_stick(
                 self.status["left_analog_x"], self.config["deadzone"]
             )
             if steer != self.steer:
                 self.steer = steer
-                control_changed = True
+                self.action_changed = True
         elif not self.__in_deadzone(self.last_status["left_analog_x"]):
             self.steer = 0
-            control_changed = True
+            self.action_changed = True
         if self.status["left_trigger"]:
             speed = -self.status["left_trigger"] / 255
             if speed != self.speed:
                 self.speed = speed
-                control_changed = True
+                self.action_changed = True
         elif self.last_status["left_trigger"]:
             self.speed = 0
-            control_changed = True
+            self.action_changed = True
         if self.status["right_trigger"]:
             speed = self.status["right_trigger"] / 255
             if speed != self.speed:
                 self.speed = speed
-                control_changed = True
+                self.action_changed = True
         elif self.last_status["right_trigger"]:
             self.speed = 0
-            control_changed = True
+            self.action_changed = True
         if self.status["left"] and not self.last_status["left"]:
             self.steer_offset -= 1 / 255
-            state_changed = True
+            self.controller_changed = True
         if self.status["right"] and not self.last_status["right"]:
             self.steer_offset += 1 / 255
-            state_changed = True
+            self.controller_changed = True
         if self.status["up"] and not self.last_status["up"]:
             self.speed_offset += 5 / 255
-            state_changed = True
+            self.controller_changed = True
         if self.status["down"] and not self.last_status["down"]:
             self.speed_offset -= 5 / 255
-            state_changed = True
+            self.controller_changed = True
         if self.status["button_square"] and not self.last_status["button_square"]:
             pass
         if self.status["button_cross"] and not self.last_status["button_cross"]:
             self.speed = 0
             self.steer = 0
             self.speed_offset = 0
-            self.record = False
-            self.auto = False
-            control_changed = True
-            state_changed = True
+            self.is_recording = False
+            self.is_autonomous = False
+            self.action_changed = True
+            self.controller_changed = True
         if self.status["button_triangle"] and not self.last_status["button_triangle"]:
-            self.auto = True
-            state_changed = True
+            self.is_autonomous = True
+            self.controller_changed = True
         if self.status["button_circle"] and not self.last_status["button_circle"]:
-            self.record = True
-            state_changed = True            
-        return control_changed, state_changed, end
+            self.is_recording = True
+            self.controller_changed = True            
 
     def run(self):
         """Query one set of inputs from the joystick and send it out."""
         start_time = derp.util.get_timestamp()
-        while self.__read() is False:
-            time.sleep(0.001)
-            continue
-        control_changed, state_changed, end = self.__process()
-        if state_changed:
-            if self.auto:
-                self.send(green=1)
-            else:
-                self.send(green=1, red=1)
-            state_message = derp.util.TOPICS['state'].new_message(
-                timeCreated=self.recv_timestamp,
-                timePublished=derp.util.get_timestamp(),
-                speedOffset=self.speed_offset,
-                steerOffset=self.steer_offset,
-                auto=self.auto,
-                record=self.record,
-            )
-            self.__publisher.send_multipart([b"state", state_message.to_bytes()])
-        if control_changed:
-            control_message = derp.util.TOPICS['control'].new_message(
-                timeCreated=self.recv_timestamp,
-                timePublished = derp.util.get_timestamp(),
-                speed=self.speed,
-                steer=self.steer,
-                manual=True,
-            )
-            self.__publisher.send_multipart([b"control", control_message.to_bytes()])
-        return not end
+        if not self.recv():
+            print("joystick: timed out")
+            return False
+        self.process_status()
+        if self.controller_changed:
+            self.update_controller()
+            self.publish_controller()
+        if self.action_changed:
+            self.publish_action()
+        return self.keep_running
 
 def run(config):
     """Run the joystick in a loop"""
     joystick = Dualshock4(config)
     while joystick.run():
         pass
-    print("Exiting joystick")

@@ -28,7 +28,7 @@ class Writer:
         self.__subscriber.close()
         self.__context.term()
 
-    def create_recording(self):
+    def initialize_recording(self):
         date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
         folder = derp.util.ROOT / 'data' / ("recording-%s-%s" % (date, socket.gethostname()))
         folder.mkdir(parents=True)
@@ -48,11 +48,11 @@ class Writer:
         message = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
 
         # Create folder or delete folder
-        if topic == "state":
-            if message.record and not self.files:
-                folder = self.create_recording()
+        if topic == "controller":
+            if message.isRecording and not self.files:
+                folder = self.initialize_recording()
                 print("Started recording", folder)
-            elif not message.record and self.files:
+            elif not message.isRecording and self.files:
                 print("Stopped recording")
                 for name in self.files:
                     self.files[name].close()

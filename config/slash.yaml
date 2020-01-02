@@ -5,12 +5,6 @@ camera:
 imu:
   busnum: 0
 joystick:
-  keyboard_names:
-    - keyboard
-    - kbd
-    - logitech k400 plus
-    - gaming kb
-    - telink wireless receiver
   deadzone: 8
 servo:
   path: servo-micromaestro.yaml

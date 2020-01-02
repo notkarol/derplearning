@@ -2,6 +2,7 @@
 import os
 import re
 import cv2
+import time
 import derp.util
 
 
@@ -13,6 +14,8 @@ class Camera:
         self.config = config['camera']
         self.quality = [cv2.IMWRITE_JPEG_QUALITY, self.config['quality']]
         self.cap = None
+        self.jpg = ''
+        self.recv_timestamp = 0
         self.is_connected = self.__connect()
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_camera")
 
@@ -24,8 +27,10 @@ class Camera:
 
     def __connect(self):
         if self.cap:
+            self.cap.release()
             del self.cap
             self.cap = None
+            time.sleep(1)
         device ='device=/dev/video%i' % self.config['index']
         width = self.config['width']
         height = self.config['height']
@@ -39,40 +44,35 @@ class Camera:
                    '! jpegparse ! jpegdec ! videoconvert ! appsink' % (device, width, height, fps))
         else:
             return False
+        print(gst)
         self.cap = cv2.VideoCapture(gst, cv2.CAP_GSTREAMER)
         return bool(self.cap) and self.cap.isOpened()
 
+    def publish_camera(self):
+        message = derp.util.TOPICS['camera'].new_message(
+            timeCreated=self.recv_timestamp,
+            timePublished=derp.util.get_timestamp(),
+            index=self.config['index'],
+            jpg=self.jpg,
+        )
+        self.__publisher.send_multipart([b"camera", message.to_bytes()])
+    
     def run(self):
         """Get and publish the camera frame"""
+        if not self.is_connected:
+            print("camera: not connected")
+            return False
         ret, frame = self.cap.read()
-        recv_timestamp = derp.util.get_timestamp()
         if not ret:
-            self.ready = self.__connect()
-            return
-        jpg = cv2.imencode(".jpg", frame, self.quality)[1].tostring()
-        msg = derp.util.TOPICS['camera'].new_message(
-            timeCreated=recv_timestamp,
-            timePublished=derp.util.get_timestamp(),
-            yaw=self.config["yaw"],
-            pitch=self.config["pitch"],
-            roll=self.config["roll"],
-            x=self.config["x"],
-            y=self.config["y"],
-            z=self.config["z"],
-            height=self.config["height"],
-            width=self.config["width"],
-            depth=self.config["depth"],
-            hfov=self.config["hfov"],
-            vfov=self.config["vfov"],
-            fps=self.config["fps"],
-            jpg=jpg,
-        )
-        self.__publisher.send_multipart([b"camera", msg.to_bytes()])
-
+            print("camera: unable to read")
+            return False
+        self.recv_timestamp = derp.util.get_timestamp()
+        self.jpg = cv2.imencode(".jpg", frame, self.quality)[1].tostring()
+        self.publish_camera()
+        return True
 
 def run(config):
     """Run the camera in a loop"""
     camera = Camera(config)
-    while camera.is_connected:
-        camera.run()
-    print("Exiting camera")
+    while camera.run():
+        pass

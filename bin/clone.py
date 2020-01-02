@@ -37,10 +37,10 @@ def build_recording(args):
     topics = derp.util.load_topics(recording_folder)
     assert 'label' in topics and topics['label']
 
-    controls = derp.util.extract_car_controls(topics)
+    actions = derp.util.extract_car_actions(topics)
     camera = {'times': [msg.timePublished for msg in topics["camera"]]}
-    camera['speed'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 1])
-    camera['steer'] = derp.util.extract_latest(camera['times'], controls[:, 0], controls[:, 2])
+    camera['speed'] = derp.util.extract_latest(camera['times'], actions[:, 0], actions[:, 1])
+    camera['steer'] = derp.util.extract_latest(camera['times'], actions[:, 0], actions[:, 2])
 
     bbox = derp.util.get_patch_bbox(config['thumb'], camera_config)
     size = (config['thumb']['width'], config['thumb']['height'])
