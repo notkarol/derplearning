@@ -30,12 +30,12 @@ sudo apt install -y \
      zlib1g-dev
 
 # Install python packages
-pip3 install --user pycapnp numpy scipy=1.1.0 PyYAML
+pip3 install --user cython pycapnp numpy scipy==1.1.0 PyYAML
 
 # Install Pytorch
 if [[ "$(uname -m)" == "x86_64" ]] ; then
     pip3 install --user torch torchvision
-elif [[ $(cat /proc/device-tree/model) == "jetson-nano" ]] ; then
+elif [[ -n $(egrep -i "jetson.nano" /proc/device-tree/model) ]] ; then
     if [[ -z $(pip3 freeze | grep torch) ]] ; then
 	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
 	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
@@ -63,18 +63,21 @@ if ! [[ -e $hidraw_path ]] ; then
     echo 'KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0660", GROUP="plugdev"' | sudo tee $hidraw_path
     sudo udevadm control --reload-rules
 fi
-if [[ -e $(groups | grep i2c) ]] ; then 
+if [[ -e $(groups | grep i2c) ]] ; then
     sudo usermod -a -G i2c $USER # gpio
 fi
-if [[ -e $(groups | grep netdev) ]] ; then 
+if [[ -e $(groups | grep netdev) ]] ; then
     sudo usermod -a -G netdev $USER # bluetooth
+fi
+if [[ -e $(groups | grep input) ]] ; then
+    sudo usermod -a -G input $USER # evdev input
 fi
 
 # Set up our script with sourcing instructions
-if ! [[ -e $PWD/recordings ]] ; then 
+if ! [[ -e $PWD/recordings ]] ; then
     mkdir -p $PWD/models $PWD/recordings $PWD/scratch
     echo "export DERP_ROOT=$PWD" >> ~/.bashrc
-    echo "export PYTHONPATH=$PYTHONPATH:$DERP_ROOTE/capnp" >> ~/.bashrc
+    echo "export PYTHONPATH=$PYTHONPATH:$DERP_ROOT/capnp" >> ~/.bashrc
     source ~/.bashrc
 fi
 
