@@ -19,21 +19,21 @@ Bbox = namedtuple('Bbox', ['x', 'y', 'w', 'h'])
 
 TOPICS = {
     "camera": messages_capnp.Camera,
-    "state": messages_capnp.State,
-    "control": messages_capnp.Control,
+    "controller": messages_capnp.Controller,
+    "action": messages_capnp.Action,
     "imu": messages_capnp.Imu,
-    "label": messages_capnp.Label,
+    "quality": messages_capnp.Quality,
 }
 
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 def get_timestamp():
-    return int(time.time() * 1E6)
+    return int(time.time() * 1E9)
 
 
 def sleep_hertz(start_timestamp, hertz):
-    end_timestamp = start_timestamp + 1E6 / hertz
-    duration = (end_timestamp - get_timestamp() - 100) / 1E6
+    end_timestamp = start_timestamp + 1E9 / hertz
+    duration = end_timestamp - get_timestamp() - 1E3
     if duration > 0:
         time.sleep(duration)
 
@@ -229,7 +229,7 @@ def replay(topics):
     heap = []
     for topic in topics:
         for msg in topics[topic]:
-            heapq.heappush(heap, [msg.timePublished, topic, msg])
+            heapq.heappush(heap, [msg.publishNS, topic, msg])
     while heap:
         yield heapq.heappop(heap)
 
@@ -238,17 +238,17 @@ def decode_jpg(jpg):
     return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)    
 
 
-def extract_car_controls(topics):
+def extract_car_actions(topics):
     out = []
-    auto = False
+    autonomous = False
     speed_offset = 0
     steer_offset = 0
     for timestamp, topic, msg in replay(topics):
-        if topic == 'state':
-            auto = msg.auto
+        if topic == 'controller':
+            autonomous = msg.isAutonomous
             speed_offset = msg.speedOffset
             steer_offset = msg.steerOffset
-        elif topic == 'control':
-            if auto or msg.manual:
+        elif topic == 'action':
+            if autonomous or msg.isManual:
                 out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
     return np.array(out)

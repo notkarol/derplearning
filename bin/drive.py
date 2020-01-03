@@ -30,18 +30,18 @@ def main():
 
     config = derp.util.load_config(args.config)
 
-    component_map = {'brain': derp.brain.run,
-                     'camera': derp.camera.run,
-                     'imu': derp.imu.run,
-                     'joystick': derp.joystick.run,
-                     'servo': derp.servo.run,
-                     'writer': derp.writer.run}
+    component_map = {'brain': derp.brain.loop,
+                     'camera': derp.camera.loop,
+                     'imu': derp.imu.loop,
+                     'joystick': derp.joystick.loop,
+                     'servo': derp.servo.loop,
+                     'writer': derp.writer.loop}
     processes = []
     for name in sorted(component_map):
         if name in config:
-            print('Starting', name)
+            print('Start', name)
         else:
-            print('Skipping', name)
+            print('Skip', name)
             continue
         proc = Process(target=component_map[name], args=(config,))
         proc.start()

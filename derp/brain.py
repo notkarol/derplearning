@@ -47,14 +47,14 @@ class Brain:
         topic = topic_bytes.decode()
         self.messages[topic] = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
         if topic == 'camera' and self.predict():
-            msg = derp.util.TOPICS['control'].new_message(
-                timeCreated=recv_timestamp,
-                timePublished=derp.util.get_timestamp(),
+            msg = derp.util.TOPICS['action'].new_message(
+                createNS=recv_timestamp,
+                publishNS=derp.util.get_timestamp(),
+                isManual=False,
                 speed=float(self.speed),
                 steer=float(self.steer),
-                manual=False,
             )
-            self.__publisher.send_multipart([b'control', msg.to_bytes()])
+            self.__publisher.send_multipart([b'action', msg.to_bytes()])
             
     def batch_vector(self, vector):
         numpy_batch = np.reshape(vector, [1, len(vector)])
@@ -95,7 +95,7 @@ class Clone(Brain):
         prediction_batch = self.model(thumb_batch, status_batch)
         predictions = self.unbatch(prediction_batch)[0]
 
-        self.speed = self.messages['state'].speedOffset
+        self.speed = self.messages['controller'].speedOffset
         for prediction, config in zip(predictions, self.config['predict']):
             if config['name'] == 'steer':
                 self.steer = float(prediction)
@@ -105,7 +105,7 @@ class Clone(Brain):
                 self.speed *= 1 + (1 - abs(float(prediction)))
         return True
 
-def run(config):
+def loop(config):
     brain_class = eval(config['brain']['class'])
     brain = brain_class(config)
     while True:

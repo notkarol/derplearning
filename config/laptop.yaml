@@ -3,10 +3,5 @@ brain:
 camera:
   path: camera-laptop.yaml
 joystick:
-  keyboard_names:
-    - keyboard
-    - kbd
-    - logitech k400 plus
-    - gaming kb
   deadzone: 8
 writer: {}
