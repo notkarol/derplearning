@@ -1,0 +1,11 @@
+brain:
+  path: brain-clone.yaml
+camera:
+  path: camera-OV2710.yaml
+#imu:
+#  busnum: 0
+joystick:
+  deadzone: 8
+servo:
+  path: servo-micromaestro.yaml
+writer: {}
