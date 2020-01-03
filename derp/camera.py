@@ -71,7 +71,7 @@ class Camera:
         self.publish_camera()
         return True
 
-def run(config):
+def loop(config):
     """Run the camera in a loop"""
     camera = Camera(config)
     while camera.run():

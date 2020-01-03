@@ -79,7 +79,7 @@ class Servo:
                 )
 
 
-def run(config):
+def loop(config):
     servo = Servo(config)
     while servo.run():
         pass

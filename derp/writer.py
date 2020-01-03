@@ -63,7 +63,7 @@ class Writer:
             message.write(self.files[topic])
 
 
-def run(config):
+def loop(config):
     """A forever while loop to write"""
     writer = Writer(config)
     while True:

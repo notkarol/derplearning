@@ -360,7 +360,7 @@ class DS4:
             self.publish_action()
         return self.keep_running
 
-def run(config):
+def loop(config):
     """Run the joystick in a loop"""
     joystick = DS4(config)
     while joystick.run():

@@ -111,7 +111,7 @@ class BNO055:
         derp.util.sleep_hertz(self.recv_time, 100)
         return True
 
-def run(config):
+def loop(config):
     """Run the IMU in a loop"""
     imu = BNO055(config)
     while imu.run():

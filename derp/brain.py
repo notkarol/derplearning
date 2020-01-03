@@ -105,7 +105,7 @@ class Clone(Brain):
                 self.speed *= 1 + (1 - abs(float(prediction)))
         return True
 
-def run(config):
+def loop(config):
     brain_class = eval(config['brain']['class'])
     brain = brain_class(config)
     while True:
