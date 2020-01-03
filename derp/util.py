@@ -28,12 +28,12 @@ TOPICS = {
 ROOT = pathlib.Path(os.environ["DERP_ROOT"])
 
 def get_timestamp():
-    return time.time()
+    return int(time.time() * 1E9)
 
 
 def sleep_hertz(start_timestamp, hertz):
-    end_timestamp = start_timestamp + 1 / hertz
-    duration = end_timestamp - get_timestamp() - 1E-5
+    end_timestamp = start_timestamp + 1E9 / hertz
+    duration = end_timestamp - get_timestamp() - 1E3
     if duration > 0:
         time.sleep(duration)
 
@@ -229,7 +229,7 @@ def replay(topics):
     heap = []
     for topic in topics:
         for msg in topics[topic]:
-            heapq.heappush(heap, [msg.timePublished, topic, msg])
+            heapq.heappush(heap, [msg.publishNS, topic, msg])
     while heap:
         yield heapq.heappop(heap)
 

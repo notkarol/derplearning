@@ -50,8 +50,8 @@ class Camera:
 
     def publish_camera(self):
         message = derp.util.TOPICS['camera'].new_message(
-            timeCreated=self.recv_timestamp,
-            timePublished=derp.util.get_timestamp(),
+            createNS=self.recv_timestamp,
+            publishNS=derp.util.get_timestamp(),
             index=self.config['index'],
             jpg=self.jpg,
         )

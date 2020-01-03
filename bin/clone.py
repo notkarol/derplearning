@@ -38,7 +38,7 @@ def build_recording(args):
     assert 'label' in topics and topics['label']
 
     actions = derp.util.extract_car_actions(topics)
-    camera = {'times': [msg.timePublished for msg in topics["camera"]]}
+    camera = {'times': [msg.publishNS for msg in topics["camera"]]}
     camera['speed'] = derp.util.extract_latest(camera['times'], actions[:, 0], actions[:, 1])
     camera['steer'] = derp.util.extract_latest(camera['times'], actions[:, 0], actions[:, 2])
 

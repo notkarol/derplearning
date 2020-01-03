@@ -59,7 +59,7 @@ class Writer:
                 self.files = {}
 
         if self.files:
-            message.timeWritten = derp.util.get_timestamp()
+            message.writeNS = derp.util.get_timestamp()
             message.write(self.files[topic])
 
 

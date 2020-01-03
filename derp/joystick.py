@@ -243,8 +243,8 @@ class DS4:
 
     def publish_controller(self):
         message = derp.util.TOPICS['controller'].new_message(
-            timeCreated=self.recv_timestamp,
-            timePublished=derp.util.get_timestamp(),
+            createNS=self.recv_timestamp,
+            publishNS=derp.util.get_timestamp(),
             isRecording=self.is_recording,
             isAutonomous=self.is_autonomous,
             speedOffset=self.speed_offset,
@@ -254,8 +254,8 @@ class DS4:
 
     def publish_action(self):
         message = derp.util.TOPICS['action'].new_message(
-            timeCreated=self.recv_timestamp,
-            timePublished = derp.util.get_timestamp(),
+            createNS=self.recv_timestamp,
+            publishNS = derp.util.get_timestamp(),
             isManual=True,
             speed=self.speed,
             steer=self.steer,

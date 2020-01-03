@@ -48,8 +48,8 @@ class Brain:
         self.messages[topic] = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
         if topic == 'camera' and self.predict():
             msg = derp.util.TOPICS['action'].new_message(
-                timeCreated=recv_timestamp,
-                timePublished=derp.util.get_timestamp(),
+                createNS=recv_timestamp,
+                publishNS=derp.util.get_timestamp(),
                 isManual=False,
                 speed=float(self.speed),
                 steer=float(self.steer),

@@ -41,7 +41,7 @@ class Labeler:
             self.update_quality(i, i, quality)
 
         # Prepare state messages
-        camera_times = [msg.timePublished for msg in self.topics["camera"]]
+        camera_times = [msg.publishNS for msg in self.topics["camera"]]
         actions = derp.util.extract_car_actions(self.topics)
         camera_speeds = derp.util.extract_latest(camera_times, actions[:, 0], actions[:, 1])
         camera_steers = derp.util.extract_latest(camera_times, actions[:, 0], actions[:, 2])
@@ -51,7 +51,7 @@ class Labeler:
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
         # Print some statistics
-        duration = (camera_times[-1] - camera_times[0]) / 1E6
+        duration = (camera_times[-1] - camera_times[0]) / 1E9
         fps = (len(camera_times) - 1) / duration
         print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
         
@@ -118,9 +118,9 @@ class Labeler:
         with derp.util.topic_file_writer(self.folder, 'quality') as quality_fd:
             for quality_i, quality in enumerate(self.qualities):
                 msg = derp.util.TOPICS["quality"].new_message(
-                    timeCreated=derp.util.get_timestamp(),
-                    timePublished=self.topics["camera"][quality_i].timePublished - 1E-6,
-                    timeWritten=derp.util.get_timestamp(),
+                    createNS=derp.util.get_timestamp(),
+                    publishNS=self.topics["camera"][quality_i].publishNS - 1,
+                    writeNS=derp.util.get_timestamp(),
                     quality=quality,
                 )
                 msg.write(quality_fd)

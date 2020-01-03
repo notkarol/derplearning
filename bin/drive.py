@@ -39,9 +39,9 @@ def main():
     processes = []
     for name in sorted(component_map):
         if name in config:
-            print('Starting', name)
+            print('Start', name)
         else:
-            print('Skipping', name)
+            print('Skip', name)
             continue
         proc = Process(target=component_map[name], args=(config,))
         proc.start()

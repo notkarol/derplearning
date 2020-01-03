@@ -70,8 +70,8 @@ class BNO055:
 
     def publish_imu(self):
         message = derp.util.TOPICS['imu'].new_message(
-            timeCreated=self.recv_time,
-            timePublished=derp.util.get_timestamp(),
+            createNS=self.recv_time,
+            publishNS=derp.util.get_timestamp(),
             index=self.busnum,
             isCalibrated=self.is_calibrated(),
             angularVelocity=self.angular_velocity,
