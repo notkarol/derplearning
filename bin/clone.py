@@ -85,13 +85,13 @@ def build_recording(args):
 def build(config, experiment_path, count):
     np.random.seed(config['seed'])
     process_args = []
-    for folder in [derp.util.ROOT / 'data' / x for x in config['build']['folders']]:
-        for recording_folder in folder.glob('recording-*-*-*'):
-            partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
-            out_folder = experiment_path / partition / recording_folder.stem
-            if not out_folder.exists():
-                out_folder.mkdir(parents=True)
-                process_args.append([config, recording_folder, out_folder])
+    root_folder = derp.util.ROOT / 'data'
+    for recording_folder in root_folder.glob('recording-*-*-*'):
+        partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
+        out_folder = experiment_path / partition / recording_folder.stem
+        if not out_folder.exists():
+            out_folder.mkdir(parents=True)
+            process_args.append([config, recording_folder, out_folder])
     pool = multiprocessing.Pool(count)
     pool.map(build_recording, process_args)
 
@@ -196,6 +196,7 @@ def main():
     parser.add_argument("brain", type=Path, help="Controller we wish to train")
     parser.add_argument("--gpu", type=str, default="0", help="GPU to use")
     parser.add_argument('--count', type=int, default=4, help="parallel processes to build with")
+
     args = parser.parse_args()
 
     config = derp.util.load_config(args.brain)
