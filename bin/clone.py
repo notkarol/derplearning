@@ -35,7 +35,7 @@ def build_recording(args):
     status_fd = open(str(out_folder / 'status.csv'), 'w')
     
     topics = derp.util.load_topics(recording_folder)
-    assert 'label' in topics and topics['label']
+    assert 'quality' in topics and topics['quality']
 
     actions = derp.util.extract_car_actions(topics)
     camera = {'times': [msg.publishNS for msg in topics["camera"]]}
@@ -46,7 +46,7 @@ def build_recording(args):
     size = (config['thumb']['width'], config['thumb']['height'])
     n_frames_processed = 0
     for camera_i, timestamp in enumerate(camera['times']):
-        if topics['label'][camera_i].quality != 'good':
+        if topics['quality'][camera_i].quality != 'good':
             continue
         # Skip the first/last 2 seconds of video no matter how it's labeled
         if timestamp < camera['times'][0] + 2E6 or timestamp > camera['times'][-1] - 2E6:
@@ -85,7 +85,7 @@ def build_recording(args):
 def build(config, experiment_path, count):
     np.random.seed(config['seed'])
     process_args = []
-    root_folder = derp.util.ROOT / 'models'
+    root_folder = derp.util.ROOT / 'recordings'
     for recording_folder in root_folder.glob('recording-*-*-*'):
         partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
         out_folder = experiment_path / partition / recording_folder.stem

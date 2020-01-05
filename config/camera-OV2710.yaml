@@ -1,6 +1,6 @@
 index: 0
-hfov: 75
-vfov: 56.25
+hfov: 160
+vfov: 120
 fps: 30
 height: 480
 width: 640
