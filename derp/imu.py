@@ -96,17 +96,21 @@ class BNO055:
         """
         self.recv_time = derp.util.get_timestamp()
         if not self.is_connected:
-            return False
-        if self.recv_time - self.last_read_calibration > 1E6:
-            self.last_read_calibration = derp.util.get_timestamp()
-            self.calibration = self.bno.get_calibration()
-        self.calibration_status = self.bno.get_calibration_status()
-        self.angular_velocity = self.bno.read_gyroscope()
-        self.magnetic_field = self.bno.read_magnetometer()
-        self.linear_acceleration = self.bno.read_linear_acceleration()
-        self.gravity = self.bno.read_gravity()
-        self.orientation_quaternion = self.bno.read_quaternion()
-        self.temperature = self.bno.read_temperature()
+            self.is_connected = self.__connect()
+        try:
+            if self.recv_time - self.last_read_calibration > 1E6:
+                self.last_read_calibration = derp.util.get_timestamp()
+                self.calibration = self.bno.get_calibration()
+            self.calibration_status = self.bno.get_calibration_status()
+            self.angular_velocity = self.bno.read_gyroscope()
+            self.magnetic_field = self.bno.read_magnetometer()
+            self.linear_acceleration = self.bno.read_linear_acceleration()
+            self.gravity = self.bno.read_gravity()
+            self.orientation_quaternion = self.bno.read_quaternion()
+            self.temperature = self.bno.read_temp()
+        except OSError:
+            print("IMU FAILED", self.recv_time)
+            return True
         self.publish_imu()
         derp.util.sleep_hertz(self.recv_time, 100)
         return True
@@ -116,6 +120,4 @@ def loop(config):
     imu = BNO055(config)
     while imu.run():
         pass
-    time.sleep(1)
-    imu.publish_imu()
-    time.sleep(1)
+
