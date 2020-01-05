@@ -72,7 +72,7 @@ fi
 
 # Set up our script with sourcing instructions
 if ! [[ -e $PWD/recordings ]] ; then
-    mkdir -p $PWD/models $PWD/recordings $PWD/scratch
+    mkdir -p $PWD/recordings $PWD/models
     echo "export DERP_ROOT=$PWD" >> ~/.bashrc
     echo "export PYTHONPATH=$PYTHONPATH:$DERP_ROOT/capnp" >> ~/.bashrc
     source ~/.bashrc

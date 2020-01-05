@@ -30,7 +30,7 @@ class Writer:
 
     def initialize_recording(self):
         date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
-        folder = derp.util.ROOT / 'data' / ("recording-%s-%s" % (date, socket.gethostname()))
+        folder = derp.util.ROOT / 'recordings' / ("recording-%s-%s" % (date, socket.gethostname()))
         folder.mkdir(parents=True)
         self.files = {t: derp.util.topic_file_writer(folder, t) for t in derp.util.TOPICS}
         with open(str(folder / "config.yaml"), "w") as config_fd:

@@ -85,7 +85,7 @@ def build_recording(args):
 def build(config, experiment_path, count):
     np.random.seed(config['seed'])
     process_args = []
-    root_folder = derp.util.ROOT / 'data'
+    root_folder = derp.util.ROOT / 'models'
     for recording_folder in root_folder.glob('recording-*-*-*'):
         partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
         out_folder = experiment_path / partition / recording_folder.stem
@@ -200,7 +200,7 @@ def main():
     args = parser.parse_args()
 
     config = derp.util.load_config(args.brain)
-    experiment_path = derp.util.ROOT / 'scratch' / config['name']
+    experiment_path = derp.util.ROOT / 'models' / config['name']
     experiment_path.mkdir(parents=True, exist_ok=True)    
 
     build(config, experiment_path, args.count)

@@ -51,6 +51,9 @@ class Labeler:
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
         # Print some statistics
+        for topic in self.topics:
+            for message in self.topics[topic]:
+                print(topic, message.createNS, message.publishNS, message.writeNS)
         duration = (camera_times[-1] - camera_times[0]) / 1E9
         fps = (len(camera_times) - 1) / duration
         print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
@@ -109,8 +112,8 @@ class Labeler:
         # Draw zero line
         self.window[self.f_h + self.l_h + self.bhh, :, :] = (96, 96, 96)
         offset = self.f_h + self.bhh + self.l_h
-        self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 0, 0)
-        self.window[self.steers + offset, np.arange(self.f_w), :] = (0, 255, 255)
+        self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 64, 255)
+        self.window[self.steers + offset, np.arange(self.f_w), :] = (64, 255, 255)
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):
