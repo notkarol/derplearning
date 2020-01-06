@@ -120,7 +120,7 @@ class Joystick:
         self.steer = 0
         self.speed_offset = 0
         self.steer_offset = 0
-        self.is_calibrated = False
+        self.is_calibrated = True
         self.is_recording = False
         self.is_autonomous = False
         self.recv_timestamp = derp.util.get_timestamp()
@@ -139,7 +139,7 @@ class Joystick:
         try:
             self.send(red=1, rumble_high=1)
             time.sleep(0.5)
-            self.send(red=0.5, green=0.5, blue=0.5)
+            self.send(red=0.25, green=0.25, blue=0.25)
         except:
             pass
         if self.__fd is not None:
