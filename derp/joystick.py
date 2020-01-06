@@ -109,7 +109,7 @@ class DS4State:
         self.mic = (recv_buffer[32] & 64) != 0
         
 
-class DS4:
+class Joystick:
     """Joystick to drive the car around manually without keyboard."""
     def __init__(self, config):
         """Joystick to drive the car around manually without keyboard."""
@@ -359,9 +359,3 @@ class DS4:
         if self.action_changed:
             self.publish_action()
         return self.keep_running
-
-def loop(config):
-    """Run the joystick in a loop"""
-    joystick = DS4(config)
-    while joystick.run():
-        pass

@@ -55,6 +55,12 @@ def subscriber(paths):
     return context, sock
 
 
+def loop(config, exit_event, func):
+    obj = func(config)
+    while not exit_event.is_set() and obj.run():
+        pass
+    print("Exiting")
+
 def topic_file_reader(folder, topic):
     return open("%s/%s.bin" % (folder, topic), "rb") 
 
@@ -252,3 +258,4 @@ def extract_car_actions(topics):
             if autonomous or msg.isManual:
                 out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
     return np.array(out)
+

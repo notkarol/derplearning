@@ -104,10 +104,4 @@ class Clone(Brain):
             elif config['name'] == 'future_steer':
                 self.speed *= 1 + (1 - abs(float(prediction)))
         return True
-
-def loop(config):
-    brain_class = eval(config['brain']['class'])
-    brain = brain_class(config)
-    while True:
-        brain.run()
     

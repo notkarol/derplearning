@@ -70,9 +70,3 @@ class Camera:
         self.jpg = cv2.imencode(".jpg", frame, self.quality)[1].tostring()
         self.publish_camera()
         return True
-
-def loop(config):
-    """Run the camera in a loop"""
-    camera = Camera(config)
-    while camera.run():
-        pass

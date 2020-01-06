@@ -61,10 +61,4 @@ class Writer:
         if self.files:
             message.writeNS = derp.util.get_timestamp()
             message.write(self.files[topic])
-
-
-def loop(config):
-    """A forever while loop to write"""
-    writer = Writer(config)
-    while True:
-        writer.run()
+        return True

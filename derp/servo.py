@@ -78,9 +78,3 @@ class Servo:
                     self.config["steer_max"],
                 )
         return True
-
-
-def loop(config):
-    servo = Servo(config)
-    while servo.run():
-        pass

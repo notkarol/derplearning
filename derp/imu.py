@@ -6,7 +6,7 @@ import Adafruit_BNO055.BNO055
 import time
 import derp.util
 
-class BNO055:
+class Imu:
     """
     The bno055 is an IMU sensor. This class lets us communicate with it
     in the derp way through the Adafruit BNO055 class.
@@ -114,10 +114,4 @@ class BNO055:
         self.publish_imu()
         derp.util.sleep_hertz(self.recv_time, 100)
         return True
-
-def loop(config):
-    """Run the IMU in a loop"""
-    imu = BNO055(config)
-    while imu.run():
-        pass
 
