@@ -51,9 +51,6 @@ class Labeler:
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
         # Print some statistics
-        for topic in self.topics:
-            for message in self.topics[topic]:
-                print(topic, message.createNS, message.publishNS, message.writeNS)
         duration = (camera_times[-1] - camera_times[0]) / 1E9
         fps = (len(camera_times) - 1) / duration
         print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
@@ -207,11 +204,16 @@ To change the quality label of this frame
     c: clear, as in don't change the quality label
 """)
     parser = argparse.ArgumentParser()
-    parser.add_argument("path", type=Path, help="recording path location")
+    parser.add_argument("paths", type=Path, nargs='*', metavar='N', help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
     args = parser.parse_args()
-    labeler = Labeler(folder=args.path, scale=args.scale)
-    labeler.run()
+    if not args.paths:
+        recordings = (derp.util.ROOT / 'recordings').glob('recording-*')
+        args.paths = [r for r in recordings if not (r / 'quality.bin').exists()]
+    for path in args.paths:
+        print("Labeling", path)
+        labeler = Labeler(folder=path, scale=args.scale)
+        labeler.run()
 
 
 if __name__ == "__main__":

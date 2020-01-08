@@ -21,6 +21,7 @@ class Writer:
                 "/tmp/derp_joystick",
             ]
         )
+        self.is_recording = False
         self.files = {}
 
     def __del__(self):
@@ -32,7 +33,7 @@ class Writer:
         date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
         folder = derp.util.ROOT / 'recordings' / ("recording-%s-%s" % (date, socket.gethostname()))
         folder.mkdir(parents=True)
-        self.files = {t: derp.util.topic_file_writer(folder, t) for t in derp.util.TOPICS}
+        self.files = {}
         with open(str(folder / "config.yaml"), "w") as config_fd:
             yaml.dump(self.car_config, config_fd)
         return folder
@@ -44,21 +45,27 @@ class Writer:
         to this folder until another state message tells us to stop.
         """
         topic_bytes, message_bytes = self.__subscriber.recv_multipart()
+        recv_timestamp = derp.util.get_timestamp()
         topic = topic_bytes.decode()
         message = derp.util.TOPICS[topic].from_bytes(message_bytes).as_builder()
 
         # Create folder or delete folder
         if topic == "controller":
-            if message.isRecording and not self.files:
-                folder = self.initialize_recording()
-                print("Started recording", folder)
-            elif not message.isRecording and self.files:
+            if message.isRecording and not self.is_recording:
+                self.recording_folder = self.initialize_recording()
+                print("Started recording", self.recording_folder)
+                self.is_recording = True
+            elif not message.isRecording and self.is_recording:
                 print("Stopped recording")
                 for name in self.files:
                     self.files[name].close()
                 self.files = {}
+                self.is_recording = False
+                self.recording_folder = None
 
-        if self.files:
+        if self.is_recording:
+            if topic not in self.files:
+                self.files[topic] = derp.util.topic_file_writer(self.recording_folder, topic)
             message.writeNS = derp.util.get_timestamp()
             message.write(self.files[topic])
         return True
