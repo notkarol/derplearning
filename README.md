@@ -1,3 +1,4 @@
+
 # Derp Learning
 
 Derp Learning is a Python package that collects data, trains models, and then controls an RC car for track racing.
@@ -12,7 +13,7 @@ The following vehicles have been tested and are supported:
 
 #### SparkFun Jetbot
 
-If you prefer something smaller and slower, the Sparkfun JetBot Kit [$275](https://www.sparkfun.com/products/15365) includes all parts, except for the optional IMU and Dualshock 4 controller. Please follow the setup guide at the site.
+If you prefer something smaller, slower, with zero turn radius powered by individual-wheel drive motors the Sparkfun JetBot Kit [$275](https://www.sparkfun.com/products/15365) includes all parts, except for the optional IMU and Dualshock 4 controller. Please follow the setup guide at the site.
 
 * Adafruit BNO055 9-DOF Absolute Orientation IMU [$35](https://www.adafruit.com/product/2472)
 * Playstation Dualshock 4 Controller [$45](https://www.playstation.com/en-us/explore/accessories/gaming-controllers/dualshock-4/)
