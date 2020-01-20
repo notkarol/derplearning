@@ -37,11 +37,23 @@ class Camera:
         fps = self.config['fps']
 
         if self.config['mode'] == 'video':
-            gst = ('v4l2src %s ! video/x-raw,format=YUY2,width=%i,height=%i,framerate=%i/1 '
-                   '! videoconvert ! appsink' % (device, width, height, fps))
+            gst = ('v4l2src %s'
+                   ' ! video/x-raw,format=YUY2,width=%i,height=%i,framerate=%i/1 '
+                   ' ! videoconvert ! appsink'
+                   % (device, width, height, fps))
         elif self.config['mode'] == 'image':
-            gst = ('v4l2src %s ! image/jpeg,width=%i,height=%i,framerate=%i/1 '
-                   '! jpegparse ! jpegdec ! videoconvert ! appsink' % (device, width, height, fps))
+            gst = ('v4l2src %s'
+                   ' ! image/jpeg,width=%i,height=%i,framerate=%i/1'
+                   ' ! jpegparse ! jpegdec ! videoconvert ! appsink'
+                   % (device, width, height, fps))
+        elif self.config['mode'] == 'csi':
+            gst = ('nvarguscamerasrc sensor-id=%i'
+                   ' ! \'video/x-raw(memory:NVMM),width=%i,height=%i,framerate=%i/1,format=NV12\''
+                   ' ! nvvidconv flip-method=0'
+                   ' ! \'video/x-raw,width=%i,height=%i,format=BGRx\''
+                   ' ! videoconvert ! appsink'
+                   % (self.config['index'], width, height, fps, width, height))
+            gst = 'nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, width=(int)1280, height=(int)720, format=(string)BGRx ! videoconvert ! appsink'
         else:
             return False
         print(gst)

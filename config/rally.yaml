@@ -1,7 +1,7 @@
-brain:
-  path: brain-clone.yaml
+#brain:
+#  path: brain-clone.yaml
 camera:
-  path: camera-OV2710.yaml
+  path: camera_rpi2.yaml
 #imu:
 #  busnum: 0
 joystick:

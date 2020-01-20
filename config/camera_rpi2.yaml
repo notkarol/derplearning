@@ -1,0 +1,15 @@
+index: 0
+hfov: 21
+vfov: 48.8
+fps: 60
+height: 720
+width: 1280
+depth: 3
+x: -0.01 # meters forward from front axle
+y:  0.00 # meters left from center of vehicle. Assume zero for now
+z:  0.12 # meters up from floor
+roll:   0.0 # degrees left tilt. Assume zero for now
+pitch: -10.0 # degrees incline
+yaw:    0.0 # degrees left turn. Assume zero for now
+mode: csi
+quality: 95
