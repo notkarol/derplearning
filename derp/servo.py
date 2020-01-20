@@ -66,21 +66,15 @@ class Servo:
         elif topic == "action":
             if self.isAutonomous or message.isManual:
                 self.__send(
-                    message.speed + self.speed_offset,
+                    (message.speed + self.speed_offset) * (-1 ** self.config['speed_reversed']),
                     self.config["speed_index"],
                     self.config["speed_min"],
                     self.config["speed_max"],
                 )
                 self.__send(
-                    message.steer + self.steer_offset,
+                    (message.steer + self.steer_offset) * (-1 ** self.config['steer_reversed']),
                     self.config["steer_index"],
                     self.config["steer_min"],
                     self.config["steer_max"],
                 )
         return True
-
-
-def loop(config):
-    servo = Servo(config)
-    while servo.run():
-        pass

@@ -77,7 +77,7 @@ class Brain:
 class Clone(Brain):
     def __init__(self, config):
         super(Clone, self).__init__(config)
-        model_path = derp.util.ROOT / 'scratch' / self.config['name'] / 'model.pt'
+        model_path = derp.util.ROOT / 'models' / self.config['name'] / 'model.pt'
         self.model = torch.load(model_path).to(self.device) if model_path.exists() else None
         self.camera_config = self.car_config['camera']
         self.bbox = derp.util.get_patch_bbox(self.config['thumb'], self.camera_config)
@@ -104,10 +104,4 @@ class Clone(Brain):
             elif config['name'] == 'future_steer':
                 self.speed *= 1 + (1 - abs(float(prediction)))
         return True
-
-def loop(config):
-    brain_class = eval(config['brain']['class'])
-    brain = brain_class(config)
-    while True:
-        brain.run()
     

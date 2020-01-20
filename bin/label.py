@@ -109,8 +109,8 @@ class Labeler:
         # Draw zero line
         self.window[self.f_h + self.l_h + self.bhh, :, :] = (96, 96, 96)
         offset = self.f_h + self.bhh + self.l_h
-        self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 0, 0)
-        self.window[self.steers + offset, np.arange(self.f_w), :] = (0, 255, 255)
+        self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 64, 255)
+        self.window[self.steers + offset, np.arange(self.f_w), :] = (64, 255, 255)
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):
@@ -204,11 +204,16 @@ To change the quality label of this frame
     c: clear, as in don't change the quality label
 """)
     parser = argparse.ArgumentParser()
-    parser.add_argument("path", type=Path, help="recording path location")
+    parser.add_argument("paths", type=Path, nargs='*', metavar='N', help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
     args = parser.parse_args()
-    labeler = Labeler(folder=args.path, scale=args.scale)
-    labeler.run()
+    if not args.paths:
+        recordings = (derp.util.ROOT / 'recordings').glob('recording-*')
+        args.paths = [r for r in recordings if not (r / 'quality.bin').exists()]
+    for path in args.paths:
+        print("Labeling", path)
+        labeler = Labeler(folder=path, scale=args.scale)
+        labeler.run()
 
 
 if __name__ == "__main__":

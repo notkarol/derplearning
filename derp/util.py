@@ -55,8 +55,15 @@ def subscriber(paths):
     return context, sock
 
 
+def loop(config, exit_event, func):
+    obj = func(config)
+    while not exit_event.is_set() and obj.run():
+        pass
+    del obj
+
+
 def topic_file_reader(folder, topic):
-    return open("%s/%s.bin" % (folder, topic), "rb") 
+    return open("%s/%s.bin" % (folder, topic), "rb")
 
 
 def topic_exists(folder, topic):
@@ -65,7 +72,7 @@ def topic_exists(folder, topic):
 
 
 def topic_file_writer(folder, topic):
-    return open("%s/%s.bin" % (folder, topic), "wb")     
+    return open("%s/%s.bin" % (folder, topic), "wb")
 
 
 def print_image_config(name, config):
@@ -212,7 +219,7 @@ def interpolate(vals, n_out, intmult=None):
         out = np.array([-fn_interpolate(x) * intmult + 0.5 for x in
                         np.linspace(0, 1, n_out)], dtype=np.int)
     return out
-                    
+
 
 def load_topics(folder):
     out = {}
@@ -235,7 +242,7 @@ def replay(topics):
 
 
 def decode_jpg(jpg):
-    return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)    
+    return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
 
 
 def extract_car_actions(topics):
@@ -252,3 +259,4 @@ def extract_car_actions(topics):
             if autonomous or msg.isManual:
                 out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
     return np.array(out)
+

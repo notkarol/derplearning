@@ -12,10 +12,8 @@ __pycache__/
 *jpg
 
 # Superfluous directories
-/data
-/defunct
 /models
-/scratch
+/recordings
 /virtual_env/data
 /build
 /derp.egg-info

@@ -1,6 +1,8 @@
 speed_index: 1
 speed_min: -0.3
 speed_max: 0.3
+speed_reversed: false
 steer_index: 0
 steer_min: -0.96
 steer_max: 0.96
+steer_reversed: true

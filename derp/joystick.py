@@ -109,7 +109,7 @@ class DS4State:
         self.mic = (recv_buffer[32] & 64) != 0
         
 
-class DS4:
+class Joystick:
     """Joystick to drive the car around manually without keyboard."""
     def __init__(self, config):
         """Joystick to drive the car around manually without keyboard."""
@@ -120,7 +120,7 @@ class DS4:
         self.steer = 0
         self.speed_offset = 0
         self.steer_offset = 0
-        self.is_calibrated = False
+        self.is_calibrated = True
         self.is_recording = False
         self.is_autonomous = False
         self.recv_timestamp = derp.util.get_timestamp()
@@ -139,7 +139,7 @@ class DS4:
         try:
             self.send(red=1, rumble_high=1)
             time.sleep(0.5)
-            self.send(red=0.5, green=0.5, blue=0.5)
+            self.send(red=0.25, green=0.25, blue=0.25)
         except:
             pass
         if self.__fd is not None:
@@ -359,9 +359,3 @@ class DS4:
         if self.action_changed:
             self.publish_action()
         return self.keep_running
-
-def loop(config):
-    """Run the joystick in a loop"""
-    joystick = DS4(config)
-    while joystick.run():
-        pass

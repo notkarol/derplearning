@@ -3,7 +3,6 @@ class: Clone
 
 # Training related parameters
 build:
-  folders: ['clone']
   train_chance: 0.8
   n_samples: 1
   perturbs:
@@ -31,8 +30,8 @@ train:
 
 # What we expect for input from the camera
 thumb:
-  hfov: 75
-  vfov: 37.5
+  hfov: 50
+  vfov: 25
   height: 64
   width: 128
   depth: 3
@@ -40,7 +39,7 @@ thumb:
   y: 0.0
   z: 0.43
   roll: 0
-  pitch: 0
+  pitch: -20
   yaw: 0
 
 # The status we feed into the network

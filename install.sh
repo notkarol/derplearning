@@ -30,7 +30,7 @@ sudo apt install -y \
      zlib1g-dev
 
 # Install python packages one at a time to ensure it works
-for package in cython pycapnp numpy scipy==1.1.0 PyYAML Adafruit-BNO055 pybluez pyserial pyusb ; do
+for package in Pillow==6.1 cython pycapnp numpy scipy==1.1.0 PyYAML Adafruit-BNO055 pybluez pyserial pyusb ; do
     pip3 install --user $package
 done
 
@@ -72,7 +72,7 @@ fi
 
 # Set up our script with sourcing instructions
 if ! [[ -e $PWD/recordings ]] ; then
-    mkdir -p $PWD/models $PWD/recordings $PWD/scratch
+    mkdir -p $PWD/recordings $PWD/models
     echo "export DERP_ROOT=$PWD" >> ~/.bashrc
     echo "export PYTHONPATH=$PYTHONPATH:$DERP_ROOT/capnp" >> ~/.bashrc
     source ~/.bashrc
