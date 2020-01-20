@@ -60,7 +60,7 @@ bin/drive.py config/rally.yaml
 ### Label Data
 
 ```bash
-bin/label.py data/recording-2020????-??????-????
+bin/label.py data/recording-YYYYMMDD-HHMMSS-HOSTNAME
 ```
 
 ### Build a dataset and train cloning model
