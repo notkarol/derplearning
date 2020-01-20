@@ -48,12 +48,12 @@ class Camera:
                    % (device, width, height, fps))
         elif self.config['mode'] == 'csi':
             gst = ('nvarguscamerasrc sensor-id=%i'
-                   ' ! \'video/x-raw(memory:NVMM),width=%i,height=%i,framerate=%i/1,format=NV12\''
+                   ' ! video/x-raw(memory:NVMM),width=%i,height=%i,framerate=(fraction)%i/1,format=(string)NV12'
                    ' ! nvvidconv flip-method=0'
-                   ' ! \'video/x-raw,width=%i,height=%i,format=BGRx\''
+                   ' ! video/x-raw,width=%i,height=%i,format=BGRx'
                    ' ! videoconvert ! appsink'
-                   % (self.config['index'], width, height, fps, width, height))
-            gst = 'nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM), width=1280, height=720, format=(string)NV12, framerate=(fraction)60/1 ! nvvidconv ! video/x-raw, width=(int)1280, height=(int)720, format=(string)BGRx ! videoconvert ! appsink'
+                   % (self.config['index'], self.config['capture_width'],
+                      self.config['capture_height'], fps, width, height))
         else:
             return False
         print(gst)

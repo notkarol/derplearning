@@ -1,9 +1,11 @@
 index: 0
-hfov: 21
+hfov: 62.2
 vfov: 48.8
-fps: 60
-height: 720
-width: 1280
+fps: 21
+capture_height: 2464
+capture_width: 3264
+height: 616
+width: 816
 depth: 3
 x: -0.01 # meters forward from front axle
 y:  0.00 # meters left from center of vehicle. Assume zero for now
