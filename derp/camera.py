@@ -15,6 +15,7 @@ class Camera:
         self.quality = [cv2.IMWRITE_JPEG_QUALITY, self.config['quality']]
         self.cap = None
         self.jpg = ''
+        self.size = (self.config['width'], self.config['height'])
         self.recv_timestamp = 0
         self.is_connected = self.__connect()
         self.__context, self.__publisher = derp.util.publisher("/tmp/derp_camera")
