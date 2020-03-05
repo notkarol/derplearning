@@ -1,11 +1,6 @@
 """The disk writer class that records all derp agent messages."""
-from datetime import datetime
-import socket
-import time
-import yaml
 from derp.part import Part
 import derp.util
-
 
 class Writer(Part):
     """The disk writer class that records all derp agent messages."""
@@ -13,14 +8,9 @@ class Writer(Part):
     def __init__(self, config):
         """Using a dict config connects to all possible subscriber sources"""
         super(Writer, self).__init__(config, "writer", ["brain", "camera", "imu", "joystick"])
-
-        date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
-        folder = derp.util.RECORDING_ROOT / ("recording-%s-%s" % (date, socket.gethostname()))
-        folder.mkdir(parents=True)
-        with open(str(folder / "config.yaml"), "w") as config_fd:
-            yaml.dump(self._global_config, config_fd)
         self._files = {
-            topic: derp.util.topic_file_writer(folder, topic) for topic in derp.util.TOPICS
+            topic: derp.util.topic_file_writer(self._global_config['recording_path'], topic)
+            for topic in derp.util.TOPICS
         }
 
     def __del__(self):

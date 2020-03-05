@@ -133,7 +133,6 @@ class Joystick(Part):
         self.__report_id = 0x11
         self.__keep_running = True
         self.__connect()
-        self.update_controller()
 
     def __del__(self):
         self.publish("action", isManual=True, speed=0, steer=0)
@@ -181,7 +180,8 @@ class Joystick(Part):
             return bool(fcntl.ioctl(self.__fd, 3223734279, bytes(buf)))
         except:
             pass
-        return self.recv() and self.update_controller()
+        if self.recv():
+            self.update_controller()
 
     def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """

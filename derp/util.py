@@ -3,10 +3,13 @@ Common utilities for derp used by various classes.
 """
 from collections import namedtuple
 import cv2
+from datetime import datetime
 import heapq
+import logging
 import pathlib
 import numpy as np
 import os
+import socket
 import time
 import yaml
 import zmq
@@ -30,6 +33,26 @@ MODEL_ROOT = DERP_ROOT / "models"
 RECORDING_ROOT = DERP_ROOT / "recordings"
 CONFIG_ROOT = DERP_ROOT / "config"
 MSG_STEM = "/tmp/derp_"
+
+
+def init_logger(name, recording_path, level=logging.INFO):
+    logger = logging.getLogger(name)
+    formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(message)s')
+    fileHandler = logging.FileHandler(recording_path / ('%s.log' % name), mode='w')
+    fileHandler.setFormatter(formatter)
+    streamHandler = logging.StreamHandler()
+    streamHandler.setFormatter(formatter)
+    logger.setLevel(level)
+    logger.addHandler(fileHandler)
+    logger.addHandler(streamHandler)    
+    return logger
+
+
+def make_recording_path():
+    date = datetime.utcfromtimestamp(time.time()).strftime("%Y%m%d-%H%M%S")
+    folder = RECORDING_ROOT / ("recording-%s-%s" % (date, socket.gethostname()))
+    folder.mkdir(parents=True)
+    return folder
 
 
 def get_timestamp():
