@@ -15,7 +15,7 @@ import messages_capnp
 import scipy.signal as signal
 from scipy.interpolate import interp1d
 
-Bbox = namedtuple('Bbox', ['x', 'y', 'w', 'h'])
+Bbox = namedtuple("Bbox", ["x", "y", "w", "h"])
 
 TOPICS = {
     "camera": messages_capnp.Camera,
@@ -25,17 +25,23 @@ TOPICS = {
     "quality": messages_capnp.Quality,
 }
 
-ROOT = pathlib.Path(os.environ["DERP_ROOT"])
+DERP_ROOT = pathlib.Path(os.environ["DERP_ROOT"])
+MODEL_ROOT = DERP_ROOT / "models"
+RECORDING_ROOT = DERP_ROOT / "recordings"
+CONFIG_ROOT = DERP_ROOT / "config"
+MSG_STEM = "/tmp/derp_"
+
 
 def get_timestamp():
-    return int(time.time() * 1E9)
+    return int(time.time() * 1e9)
 
 
 def sleep_hertz(start_timestamp, hertz):
-    end_timestamp = start_timestamp + 1E9 / hertz
-    duration = end_timestamp - get_timestamp() - 1E3
+    end_timestamp = start_timestamp + 1e9 / hertz
+    duration = end_timestamp - get_timestamp() - 1e3
     if duration > 0:
         time.sleep(duration)
+
 
 def publisher(path):
     context = zmq.Context()
@@ -67,7 +73,7 @@ def topic_file_reader(folder, topic):
 
 
 def topic_exists(folder, topic):
-    path = folder / ('%s.bin' % topic)
+    path = folder / ("%s.bin" % topic)
     return path.exists()
 
 
@@ -111,7 +117,7 @@ def get_patch_bbox(target_config, source_config):
     y = int(y_center + y_offset + 0.5)
     patch_width = int(patch_width + 0.5)
     patch_height = int(patch_height + 0.5)
-    #print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
+    # print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
     if x >= 0 and x + patch_width <= source_width and y >= 0 and y + patch_height <= source_height:
         return Bbox(x, y, patch_width, patch_height)
     return None
@@ -182,15 +188,15 @@ def load_config(config_path):
         config = yaml.load(config_fd, Loader=yaml.FullLoader)
     for component in config:
         if isinstance(config[component], dict) and "path" in config[component]:
-            component_path = ROOT / "config" / config[component]["path"]
+            component_path = CONFIG_ROOT / config[component]["path"]
             with open(str(component_path)) as component_fd:
                 component_config = yaml.load(component_fd, Loader=yaml.FullLoader)
             component_config.update(config[component])
             config[component] = component_config
-            if 'name' not in config[component]:
-                config[component]['name'] = component_path.stem
-    if 'name' not in config:
-        config['name'] = config_path.stem
+            if "name" not in config[component]:
+                config[component]["name"] = component_path.stem
+    if "name" not in config:
+        config["name"] = config_path.stem
     return config
 
 
@@ -216,8 +222,9 @@ def interpolate(vals, n_out, intmult=None):
     if intmult is None:
         out = np.array([-fn_interpolate(x) for x in np.linspace(0, 1, n_out)])
     else:
-        out = np.array([-fn_interpolate(x) * intmult + 0.5 for x in
-                        np.linspace(0, 1, n_out)], dtype=np.int)
+        out = np.array(
+            [-fn_interpolate(x) * intmult + 0.5 for x in np.linspace(0, 1, n_out)], dtype=np.int
+        )
     return out
 
 
@@ -245,18 +252,21 @@ def decode_jpg(jpg):
     return cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
 
 
+def encode_jpg(image, quality):
+    return cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])[1].tostring()
+
+
 def extract_car_actions(topics):
     out = []
     autonomous = False
     speed_offset = 0
     steer_offset = 0
     for timestamp, topic, msg in replay(topics):
-        if topic == 'controller':
+        if topic == "controller":
             autonomous = msg.isAutonomous
             speed_offset = msg.speedOffset
             steer_offset = msg.steerOffset
-        elif topic == 'action':
+        elif topic == "action":
             if autonomous or msg.isManual:
                 out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
     return np.array(out)
-

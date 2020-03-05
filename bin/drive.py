@@ -14,14 +14,14 @@ import derp.joystick
 import derp.servo
 import derp.writer
 
+
 def all_running(processes):
+    """ Returns whether all processes are currently alive """
     for proc in processes:
         proc.join(timeout=0)
         if not proc.is_alive():
-            print('Died:', proc.name, proc.pid)
             return False
     return True
-
 
 def main():
     """ Prepare arguments, configurations, variables and run the event loop. """
@@ -32,12 +32,14 @@ def main():
     config = derp.util.load_config(args.config)
     exit_event = Event()
 
-    component_map = {'brain': derp.brain.Clone,
-                     'camera': derp.camera.Camera,
-                     'imu': derp.imu.Imu,
-                     'joystick': derp.joystick.Joystick,
-                     'servo': derp.servo.Servo,
-                     'writer': derp.writer.Writer}
+    component_map = {
+        "brain": derp.brain.Clone,
+        "camera": derp.camera.Camera,
+        "imu": derp.imu.Imu,
+        "joystick": derp.joystick.Joystick,
+        "servo": derp.servo.Servo,
+        "writer": derp.writer.Writer,
+    }
     processes = []
     for name in sorted(component_map):
         if name not in config:
@@ -45,12 +47,11 @@ def main():
         proc_args = (config, exit_event, component_map[name])
         proc = Process(target=derp.util.loop, name=name, args=proc_args)
         proc.start()
-        print('Started:', name, proc.pid)
+        print("Started:", name, proc.pid)
         processes.append(proc)
     while all_running(processes):
-        time.sleep(0.5)
+        time.sleep(0.1)
     exit_event.set()
-
 
 if __name__ == "__main__":
     main()

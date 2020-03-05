@@ -27,7 +27,9 @@ class Labeler:
         self.f_h = self.frame.shape[0]
         self.f_w = self.frame.shape[1]
         self.l_h = int(self.bhh // 10)
-        self.window = np.zeros([self.f_h + self.bhh * 2 + self.l_h + 2, self.f_w, 3], dtype=np.uint8)
+        self.window = np.zeros(
+            [self.f_h + self.bhh * 2 + self.l_h + 2, self.f_w, 3], dtype=np.uint8
+        )
         self.paused = True
         self.show = False
 
@@ -51,10 +53,10 @@ class Labeler:
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
         # Print some statistics
-        duration = (camera_times[-1] - camera_times[0]) / 1E9
+        duration = (camera_times[-1] - camera_times[0]) / 1e9
         fps = (len(camera_times) - 1) / duration
         print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
-        
+
     def __del__(self):
         """Deconstructor to close window"""
         cv2.destroyAllWindows()
@@ -82,8 +84,13 @@ class Labeler:
             frame_id = self.n_frames - 1
             self.paused = True
         self.update_quality(self.frame_id, frame_id, self.quality)
-        self.frame = cv2.resize(derp.util.decode_jpg(self.topics['camera'][self.frame_id].jpg),
-                                None, fx=self.scale, fy=self.scale, interpolation=cv2.INTER_AREA)
+        self.frame = cv2.resize(
+            derp.util.decode_jpg(self.topics["camera"][self.frame_id].jpg),
+            None,
+            fx=self.scale,
+            fy=self.scale,
+            interpolation=cv2.INTER_AREA,
+        )
         self.frame_id = frame_id
         return True
 
@@ -115,7 +122,7 @@ class Labeler:
 
     def save_labels(self):
         """Write all of our labels to the folder as messages"""
-        with derp.util.topic_file_writer(self.folder, 'quality') as quality_fd:
+        with derp.util.topic_file_writer(self.folder, "quality") as quality_fd:
             for quality_i, quality in enumerate(self.qualities):
                 msg = derp.util.TOPICS["quality"].new_message(
                     createNS=derp.util.get_timestamp(),
@@ -184,7 +191,8 @@ class Labeler:
 
 def main():
     """Initialize the labeler based on user args and run it"""
-    print("""
+    print(
+        """
 This labeling tool interpolates the data based on camera frames and then lets you label each.
 To exit press ESCAPE
 To save press s
@@ -197,19 +205,20 @@ To navigate between frames:
     4  goes to 25% in
     5: goes to end
 To adjust horizon line press PAGE_UP or PAGE_DOWN
-To change the quality label of this frame 
+To change the quality label of this frame
     g: good (use for training)
     r: risk (advanced situation not suitable for classic training)
     t: junk (don't use this part of the video, aka trash)
     c: clear, as in don't change the quality label
-""")
+"""
+    )
     parser = argparse.ArgumentParser()
-    parser.add_argument("paths", type=Path, nargs='*', metavar='N', help="recording path location")
+    parser.add_argument("paths", type=Path, nargs="*", metavar="N", help="recording path location")
     parser.add_argument("--scale", type=float, default=1.0, help="frame rescale ratio")
     args = parser.parse_args()
     if not args.paths:
-        recordings = (derp.util.ROOT / 'recordings').glob('recording-*')
-        args.paths = [r for r in recordings if not (r / 'quality.bin').exists()]
+        recordings = (derp.util.DERP_ROOT / "recordings").glob("recording-*")
+        args.paths = [r for r in recordings if not (r / "quality.bin").exists()]
     for path in args.paths:
         print("Labeling", path)
         labeler = Labeler(folder=path, scale=args.scale)

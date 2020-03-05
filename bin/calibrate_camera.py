@@ -50,11 +50,7 @@ def live_undistort(camera, camera_matrix, distortion_coefficients):
         assert ret
         distorted_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         undistorted_frame = cv2.undistort(
-            distorted_frame,
-            camera_matrix,
-            distortion_coefficients,
-            None,
-            scaled_camera_matrix,
+            distorted_frame, camera_matrix, distortion_coefficients, None, scaled_camera_matrix,
         )
         roi_x, roi_y, roi_w, roi_h = roi
         cropped_frame = undistorted_frame[roi_y : roi_y + roi_h, roi_x : roi_x + roi_w]
@@ -68,9 +64,7 @@ def main():
     """
     Calibrate the live camera and optionally do a live display of the results
     """
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("config", type=Path, help="camera config path")
     parser.add_argument("--height", type=int, default=4)
     parser.add_argument("--width", type=int, default=10)
