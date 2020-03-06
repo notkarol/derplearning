@@ -95,49 +95,6 @@ def build(config, experiment_path, count):
     pool.map(build_recording, process_args)
 
 
-def train_epoch(device, model, optimizer, criterion, loader):
-    """ Run the optimzer over all batches in an epoch """
-    model.train()
-    epoch_loss = 0
-    batch_index = 0
-    for batch_index, (examples, statuses, labels) in enumerate(loader):
-        optimizer.zero_grad()
-        guesses = model(examples.to(device), statuses.to(device))
-        loss = criterion(guesses, labels.to(device))
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item()
-    return epoch_loss / (batch_index + 1)
-
-
-def test_epoch(device, model, criterion, loader):
-    """ Run the evaluator over all batches in an epoch """
-    model.eval()
-    epoch_loss = 0
-    batch_index = 0
-    with torch.no_grad():
-        for batch_index, (examples, statuses, labels) in enumerate(loader):
-            guesses = model(examples.to(device), statuses.to(device))
-            loss = criterion(guesses, labels.to(device))
-            epoch_loss += loss.item()
-    return epoch_loss / (batch_index + 1)
-
-
-def compose_transforms(transform_config):
-    """ Apply all image transforms """
-    transform_list = []
-    for perturb_config in transform_config:
-        if perturb_config["name"] == "colorjitter":
-            transform = transforms.ColorJitter(
-                brightness=perturb_config["brightness"],
-                contrast=perturb_config["contrast"],
-                saturation=perturb_config["saturation"],
-                hue=perturb_config["hue"],
-            )
-            transform_list.append(transform)
-    transform_list.append(transforms.ToTensor())
-    return transforms.Compose(transform_list)
-
 
 def train(config, experiment_path, gpu):
     device = torch.device("cuda:" + gpu if torch.cuda.is_available() else "cpu")
@@ -148,7 +105,7 @@ def train(config, experiment_path, gpu):
     dim_in = np.array([config["thumb"][x] for x in ["depth", "height", "width"]])
 
     # Prepare transforms
-    transformer = compose_transforms(config["train"]["transforms"])
+    transformer = derp.model.compose_transforms(config["train"]["transforms"])
     train_fetcher = Fetcher(experiment_path / "train", transformer, config["predict"])
     assert len(train_fetcher)
     test_fetcher = Fetcher(experiment_path / "test", transformer, config["predict"])
@@ -166,12 +123,12 @@ def train(config, experiment_path, gpu):
     model = model_fn(dim_in, n_status, n_predict).to(device)
     optimizer = optimizer_fn(model.parameters(), config["train"]["learning_rate"])
     scheduler = scheduler_fn(optimizer, factor=0.25, verbose=True, patience=8)
-    loss_threshold = test_epoch(device, model, optimizer, criterion, test_loader)
+    loss_threshold = derp.model.test_epoch(device, model, optimizer, criterion, test_loader)
     print("initial loss: %.6f" % loss_threshold)
     for epoch in range(config["train"]["epochs"]):
         start_time = time.time()
-        train_loss = train_epoch(device, model, optimizer, criterion, train_loader)
-        test_loss = test_epoch(device, model, criterion, test_loader)
+        train_loss = derp.model.train_epoch(device, model, optimizer, criterion, train_loader)
+        test_loss = derp.model.test_epoch(device, model, criterion, test_loader)
         scheduler.step(test_loss)
         note = ""
         if test_loss < loss_threshold:

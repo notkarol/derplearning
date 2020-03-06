@@ -156,16 +156,16 @@ def crop(image, bbox, copy=False):
 
 def resize(image, size):
     """ Resize the image to the target (w, h) """
-    return cv2.resize(image, size, interpolation=cv2.INTER_AREA)
+    is_larger = size[0] > image.shape[1] or size[1] > image.shape[0]
+    return cv2.resize(image, size, interpolation=cv2.INTER_LINEAR if is_larger else cv2.INTER_AREA)
 
 
-def perturb(frame, config, perturbs):
+def perturb(frame, camera_config, shift=0, rotate=0):
     # Estimate how many pixels to rotate by, assuming fixed degrees per pixel
-    pixels_per_degree = config["width"] / config["hfov"]
-    rotate_pixels = (perturbs["rotate"] if "rotate" in perturbs else 0) * pixels_per_degree
+    pixels_per_degree = camera_config["width"] / camera_config["hfov"]
 
     # Figure out where the horizon is in the image
-    horizon_frac = ((config["vfov"] / 2) + config["pitch"]) / config["vfov"]
+    horizon_frac = ((camera_config["vfov"] / 2) + camera_config["pitch"]) / camera_config["vfov"]
 
     # For each row in the frame shift/rotate it
     indexs = np.arange(len(frame))
@@ -173,13 +173,12 @@ def perturb(frame, config, perturbs):
 
     # For each vertical line, apply shift/rotation rolls
     for index, vertical_frac in zip(indexs, vertical_fracs):
-        magnitude = rotate_pixels
-        if "shift" in perturbs and vertical_frac > horizon_frac:
-            ground_angle = (vertical_frac - horizon_frac) * config["vfov"]
-            ground_distance = config["z"] / np.tan(deg2rad(ground_angle))
-            ground_width = 2 * ground_distance * np.tan(deg2rad(config["hfov"]) / 2)
-            shift_pixels = (perturbs["shift"] / ground_width) * config["width"]
-            magnitude += shift_pixels
+        magnitude = rotate * pixels_per_degree
+        if vertical_frac > horizon_frac:
+            ground_angle = (vertical_frac - horizon_frac) * camera_config["vfov"]
+            ground_distance = camera_config["z"] / np.tan(deg2rad(ground_angle))
+            ground_width = 2 * ground_distance * np.tan(deg2rad(camera_config["hfov"]) / 2)
+            magnitude += (shift / ground_width) * camera_config["width"]
         magnitude = int(magnitude + 0.5 * np.sign(magnitude))
         if magnitude > 0:
             frame[index, magnitude:, :] = frame[index, : frame.shape[1] - magnitude]
@@ -187,6 +186,7 @@ def perturb(frame, config, perturbs):
         elif magnitude < 0:
             frame[index, :magnitude, :] = frame[index, abs(magnitude) :]
             frame[index, frame.shape[1] + magnitude :] = 0
+    return frame
 
 
 def deg2rad(val):
