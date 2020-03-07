@@ -2,17 +2,17 @@ brain:
   path: brain-clone.yaml
 camera:
   index: 0
-  hfov: 62.2
-  vfov: 48.8
+  hfov: 145
+  vfov: 109.5
   fps: 21
   capture_height: 2464
   capture_width: 3264
   height: 616
   width: 816
   depth: 3
-  x: -0.01 # meters forward from front axle
+  x: -0.03 # meters forward from front axle
   y:  0.00 # meters left from center of vehicle. Assume zero for now
-  z:  0.12 # meters up from floor
+  z:  0.17 # meters up from floor
   roll:   0.0 # degrees left tilt. Assume zero for now
   pitch:  0.0 # degrees incline
   yaw:    0.0 # degrees left turn. Assume zero for now
@@ -30,5 +30,5 @@ servo:
   steer_index: 0
   steer_min: -0.9
   steer_max: 0.9
-  steer_reversed: true
+  steer_reversed: false
 writer: {}

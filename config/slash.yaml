@@ -1,11 +1,34 @@
 brain:
   path: brain-clone.yaml
 camera:
-  path: camera-OV2710.yaml
+  index: 0
+  hfov: 160
+  vfov: 120
+  fps: 30
+  height: 480
+  width: 640
+  depth: 3
+  x: -0.21 # meters forward from front axle
+  y:  0.00 # meters left from center of vehicle. Assume zero for now
+  z:  0.43 # meters up from floor
+  roll:   0.0 # degrees left tilt. Assume zero for now
+  pitch: -28.0 # degrees incline
+  yaw:    0.0 # degrees left turn. Assume zero for now
+  mode: video
+  quality: 80
 imu:
   busnum: 0
 joystick:
   deadzone: 8
+  speed_normalizer: 0.15
+  steer_normalizer: 1.0
 servo:
-  path: servo-micromaestro.yaml
+  speed_index: 1
+  speed_min: -0.5
+  speed_max: 0.5
+  speed_reversed: false
+  steer_index: 0
+  steer_min: -0.9
+  steer_max: 0.9
+  steer_reversed: false
 writer: {}

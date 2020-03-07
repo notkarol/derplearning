@@ -1,9 +1,23 @@
 brain:
   path: brain-clone.yaml
 camera:
-  path: camera-laptop.yaml
+  index: 0
+  hfov: 75
+  vfov: 56.25
+  fps: 30
+  height: 480
+  width: 640
+  depth: 3
+  x: 0
+  y: 0
+  z: 0.1
+  roll: 0
+  pitch: 0
+  yaw: 0
+  mode: video
+  quality: 80
 joystick:
   deadzone: 8
-servo:
-  path: servo-micromaestro.yaml
+  speed_normalizer: 1.0
+  steer_normalizer: 1.0
 writer: {}
