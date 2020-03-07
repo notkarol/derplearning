@@ -15,7 +15,7 @@ import derp.util
 import derp.model
 
 
-def build_recording(config, recording_folder, out_folder):
+def build_recording(config, recording_folder, out_folder, do_perturb):
     """
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
@@ -37,19 +37,14 @@ def build_recording(config, recording_folder, out_folder):
     for camera_i, timestamp in enumerate(camera['times']):
         if topics['quality'][camera_i].quality != 'good':
             continue
-        for perturb_i in range(config['build']['n_samples']):
+        for perturb_i in range(config['build']['n_samples'] if do_perturb else 1):
             store_name = '%i_%03i.png' % (timestamp, perturb_i)
 
-            # Prepare image with Perturbations
             shift = np.random.uniform(*config['build']['perturbs']['shift']['range'])
             rotate = np.random.uniform(*config['build']['perturbs']['rotate']['range'])
-            frame = derp.util.decode_jpg(topics['camera'][camera_i].jpg)
-            derp.util.perturb(frame, camera_config, shift, rotate)
-            patch = derp.util.crop(frame, bbox)
-            thumb = derp.util.resize(patch, size)
-            derp.util.save_image(out_folder / store_name, thumb)
 
             predict = [store_name]
+            skip = False
             for predictor_config in config['predict']:
                 predictor_timestamp = int(timestamp + predictor_config['time_offset'] * 1e9)
                 index = np.searchsorted(camera['times'], predictor_timestamp)
@@ -57,12 +52,23 @@ def build_recording(config, recording_folder, out_folder):
                 if predictor_config['field'] == 'steer':
                     value += config['build']['perturbs']['shift']['fudge'] * shift
                     value += config['build']['perturbs']['rotate']['fudge'] * rotate
+                    if value < -1.05 or value > 1.05:
+                        skip = value
                 predict.append(value)
+            if skip:
+                print("SKIP", skip)
+                continue
 
             status = [store_name]
             for status_config in config['status']:
                 status.append(float(camera[status_config['field']][camera['index']]))
 
+            frame = derp.util.decode_jpg(topics['camera'][camera_i].jpg)
+            derp.util.perturb(frame, camera_config, shift, rotate)
+            patch = derp.util.crop(frame, bbox)
+            thumb = derp.util.resize(patch, size)
+            derp.util.save_image(out_folder / store_name, thumb)
+                
             predict_row = ['%.6f' % x if isinstance(x, float) else x for x in predict]
             predict_fd.write(','.join(predict_row) + '\n')
             status_row = ['%.6f' % x if isinstance(x, float) else x for x in status]
@@ -82,12 +88,16 @@ def build(config, experiment_path, count):
     """ Build the dataset """
     np.random.seed(config['seed'])
     process_args = []
+    test_claimed = False
     for recording_folder in derp.util.RECORDING_ROOT.glob('recording-*-*-*'):
         partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
+        if not test_claimed:
+            test_claimed = True
+            partition = 'test'
         out_folder = experiment_path / partition / recording_folder.stem
         if not out_folder.exists():
             out_folder.mkdir(parents=True)
-            process_args.append([config, recording_folder, out_folder])
+            process_args.append([config, recording_folder, out_folder, partition == 'train'])
     pool = multiprocessing.Pool(count)
     pool.map(build_recording_fn, process_args)
 
@@ -105,8 +115,6 @@ def train(config, experiment_path, gpu):
     train_fetcher = Fetcher(experiment_path / 'train', transformer, config['predict'])
     assert len(train_fetcher)
     test_fetcher = Fetcher(experiment_path / 'test', transformer, config['predict'])
-    if len(test_fetcher) == 0:
-        test_fetcher = train_fetcher
     assert len(test_fetcher)
     train_loader = DataLoader(
         train_fetcher, config['train']['batch_size'], shuffle=True, num_workers=3,
