@@ -53,7 +53,7 @@ def build_recording(config, recording_folder, out_folder):
 
             predict = [store_name]
             for predictor_config in config['predict']:
-                predictor_timestamp = int(timestamp + predictor_config['time_offset'] * 1e6)
+                predictor_timestamp = int(timestamp + predictor_config['time_offset'] * 1e9)
                 index = np.searchsorted(camera['times'], predictor_timestamp)
                 value = float(camera[predictor_config['field']][index])
                 if predictor_config['field'] == 'steer':
