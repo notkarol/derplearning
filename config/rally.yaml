@@ -1,9 +1,7 @@
-#brain:
-#  path: brain-clone.yaml
+brain:
+  path: brain-clone.yaml
 camera:
-  path: camera_rpi2.yaml
-#imu:
-#  busnum: 0
+  path: camera_imx219.yaml
 joystick:
   deadzone: 8
 servo:
