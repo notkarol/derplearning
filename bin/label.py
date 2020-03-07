@@ -43,18 +43,18 @@ class Labeler:
             self.update_quality(i, i, quality)
 
         # Prepare state messages
-        camera_times = [msg.publishNS for msg in self.topics["camera"]]
+        self.camera_times = [msg.publishNS for msg in self.topics["camera"]]
         actions = derp.util.extract_car_actions(self.topics)
-        camera_speeds = derp.util.extract_latest(camera_times, actions[:, 0], actions[:, 1])
-        camera_steers = derp.util.extract_latest(camera_times, actions[:, 0], actions[:, 2])
+        camera_speeds = derp.util.extract_latest(self.camera_times, actions[:, 0], actions[:, 1])
+        camera_steers = derp.util.extract_latest(self.camera_times, actions[:, 0], actions[:, 2])
         camera_steers[camera_steers > 1] = 1
         camera_steers[camera_steers < -1] = -1
         self.speeds = derp.util.interpolate(camera_speeds, self.f_w, self.bhh)
         self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
 
         # Print some statistics
-        duration = (camera_times[-1] - camera_times[0]) / 1e9
-        fps = (len(camera_times) - 1) / duration
+        duration = (self.camera_times[-1] - self.camera_times[0]) / 1e9
+        fps = (len(self.camera_times) - 1) / duration
         print("Duration of %.0f seconds at %.0f fps" % (duration, fps))
 
     def __del__(self):
@@ -85,7 +85,7 @@ class Labeler:
             self.paused = True
         self.update_quality(self.frame_id, frame_id, self.quality)
         self.frame = cv2.resize(
-            derp.util.decode_jpg(self.topics["camera"][self.frame_id].jpg),
+            derp.util.decode_jpg(self.topics["camera"][frame_id].jpg),
             None,
             fx=self.scale,
             fy=self.scale,
@@ -118,6 +118,9 @@ class Labeler:
         offset = self.f_h + self.bhh + self.l_h
         self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 64, 255)
         self.window[self.steers + offset, np.arange(self.f_w), :] = (64, 255, 255)
+        cv2.putText(self.window,
+                    "%05i %s" % (self.frame_id, self.camera_times[self.frame_id] / 1E9),
+                    (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):

@@ -33,9 +33,10 @@ def main():
     args = parser.parse_args()
 
     config = derp.util.load_config(args.config)
-    config['recording_path'] = derp.util.make_recording_path()
-    with open(str(config['recording_path'] / "config.yaml"), "w") as config_fd:
+    recording_path = derp.util.make_recording_path()
+    with open(str(recording_path / "config.yaml"), "w") as config_fd:
         yaml.dump(config, config_fd)
+    config['recording_path'] = recording_path
     logger = derp.util.init_logger('drive', config['recording_path'])
         
     component_map = {
