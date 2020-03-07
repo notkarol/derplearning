@@ -1,10 +1,10 @@
-seed: 4
+seed: 1
 class: Clone
 
 # Training related parameters
 build:
-  train_chance: 0.8
-  n_samples: 2
+  train_mod: 3
+  n_samples: 4
   perturbs:
     shift:
       range: [-0.2, 0.2] # meters

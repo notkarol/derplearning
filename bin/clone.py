@@ -85,8 +85,8 @@ def build(config, experiment_path, count):
     """ Build the dataset """
     np.random.seed(config['seed'])
     process_args = []
-    for recording_folder in derp.util.RECORDING_ROOT.glob('recording-*-*-*'):
-        partition = 'train' if np.random.rand() < config['build']['train_chance'] else 'test'
+    for i, recording_folder in enumerate(derp.util.RECORDING_ROOT.glob('recording-*-*-*')):
+        partition = 'train' if i % config['build']['train_mod'] else 'test'
         out_folder = experiment_path / partition / recording_folder.stem
         if not out_folder.exists():
             out_folder.mkdir(parents=True)
