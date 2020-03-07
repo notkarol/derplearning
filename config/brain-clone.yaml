@@ -4,7 +4,7 @@ class: Clone
 # Training related parameters
 build:
   train_chance: 0.8
-  n_samples: 3
+  n_samples: 2
   perturbs:
     shift:
       range: [-0.2, 0.2] # meters
@@ -31,7 +31,7 @@ train:
 # What we expect for input from the camera
 thumb:
   hfov: 100
-  vfov: 50
+  vfov: 30
   height: 32
   width: 64
   depth: 3

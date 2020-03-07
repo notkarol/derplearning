@@ -20,7 +20,7 @@ camera:
   quality: 80
 joystick:
   deadzone: 8
-  speed_normalizer: 0.15
+  speed_normalizer: 0.2
   steer_normalizer: 1.0
 servo:
   speed_index: 1
