@@ -66,7 +66,6 @@ class Servo(Part):
             if self.isAutonomous or self._messages[topic].isManual:
                 speed = ((self._messages[topic].speed + self.speed_offset)
                          * (-1 if self._config["speed_reversed"] else 1))
-                print(speed)
                 self.__send(
                     speed,
                     self._config["speed_index"],
