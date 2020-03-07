@@ -52,11 +52,8 @@ def build_recording(config, recording_folder, out_folder, do_perturb):
                 if predictor_config['field'] == 'steer':
                     value += config['build']['perturbs']['shift']['fudge'] * shift
                     value += config['build']['perturbs']['rotate']['fudge'] * rotate
-                    if value < -1.05 or value > 1.05:
-                        skip = value
                 predict.append(value)
             if skip:
-                print("SKIP", skip)
                 continue
 
             status = [store_name]
@@ -74,7 +71,7 @@ def build_recording(config, recording_folder, out_folder, do_perturb):
             status_row = ['%.6f' % x if isinstance(x, float) else x for x in status]
             status_fd.write(','.join(status_row) + '\n')
         n_frames_processed += 1
-    print('Build %s %5i %s' % (recording_folder, n_frames_processed, out_folder))
+    print('Build %5i %s' % (n_frames_processed, out_folder))
     predict_fd.close()
     status_fd.close()
     return True
@@ -124,7 +121,7 @@ def train(config, experiment_path, gpu):
     n_predict = len(config['predict'])
     model = model_fn(dim_in, n_status, n_predict).to(device)
     optimizer = optimizer_fn(model.parameters(), config['train']['learning_rate'])
-    scheduler = scheduler_fn(optimizer, factor=0.25, verbose=True, patience=8)
+    scheduler = scheduler_fn(optimizer, factor=0.1, verbose=True, patience=8)
     loss_threshold = derp.model.test_epoch(device, model, criterion, test_loader)
     print('initial loss: %.6f' % loss_threshold)
     for epoch in range(config['train']['epochs']):

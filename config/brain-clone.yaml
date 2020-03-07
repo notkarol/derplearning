@@ -1,24 +1,24 @@
-seed: 13
+seed: 4
 class: Clone
 
 # Training related parameters
 build:
   train_chance: 0.8
-  n_samples: 1
+  n_samples: 3
   perturbs:
     shift:
-      range: [0,0] #[-0.1, 0.1] # meters
-      fudge: 0.5
+      range: [-0.2, 0.2] # meters
+      fudge: 0.2
     rotate:
-      range: [0,0] #[-5.0, 5.0] # degrees
-      fudge: 0.02
+      range: [-10.0, 10.0] # degrees
+      fudge: 0.01
 
 # Training related parameters
 train:
   model: Tiny
   criterion: MSELoss
   optimizer: AdamW
-  batch_size: 64
+  batch_size: 32
   learning_rate: 0.001
   epochs: 32
   transforms:
