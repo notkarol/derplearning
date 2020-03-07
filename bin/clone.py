@@ -16,7 +16,7 @@ import derp.util
 import derp.model
 
 
-def build_recording(args):
+def build_recording(config, recording_folder, out_folder):
     """
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
@@ -87,7 +87,9 @@ def build(config, experiment_path, count):
             out_folder.mkdir(parents=True)
             process_args.append([config, recording_folder, out_folder])
     pool = multiprocessing.Pool(count)
-    pool.map(build_recording, process_args)
+    def build_recording_fn(args):
+        return build_recording(*args)
+    pool.map(build_recording_fn, process_args)
 
 
 
