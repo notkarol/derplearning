@@ -4,13 +4,13 @@ class: Clone
 # Training related parameters
 build:
   train_chance: 0.8
-  n_samples: 3
+  n_samples: 1
   perturbs:
     shift:
-      range: [-0.1, 0.1] # meters
+      range: [0,0] #[-0.1, 0.1] # meters
       fudge: 0.5
     rotate:
-      range: [-5.0, 5.0] # degrees
+      range: [0,0] #[-5.0, 5.0] # degrees
       fudge: 0.02
 
 # Training related parameters
@@ -20,7 +20,7 @@ train:
   optimizer: AdamW
   batch_size: 64
   learning_rate: 0.001
-  epochs: 8
+  epochs: 32
   transforms:
     - name: 'colorjitter'
       brightness: 0.5
@@ -30,14 +30,14 @@ train:
 
 # What we expect for input from the camera
 thumb:
-  hfov: 50
-  vfov: 25
-  height: 64
-  width: 128
+  hfov: 100
+  vfov: 50
+  height: 32
+  width: 64
   depth: 3
-  x: -0.21
+  x: -0.03
   y: 0.0
-  z: 0.43
+  z: 0.17
   roll: 0
   pitch: -20
   yaw: 0
