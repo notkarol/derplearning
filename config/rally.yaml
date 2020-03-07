@@ -4,6 +4,8 @@ camera:
   path: camera_imx219.yaml
 joystick:
   deadzone: 8
+  speed_normalizer: 0.125
+  steer_normalizer: 1.0
 servo:
   path: servo-micromaestro.yaml
 writer: {}

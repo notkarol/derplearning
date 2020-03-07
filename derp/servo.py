@@ -64,16 +64,19 @@ class Servo(Part):
                 return False
         elif topic == "action":
             if self.isAutonomous or self._messages[topic].isManual:
+                speed = ((self._messages[topic].speed + self.speed_offset)
+                         * (-1 if self._config["speed_reversed"] else 1))
+                print(speed)
                 self.__send(
-                    (self._messages[topic].speed + self.speed_offset)
-                    * (-(1 ** self._config["speed_reversed"])),
+                    speed,
                     self._config["speed_index"],
                     self._config["speed_min"],
                     self._config["speed_max"],
                 )
+                steer = ((self._messages[topic].steer + self.steer_offset)
+                         * (-1 if self._config["steer_reversed"] else 1))
                 self.__send(
-                    (self._messages[topic].steer + self.steer_offset)
-                    * (-(1 ** self._config["steer_reversed"])),
+                    steer,
                     self._config["steer_index"],
                     self._config["steer_min"],
                     self._config["steer_max"],

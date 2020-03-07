@@ -275,7 +275,7 @@ class Joystick(Part):
         self.action_changed = False
         self.__keep_running = not self.state.button_trackpad
         if not self.__in_deadzone(self.state.left_analog_x):
-            steer = self.__normalize_stick(self.state.left_analog_x, self._config["deadzone"])
+            steer = self.__normalize_stick(self.state.left_analog_x, self._config["deadzone"]) * self._config['steer_normalizer']
             if steer != self.steer:
                 self.steer = steer
                 self.action_changed = True
@@ -283,7 +283,7 @@ class Joystick(Part):
             self.steer = 0
             self.action_changed = True
         if self.state.left_trigger:
-            speed = -self.state.left_trigger / 255
+            speed = -self.state.left_trigger / 255 * self._config['speed_normalizer']
             if speed != self.speed:
                 self.speed = speed
                 self.action_changed = True
@@ -291,7 +291,7 @@ class Joystick(Part):
             self.speed = 0
             self.action_changed = True
         if self.state.right_trigger:
-            speed = self.state.right_trigger / 255
+            speed = self.state.right_trigger / 255 * self._config['speed_normalizer']
             if speed != self.speed:
                 self.speed = speed
                 self.action_changed = True
