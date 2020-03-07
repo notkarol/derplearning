@@ -13,6 +13,7 @@ import derp.brain
 import derp.camera
 import derp.imu
 import derp.joystick
+import derp.keyboard
 import derp.servo
 import derp.writer
 
@@ -44,6 +45,7 @@ def main():
         "camera": derp.camera.Camera,
         "imu": derp.imu.Imu,
         "joystick": derp.joystick.Joystick,
+        "keyboard": derp.keyboard.Keyboard,
         "servo": derp.servo.Servo,
         "writer": derp.writer.Writer,
     }

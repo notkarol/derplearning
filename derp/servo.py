@@ -12,7 +12,7 @@ class Servo(Part):
     """
 
     def __init__(self, config):
-        super(Servo, self).__init__(config, "servo", ["brain", "joystick"])
+        super(Servo, self).__init__(config, "servo", ["brain", "joystick", "keyboard"])
         self.usb_vendor_id = 0x1FFB  # Polulu
         self.usb_product_id = 0x0089  # Maestro 6
         self._device = None

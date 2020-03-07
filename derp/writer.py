@@ -7,7 +7,7 @@ class Writer(Part):
 
     def __init__(self, config):
         """Using a dict config connects to all possible subscriber sources"""
-        super(Writer, self).__init__(config, "writer", ["brain", "camera", "imu", "joystick"])
+        super(Writer, self).__init__(config, "writer", ["brain", "camera", "imu", "joystick", "keyboard"])
         self._files = {
             topic: derp.util.topic_file_writer(self._global_config['recording_path'], topic)
             for topic in derp.util.TOPICS

@@ -14,7 +14,7 @@ class Brain(Part):
 
     def __init__(self, config):
         """Preset some common constructor parameters"""
-        super(Brain, self).__init__(config, "brain", ["camera", "joystick", "imu"])
+        super(Brain, self).__init__(config, "brain", ["camera", "joystick", "imu", "keyboard"])
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.speed = 0
         self.steer = 0
