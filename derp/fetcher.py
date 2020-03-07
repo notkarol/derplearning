@@ -7,6 +7,7 @@ import PIL.Image
 import torch.utils.data
 import derp.util
 
+
 class Fetcher(torch.utils.data.Dataset):
     """
     Fetcher is an image-loader for use with training.

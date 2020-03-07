@@ -4,9 +4,11 @@ in the derp way through the Adafruit BNO055 class.
 """
 import Adafruit_BNO055.BNO055
 import time
+from derp.part import Part
 import derp.util
 
-class Imu:
+
+class Imu(Part):
     """
     The bno055 is an IMU sensor. This class lets us communicate with it
     in the derp way through the Adafruit BNO055 class.
@@ -17,13 +19,11 @@ class Imu:
         Args:
             config (dict): The configuration file for the sensor.
         """
-        self.config = config['imu']
-        self.busnum = self.config['busnum'] if 'busnum' in self.config else -1
-        self.bno = None
+        super(Imu, self).__init__(config, "imu", [])
+        self.busnum = self.config["busnum"] if "busnum" in self.config else -1
+        self._bno = None
         self.calibration = None
         self.last_read_calibration = 0.0
-        self.recv_time = 0.0
-        self.is_connected = self.__connect()
         self.calibration_status = [0, 0, 0]
         self.angular_velocity = [0, 0, 0]
         self.magnetic_field = [0, 0, 0]
@@ -31,12 +31,7 @@ class Imu:
         self.gravity = [0, 0, 0]
         self.orientation_quaternion = [0, 0, 0, 0]
         self.temperature = 0
-        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_imu")
 
-    def __del__(self):
-        self.__publisher.close()
-        self.__context.term()
-        
     def __connect(self):
         """
         Are we connected to the BNO055 device through the provided
@@ -44,19 +39,22 @@ class Imu:
         Otherwise return False.
         """
         try:
-            self.bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.busnum)
+            self._bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.busnum)
         except PermissionError:
             print("imu: permission error")
-            return False
+            self._bno = None
+            return
         except FileNotFoundError:
             print("imu: did you specify the right busnum in config?")
-            return False
-        if not self.bno.begin():
+            self._bno = None
+            return
+        if not self._bno.begin():
             print("imu: unable to begin")
-            return False
+            self._bno = None
+            return
 
         # Remap Axes to match camera's principle axes
-        self.bno.set_axis_remap(
+        self._bno.set_axis_remap(
             x=Adafruit_BNO055.BNO055.AXIS_REMAP_Y,
             y=Adafruit_BNO055.BNO055.AXIS_REMAP_Z,
             z=Adafruit_BNO055.BNO055.AXIS_REMAP_X,
@@ -65,23 +63,7 @@ class Imu:
             z_sign=Adafruit_BNO055.BNO055.AXIS_REMAP_NEGATIVE,
         )
         self.last_read_calibration = derp.util.get_timestamp()
-        self.calibration = self.bno.get_calibration()
-        return True
-
-    def publish_imu(self):
-        message = derp.util.TOPICS['imu'].new_message(
-            createNS=self.recv_time,
-            publishNS=derp.util.get_timestamp(),
-            index=self.busnum,
-            isCalibrated=self.is_calibrated(),
-            angularVelocity=self.angular_velocity,
-            magneticField=self.magnetic_field,
-            linearAcceleration=self.linear_acceleration,
-            gravity=self.gravity,
-            orientationQuaternion=self.orientation_quaternion,
-            temperature=self.temperature,
-        )
-        self.__publisher.send_multipart([b"imu", message.to_bytes()])
+        self.calibration = self._bno.get_calibration()
 
     def is_calibrated(self):
         for val in self.calibration_status:
@@ -94,24 +76,33 @@ class Imu:
         Reinitialize IMU if it's failed to get data at any point.
         Otherwise get data from the IMU to update state variable.
         """
-        self.recv_time = derp.util.get_timestamp()
-        if not self.is_connected:
-            self.is_connected = self.__connect()
+        if self._bno == None:
+            self.__connect()
+        self._timestamp = derp.util.get_timestamp()
         try:
-            if self.recv_time - self.last_read_calibration > 1E6:
+            if self._timestamp - self.last_read_calibration > 1e6:
                 self.last_read_calibration = derp.util.get_timestamp()
-                self.calibration = self.bno.get_calibration()
-            self.calibration_status = self.bno.get_calibration_status()
-            self.angular_velocity = self.bno.read_gyroscope()
-            self.magnetic_field = self.bno.read_magnetometer()
-            self.linear_acceleration = self.bno.read_linear_acceleration()
-            self.gravity = self.bno.read_gravity()
-            self.orientation_quaternion = self.bno.read_quaternion()
-            self.temperature = self.bno.read_temp()
+                self.calibration = self._bno.get_calibration()
+            self.calibration_status = self._bno.get_calibration_status()
+            self.angular_velocity = self._bno.read_gyroscope()
+            self.magnetic_field = self._bno.read_magnetometer()
+            self.linear_acceleration = self._bno.read_linear_acceleration()
+            self.gravity = self._bno.read_gravity()
+            self.orientation_quaternion = self._bno.read_quaternion()
+            self.temperature = self._bno.read_temp()
         except OSError:
-            print("IMU FAILED", self.recv_time)
-            return True
-        self.publish_imu()
-        derp.util.sleep_hertz(self.recv_time, 100)
+            print("IMU FAILED", self._timestamp)
+        finally:
+            self.publish(
+                "imu",
+                index=self.busnum,
+                isCalibrated=self.is_calibrated(),
+                angularVelocity=self.angular_velocity,
+                magneticField=self.magnetic_field,
+                linearAcceleration=self.linear_acceleration,
+                gravity=self.gravity,
+                orientationQuaternion=self.orientation_quaternion,
+                temperature=self.temperature,
+            )
+        derp.util.sleep_hertz(self._timestamp, 100)
         return True
-

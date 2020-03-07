@@ -13,21 +13,33 @@ class ConvBlock(torch.nn.Module):
     can be set and run in the order mentioned.
     """
 
-    def __init__(self, dim, n_out, kernel_size=3, stride=1, padding=1, batchnorm=False,
-                 dropout=0, activation=True):
+    def __init__(
+        self,
+        dim,
+        n_out,
+        kernel_size=3,
+        stride=1,
+        padding=1,
+        batchnorm=False,
+        dropout=0,
+        activation=True,
+    ):
         """ A convolution operation """
         super(ConvBlock, self).__init__()
         n_in = int(dim[0])
-        self.conv2d = torch.nn.Conv2d(n_in, n_out, kernel_size=kernel_size,
-                                      stride=stride, padding=padding)
+        self.conv2d = torch.nn.Conv2d(
+            n_in, n_out, kernel_size=kernel_size, stride=stride, padding=padding
+        )
         self.batchnorm = torch.nn.BatchNorm2d(n_out) if batchnorm else None
         self.activation = torch.nn.ReLU(inplace=True) if activation else None
         self.dropout = torch.nn.Dropout2d(dropout) if dropout else None
         dim[0] = n_out
         dim[1:] = 1 + (dim[1:] + padding * 2 - kernel_size) // stride
         self.n_params = n_out * (n_in * kernel_size * kernel_size + (3 if batchnorm else 1))
-        print("Conv2d in %4i out %4i h %4i w %4i k %i s %i params %9i"
-              % (n_in, *dim, kernel_size, stride, self.n_params))
+        print(
+            "Conv2d in %4i out %4i h %4i w %4i k %i s %i params %9i"
+            % (n_in, *dim, kernel_size, stride, self.n_params)
+        )
 
     def forward(self, batch):
         """ Forward the 4D batch """
@@ -58,8 +70,9 @@ class LinearBlock(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout) if dropout > 0.0 else None
         self.activation = torch.nn.ReLU(inplace=True) if activation else None
         self.n_params = n_out * (n_in + (3 if batchnorm else 1))
-        print("Linear in %4i out %4i                       params %9i"
-              % (n_in, n_out, self.n_params))
+        print(
+            "Linear in %4i out %4i                       params %9i" % (n_in, n_out, self.n_params)
+        )
 
     def forward(self, batch):
         """ Forward the 2D batch """
@@ -71,7 +84,7 @@ class LinearBlock(torch.nn.Module):
         if self.dropout:
             out = self.dropout(out)
         return out
-                
+
 
 class PoolBlock(torch.nn.Module):
     """
@@ -107,6 +120,7 @@ class ViewBlock(torch.nn.Module):
     A ViewBlock restructures the shape of our activation maps so they're
     represented as 1D instead of 3D.
     """
+
     def __init__(self, dim, shape=-1):
         """ A reshape operation """
         super(ViewBlock, self).__init__()
@@ -141,13 +155,13 @@ class Tiny(torch.nn.Module):
         dim = in_dim.copy()
         self.feat = torch.nn.Sequential(
             ConvBlock(dim, 16),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 32),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 48),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 64),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
         )
         self.view = ViewBlock(dim)
         dim[0] += n_status
@@ -189,22 +203,21 @@ class StarTree(torch.nn.Module):
             ConvBlock(dim, 64, dropout=0.25),
             ConvBlock(dim, 16),
             ConvBlock(dim, 32),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 24),
             ConvBlock(dim, 48),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 32),
             ConvBlock(dim, 64),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
             ConvBlock(dim, 40),
             ConvBlock(dim, 80, dropout=0.25),
-            PoolBlock(dim, 'max', 2),
+            PoolBlock(dim, "max", 2),
         )
         self.view = ViewBlock(dim)
         dim[0] += n_status
         self.head = torch.nn.Sequential(
-            LinearBlock(dim, 50),
-            LinearBlock(dim, n_out, activation=False),
+            LinearBlock(dim, 50), LinearBlock(dim, n_out, activation=False),
         )
         self.n_params = sum([x.n_params for x in self.feat]) + sum([x.n_params for x in self.head])
         print("StarTree                                  params %9i" % self.n_params)

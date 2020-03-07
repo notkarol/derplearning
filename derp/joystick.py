@@ -10,7 +10,9 @@ import time
 from evdev import InputDevice
 from binascii import crc32
 from pyudev import Context
+from derp.part import Part
 import derp.util
+
 
 class DS4State:
     left_analog_x = 128
@@ -22,7 +24,7 @@ class DS4State:
     left = 0
     right = 0
     button_square = 0
-    button_cross = 0 
+    button_cross = 0
     button_circle = 0
     button_triangle = 0
     button_l1 = 0
@@ -68,10 +70,10 @@ class DS4State:
         self.left_analog_y = recv_buffer[4]
         self.right_analog_x = recv_buffer[5]
         self.right_analog_y = recv_buffer[6]
-        self.up = (dpad in (0, 1, 7))
-        self.down = (dpad in (3, 4, 5))
-        self.left = (dpad in (5, 6, 7))
-        self.right = (dpad in (1, 2, 3))
+        self.up = dpad in (0, 1, 7)
+        self.down = dpad in (3, 4, 5)
+        self.left = dpad in (5, 6, 7)
+        self.right = dpad in (1, 2, 3)
         self.button_square = (recv_buffer[7] & 16) != 0
         self.button_cross = (recv_buffer[7] & 32) != 0
         self.button_circle = (recv_buffer[7] & 64) != 0
@@ -107,13 +109,14 @@ class DS4State:
         self.usb = (recv_buffer[32] & 16) != 0
         self.audio = (recv_buffer[32] & 32) != 0
         self.mic = (recv_buffer[32] & 64) != 0
-        
 
-class Joystick:
+
+class Joystick(Part):
     """Joystick to drive the car around manually without keyboard."""
+
     def __init__(self, config):
         """Joystick to drive the car around manually without keyboard."""
-        self.config = config['joystick']
+        super(Joystick, self).__init__(config, "joystick", [])
 
         # State/Controls
         self.speed = 0
@@ -121,25 +124,24 @@ class Joystick:
         self.speed_offset = 0
         self.steer_offset = 0
         self.is_calibrated = True
-        self.is_recording = False
         self.is_autonomous = False
-        self.recv_timestamp = derp.util.get_timestamp()
-
         self.state = DS4State()
         self.last_state = DS4State()
         self.__fd = None
         self.__input_device = None
         self.__report_fd = None
         self.__report_id = 0x11
-        self.is_connected = self.__connect()
-        self.keep_running = self.is_connected
-        self.__context, self.__publisher = derp.util.publisher("/tmp/derp_joystick")
+        self.__keep_running = True
+        self.__connect()
 
     def __del__(self):
+        self.publish("action", isManual=True, speed=0, steer=0)
+        self.publish("controller", isAutonomous=False, speedOffset=0, steerOffset=0, exit=True)
+        super(Joystick, self).__del__()
         try:
             self.send(red=1, rumble_high=1)
             time.sleep(0.5)
-            self.send(red=0.25, green=0.25, blue=0.25)
+            self.send(blue=0.1, green=0.1, red=0.5)
         except:
             pass
         if self.__fd is not None:
@@ -178,11 +180,12 @@ class Joystick:
             return bool(fcntl.ioctl(self.__fd, 3223734279, bytes(buf)))
         except:
             pass
-        return self.recv() and self.update_controller()
+        if self.recv():
+            self.update_controller()
 
     def __in_deadzone(self, value):
         """ Deadzone checker for analog sticks """
-        return 128 - self.config["deadzone"] < value <= 128 + self.config["deadzone"]
+        return 128 - self._config["deadzone"] < value <= 128 + self._config["deadzone"]
 
     def __normalize_stick(self, value, deadzone):
         """
@@ -209,22 +212,22 @@ class Joystick:
             try:
                 ret = self.__fd.readinto(recv_buffer)
             except IOError:
-                #print("joystick: IO Error")
+                # print("joystick: IO Error")
                 continue
             except AttributeError:
-                #print("joystick: Attribute Error")
+                # print("joystick: Attribute Error")
                 continue
             if ret is None:
-                #print("joystick: ret is none")
+                # print("joystick: ret is none")
                 continue
             if ret < report_size:
-                #print("joystick: ret too small (%i) expected (%i)" % (ret, report_size))
+                # print("joystick: ret too small (%i) expected (%i)" % (ret, report_size))
                 continue
             if recv_buffer[0] != self.__report_id:
-                #print("joystick: Wrong report id (%i) expected (%i):"
+                # print("joystick: Wrong report id (%i) expected (%i):"
                 #      % (recv_buffer[0], self.__report_id))
                 continue
-            self.recv_timestamp = derp.util.get_timestamp()
+            self._timestamp = derp.util.get_timestamp()
             self.last_state = self.state
             self.state = DS4State(recv_buffer)
             self.process_state()
@@ -234,33 +237,12 @@ class Joystick:
     def update_controller(self):
         """Send the state of the system to the controller"""
         green = 1.0 if self.is_autonomous else 0
-        red = 1.0 if self.is_recording else 0
+        red = 1.0 if self.is_calibrated else 0
         blue = 1.0
-        light_on = 0.1
-        light_off = 0.0 if self.is_calibrated else 0.1
+        light_on = 1.0
+        light_off = 0.0
         self.send(red=red, green=green, blue=blue, light_on=light_on, light_off=light_off)
         return True
-
-    def publish_controller(self):
-        message = derp.util.TOPICS['controller'].new_message(
-            createNS=self.recv_timestamp,
-            publishNS=derp.util.get_timestamp(),
-            isRecording=self.is_recording,
-            isAutonomous=self.is_autonomous,
-            speedOffset=self.speed_offset,
-            steerOffset=self.steer_offset,
-        )
-        self.__publisher.send_multipart([b"controller", message.to_bytes()])
-
-    def publish_action(self):
-        message = derp.util.TOPICS['action'].new_message(
-            createNS=self.recv_timestamp,
-            publishNS = derp.util.get_timestamp(),
-            isManual=True,
-            speed=self.speed,
-            steer=self.steer,
-        )
-        self.__publisher.send_multipart([b"action", message.to_bytes()])
 
     def send(self, rumble_high=0, rumble_low=0, red=0, green=0, blue=0, light_on=0, light_off=0):
         """Actuate the controller by setting its rumble or light color/blink"""
@@ -291,9 +273,9 @@ class Joystick:
         """
         self.controller_changed = False
         self.action_changed = False
-        self.keep_running = not self.state.button_trackpad
+        self.__keep_running = not self.state.button_trackpad
         if not self.__in_deadzone(self.state.left_analog_x):
-            steer = self.__normalize_stick(self.state.left_analog_x, self.config["deadzone"])
+            steer = self.__normalize_stick(self.state.left_analog_x, self._config["deadzone"])
             if steer != self.steer:
                 self.steer = steer
                 self.action_changed = True
@@ -334,28 +316,30 @@ class Joystick:
             self.speed = 0
             self.steer = 0
             self.speed_offset = 0
-            self.is_recording = False
             self.is_autonomous = False
             self.action_changed = True
             self.controller_changed = True
         if self.state.button_triangle and not self.last_state.button_triangle:
             self.is_autonomous = True
-            self.is_recording = True
             self.controller_changed = True
         if self.state.button_circle and not self.last_state.button_circle:
-            self.is_recording = True
-            self.controller_changed = True            
+            self.controller_changed = True
 
     def run(self):
         """Query one set of inputs from the joystick and send it out."""
         start_time = derp.util.get_timestamp()
         if not self.recv():
             print("joystick: timed out", start_time)
-            self.is_connected = self.__connect()
+            self.__connect()
             return True
         if self.controller_changed:
             self.update_controller()
-            self.publish_controller()
+            self.publish(
+                "controller",
+                isAutonomous=self.is_autonomous,
+                speedOffset=self.speed_offset,
+                steerOffset=self.steer_offset,
+            )
         if self.action_changed:
-            self.publish_action()
-        return self.keep_running
+            self.publish("action", isManual=True, speed=self.speed, steer=self.steer)
+        return self.__keep_running

@@ -21,10 +21,10 @@ struct Controller {
   createNS @0 :UInt64;
   publishNS @1 :UInt64;
   writeNS @2 :UInt64;
-  isRecording @3 :Bool;
-  isAutonomous @4 :Bool;
-  speedOffset @5 :Float32;
-  steerOffset @6 :Float32;
+  isAutonomous @3 :Bool;
+  speedOffset @4 :Float32;
+  steerOffset @5 :Float32;
+  exit @6 :Bool;
 }
 
 struct Imu {
