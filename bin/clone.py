@@ -10,7 +10,6 @@ import time
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
 from derp.fetcher import Fetcher
 import derp.util
 import derp.model
@@ -20,7 +19,6 @@ def build_recording(config, recording_folder, out_folder):
     """
     For each frame in the video generate frames and perturbations to save into a dataset.
     """
-    config, recording_folder, out_folder = args
     camera_config = derp.util.load_config(recording_folder / 'config.yaml')['camera']
     predict_fd = open(str(out_folder / 'predict.csv'), 'w')
     status_fd = open(str(out_folder / 'status.csv'), 'w')
@@ -76,6 +74,10 @@ def build_recording(config, recording_folder, out_folder):
     return True
 
 
+def build_recording_fn(args):
+    return build_recording(*args)
+
+
 def build(config, experiment_path, count):
     """ Build the dataset """
     np.random.seed(config['seed'])
@@ -87,10 +89,7 @@ def build(config, experiment_path, count):
             out_folder.mkdir(parents=True)
             process_args.append([config, recording_folder, out_folder])
     pool = multiprocessing.Pool(count)
-    def build_recording_fn(args):
-        return build_recording(*args)
     pool.map(build_recording_fn, process_args)
-
 
 
 def train(config, experiment_path, gpu):
@@ -106,6 +105,8 @@ def train(config, experiment_path, gpu):
     train_fetcher = Fetcher(experiment_path / 'train', transformer, config['predict'])
     assert len(train_fetcher)
     test_fetcher = Fetcher(experiment_path / 'test', transformer, config['predict'])
+    if len(test_fetcher) == 0:
+        test_fetcher = train_fetcher
     assert len(test_fetcher)
     train_loader = DataLoader(
         train_fetcher, config['train']['batch_size'], shuffle=True, num_workers=3,
@@ -120,7 +121,7 @@ def train(config, experiment_path, gpu):
     model = model_fn(dim_in, n_status, n_predict).to(device)
     optimizer = optimizer_fn(model.parameters(), config['train']['learning_rate'])
     scheduler = scheduler_fn(optimizer, factor=0.25, verbose=True, patience=8)
-    loss_threshold = derp.model.test_epoch(device, model, optimizer, criterion, test_loader)
+    loss_threshold = derp.model.test_epoch(device, model, criterion, test_loader)
     print('initial loss: %.6f' % loss_threshold)
     for epoch in range(config['train']['epochs']):
         start_time = time.time()

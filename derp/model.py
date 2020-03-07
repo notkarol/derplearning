@@ -4,6 +4,7 @@ blocks, which are the building blocks of our models. The second part includes
 the actual Pytorch models.
 """
 import torch
+import torchvision.transforms as transforms
 
 
 class ConvBlock(torch.nn.Module):
