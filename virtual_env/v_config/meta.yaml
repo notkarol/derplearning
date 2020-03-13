@@ -1,6 +1,0 @@
-
-dir:
-  train_data: /virtual_env/data/training
-  val_data: /virtual_env/data/validation
-  data_config: /virtual_env/v_config/data.yaml
-  objects_config: /virtual_env/v_config/objects.yaml
