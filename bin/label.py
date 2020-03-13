@@ -16,6 +16,7 @@ class Labeler:
         self.folder = folder
         self.scale = scale
         self.bhh = bhh
+        self.config_changed = False
         self.quality = None
         self.config_path = self.folder / "config.yaml"
         self.config = derp.util.load_config(self.config_path)
@@ -45,12 +46,16 @@ class Labeler:
         # Prepare state messages
         self.camera_times = [msg.publishNS for msg in self.topics["camera"]]
         actions = derp.util.extract_car_actions(self.topics)
-        camera_speeds = derp.util.extract_latest(self.camera_times, actions[:, 0], actions[:, 1])
-        camera_steers = derp.util.extract_latest(self.camera_times, actions[:, 0], actions[:, 2])
-        camera_steers[camera_steers > 1] = 1
-        camera_steers[camera_steers < -1] = -1
-        self.speeds = derp.util.interpolate(camera_speeds, self.f_w, self.bhh)
-        self.steers = derp.util.interpolate(camera_steers, self.f_w, self.bhh)
+        self.camera_speeds = derp.util.extract_latest(self.camera_times,
+                                                      actions[:, 0], actions[:, 1])
+        self.camera_steers = derp.util.extract_latest(self.camera_times,
+                                                      actions[:, 0], actions[:, 2])
+        self.window_speeds = derp.util.interpolate(self.camera_speeds, self.f_w, self.bhh)
+        self.window_steers = derp.util.interpolate(self.camera_steers, self.f_w, self.bhh)
+        self.window_steers[self.window_steers > self.bhh] = self.bhh
+        self.window_steers[self.window_steers < -self.bhh] = -self.bhh
+        self.window_speeds[self.window_speeds > self.bhh] = self.bhh
+        self.window_speeds[self.window_steers < -self.bhh] = -self.bhh
 
         # Print some statistics
         duration = (self.camera_times[-1] - self.camera_times[0]) / 1e9
@@ -116,11 +121,16 @@ class Labeler:
         # Draw zero line
         self.window[self.f_h + self.l_h + self.bhh, :, :] = (96, 96, 96)
         offset = self.f_h + self.bhh + self.l_h
-        self.window[self.speeds + offset, np.arange(self.f_w), :] = (255, 64, 255)
-        self.window[self.steers + offset, np.arange(self.f_w), :] = (64, 255, 255)
-        cv2.putText(self.window,
-                    "%05i %s" % (self.frame_id, self.camera_times[self.frame_id] / 1E9),
-                    (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        self.window[self.window_speeds + offset, np.arange(self.f_w), :] = (255, 64, 255)
+        self.window[self.window_steers + offset, np.arange(self.f_w), :] = (64, 255, 255)
+        text = "%05i %07.3f %06.3f %06.3f" % (self.frame_id,
+                                            (self.camera_times[self.frame_id] / 1E9) % 100,
+                                            self.camera_steers[self.frame_id],
+                                            self.camera_speeds[self.frame_id])
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        pink = (255, 128, 255)
+        offset = (0, int(self.scale * 30))
+        cv2.putText(self.window, text, offset, font, self.scale, pink, 1, cv2.LINE_AA)
         cv2.imshow("Labeler %s" % self.folder, self.window)
 
     def save_labels(self):
@@ -135,6 +145,9 @@ class Labeler:
                 )
                 msg.write(quality_fd)
         print("Saved quality labels in", self.folder)
+        if self.config_changed:
+            derp.util.dump_config(self.config, self.config_path)
+            print("Saved changes to config")
 
     def handle_keyboard_input(self):
         """Fetch a new keyboard input if one exists"""
@@ -165,8 +178,10 @@ class Labeler:
             self.seek(self.frame_id + 1)  # right
         elif key == 85:
             self.config["camera"]["pitch"] -= 0.1  # page up
+            self.config_changed = True
         elif key == 86:
             self.config["camera"]["pitch"] += 0.1  # page down
+            self.config_changed = True
         elif ord("1") <= key <= ord("5"):
             self.seek(int(self.n_frames * (key - ord("0") - 1) / 4))
         elif key != 255:

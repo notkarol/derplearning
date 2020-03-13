@@ -34,8 +34,7 @@ def main():
 
     config = derp.util.load_config(args.config)
     recording_path = derp.util.make_recording_path()
-    with open(str(recording_path / "config.yaml"), "w") as config_fd:
-        yaml.dump(config, config_fd)
+    derp.util.dump_config(config, recording_path / 'config.yaml')
     config['recording_path'] = recording_path
     logger = derp.util.init_logger('drive', config['recording_path'])
         

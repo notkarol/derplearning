@@ -223,6 +223,12 @@ def load_config(config_path):
     return config
 
 
+def dump_config(config, config_path):
+    """ Write a configuration file """
+    with open(str(config_path), 'w') as config_fd:
+        yaml.dump(config, config_fd)
+
+
 def smooth(vals):
     b, a = signal.butter(3, 0.05, output="ba")
     return signal.filtfilt(b, a, vals)
