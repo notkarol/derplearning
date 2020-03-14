@@ -50,12 +50,13 @@ class Labeler:
                                                       actions[:, 0], actions[:, 1])
         self.camera_steers = derp.util.extract_latest(self.camera_times,
                                                       actions[:, 0], actions[:, 2])
-        self.window_speeds = derp.util.interpolate(self.camera_speeds, self.f_w, self.bhh)
-        self.window_steers = derp.util.interpolate(self.camera_steers, self.f_w, self.bhh)
+        window_Xs = np.linspace(self.camera_times[0], self.camera_times[-1], self.f_w)
+        self.window_speeds = np.array(np.interp(window_Xs, self.camera_times, self.camera_speeds)
+                                      * -self.bhh, dtype=np.int)
+        self.window_steers = np.array(np.interp(window_Xs, self.camera_times, self.camera_steers)
+                                      * -self.bhh, dtype=np.int)
         self.window_steers[self.window_steers > self.bhh] = self.bhh
         self.window_steers[self.window_steers < -self.bhh] = -self.bhh
-        self.window_speeds[self.window_speeds > self.bhh] = self.bhh
-        self.window_speeds[self.window_steers < -self.bhh] = -self.bhh
 
         # Print some statistics
         duration = (self.camera_times[-1] - self.camera_times[0]) / 1e9

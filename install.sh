@@ -30,7 +30,7 @@ sudo apt install -y \
      zlib1g-dev
 
 # Install python packages one at a time to ensure it works
-for package in Pillow==6.1 cython pycapnp numpy scipy==1.1.0 PyYAML Adafruit-BNO055 pybluez pyserial pyusb ; do
+for package in Pillow==6.1 cython pycapnp numpy PyYAML Adafruit-BNO055 pybluez pyserial pyusb ; do
     pip3 install --user $package
 done
 

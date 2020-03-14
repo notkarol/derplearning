@@ -15,8 +15,6 @@ import yaml
 import zmq
 import capnp
 import messages_capnp
-import scipy.signal as signal
-from scipy.interpolate import interp1d
 
 Bbox = namedtuple("Bbox", ["x", "y", "w", "h"])
 
@@ -82,13 +80,6 @@ def subscriber(paths):
         sock.connect("ipc://" + path)
     sock.setsockopt(zmq.SUBSCRIBE, b"")
     return context, sock
-
-
-def loop(config, exit_event, func):
-    obj = func(config)
-    while not exit_event.is_set() and obj.run():
-        pass
-    del obj
 
 
 def topic_file_reader(folder, topic):
@@ -229,11 +220,6 @@ def dump_config(config, config_path):
         yaml.dump(config, config_fd)
 
 
-def smooth(vals):
-    b, a = signal.butter(3, 0.05, output="ba")
-    return signal.filtfilt(b, a, vals)
-
-
 def extract_latest(desired_times, source_times, source_values):
     out = []
     pos = 0
@@ -244,17 +230,6 @@ def extract_latest(desired_times, source_times, source_values):
             pos += 1
         out.append(val)
     return np.array(out)
-
-
-def interpolate(vals, n_out, intmult=None):
-    fn_interpolate = interp1d(np.linspace(0, 1, len(vals)), vals)
-    if intmult is None:
-        out = np.array([-fn_interpolate(x) for x in np.linspace(0, 1, n_out)])
-    else:
-        out = np.array(
-            [-fn_interpolate(x) * intmult + 0.5 for x in np.linspace(0, 1, n_out)], dtype=np.int
-        )
-    return out
 
 
 def load_topics(folder):

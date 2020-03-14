@@ -26,6 +26,14 @@ def all_running(processes):
     return True
 
 
+def loop(config, exit_event, func):
+    """ Makes running multiprocessing easier """
+    obj = func(config)
+    while not exit_event.is_set() and obj.run():
+        pass
+    del obj
+
+
 def main():
     """ Prepare arguments, configurations, variables and run the event loop. """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -53,7 +61,7 @@ def main():
             logger.info("skip %s", name)
             continue
         proc_args = (config, exit_event, component_map[name])
-        proc = Process(target=derp.util.loop, name=name, args=proc_args)
+        proc = Process(target=loop, name=name, args=proc_args)
         proc.start()
         processes.append(proc)
         logger.info("start %s %i", name, proc.pid)
