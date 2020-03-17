@@ -19,6 +19,7 @@ class Labeler:
         self.config_changed = False
         self.quality = None
         self.config_path = self.folder / "config.yaml"
+        self.window_name = "Labeler %s" % self.folder
         self.config = derp.util.load_config(self.config_path)
         self.quality_colors = [(0, 0, 255), (0, 128, 255), (0, 255, 0)]
         self.topics = derp.util.load_topics(folder)
@@ -27,7 +28,7 @@ class Labeler:
         self.seek(self.frame_id)
         self.f_h = self.frame.shape[0]
         self.f_w = self.frame.shape[1]
-        self.l_h = int(self.bhh // 10)
+        self.l_h = int(self.bhh // 5)
         self.window = np.zeros(
             [self.f_h + self.bhh * 2 + self.l_h + 2, self.f_w, 3], dtype=np.uint8
         )
@@ -35,7 +36,8 @@ class Labeler:
         self.show = False
 
         # Prepare labels
-        self.quality_bar = np.ones((self.f_w, 3), dtype=np.uint8) * (128, 128, 128,)
+        self.autonomous_bar = np.ones((self.f_w, 3), dtype=np.uint8) * (255, 255, 255)
+        self.quality_bar = np.ones((self.f_w, 3), dtype=np.uint8) * (128, 128, 128)
         if "quality" in self.topics and len(self.topics["quality"]) >= self.n_frames:
             self.qualities = [str(msg.quality) for msg in self.topics["quality"]]
         else:
@@ -45,6 +47,14 @@ class Labeler:
 
         # Prepare state messages
         self.camera_times = [msg.publishNS for msg in self.topics["camera"]]
+        self.camera_autos = []
+        auto = False
+        for timestamp, topic, msg in derp.util.replay(self.topics):
+            if topic == 'controller':
+                auto = msg.isAutonomous
+            elif topic == 'camera':
+                self.camera_autos.append(auto)
+
         actions = derp.util.extract_car_actions(self.topics)
         self.camera_speeds = derp.util.extract_latest(self.camera_times,
                                                       actions[:, 0], actions[:, 1])
@@ -55,9 +65,13 @@ class Labeler:
                                       * -self.bhh, dtype=np.int)
         self.window_steers = np.array(np.interp(window_Xs, self.camera_times, self.camera_steers)
                                       * -self.bhh, dtype=np.int)
+        self.autonomous_bar *= np.array(np.interp(window_Xs, self.camera_times,
+                                                  self.camera_autos), dtype=np.uint8)[:, None]
         self.window_steers[self.window_steers > self.bhh] = self.bhh
         self.window_steers[self.window_steers < -self.bhh] = -self.bhh
 
+        cv2.namedWindow(self.window_name)
+        cv2.setMouseCallback(self.window_name, self.click_handler)
         # Print some statistics
         duration = (self.camera_times[-1] - self.camera_times[0]) / 1e9
         fps = (len(self.camera_times) - 1) / duration
@@ -66,6 +80,14 @@ class Labeler:
     def __del__(self):
         """Deconstructor to close window"""
         cv2.destroyAllWindows()
+
+    def click_handler(self, event, x, y, flags, param):
+        """ Handle clicks on the window """
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if y > self.f_h:
+                frame_id = int((x / self.f_w) * self.n_frames)
+                self.seek(frame_id)
+                self.show = True
 
     def update_quality(self, first_index, last_index, quality=None):
         """Update the label bar to the given quality"""
@@ -115,7 +137,8 @@ class Labeler:
         # Clear status buffer
         self.window[self.f_h :, :, :] = 0
         # Draw label bar
-        self.window[self.f_h : self.f_h + self.l_h, :, :] = self.quality_bar
+        self.window[self.f_h : self.f_h + self.l_h // 2, :, :] = self.autonomous_bar
+        self.window[self.f_h + self.l_h // 2 : self.f_h + self.l_h, :, :] = self.quality_bar
         # Draw current timestamp vertical line
         current_x = self.frame_pos(self.frame_id)
         self.window[self.f_h + self.l_h :, current_x, :] = self.bar_color(self.quality)
@@ -132,7 +155,7 @@ class Labeler:
         pink = (255, 128, 255)
         offset = (0, int(self.scale * 30))
         cv2.putText(self.window, text, offset, font, self.scale, pink, 1, cv2.LINE_AA)
-        cv2.imshow("Labeler %s" % self.folder, self.window)
+        cv2.imshow(self.window_name, self.window)
 
     def save_labels(self):
         """Write all of our labels to the folder as messages"""
