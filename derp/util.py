@@ -33,6 +33,27 @@ CONFIG_ROOT = DERP_ROOT / "config"
 MSG_STEM = "/tmp/derp_"
 
 
+def is_already_running(path):
+    """ For the given PID path check if the PID exists """
+    if isinstance(path, str):
+        path = pathlib.Path(path)
+    if not path.exists():
+        return False
+    with open(str(path)) as pid_file:
+        pid = int(pid_file.read())
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def write_pid(path):
+    with open(str(path), 'w') as pid_file:
+        pid_file.write(str(os.getpid()))
+        pid_file.flush()
+
+
 def init_logger(name, recording_path, level=logging.INFO):
     logger = logging.getLogger(name)
     formatter = logging.Formatter('%(asctime)s %(levelname)-5s %(message)s')
@@ -42,7 +63,7 @@ def init_logger(name, recording_path, level=logging.INFO):
     streamHandler.setFormatter(formatter)
     logger.setLevel(level)
     logger.addHandler(fileHandler)
-    logger.addHandler(streamHandler)    
+    logger.addHandler(streamHandler)
     return logger
 
 

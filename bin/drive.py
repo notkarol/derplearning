@@ -7,7 +7,6 @@ import logging
 from multiprocessing import Event, Process
 from pathlib import Path
 import time
-import yaml
 import derp.util
 import derp.brain
 import derp.camera
@@ -40,12 +39,17 @@ def main():
     parser.add_argument("config", type=Path, help="Main config path, should include all hardeware")
     args = parser.parse_args()
 
+    pid_path = '/tmp/derp_drive.pid'
+    if derp.util.is_already_running(pid_path):
+        return
+    derp.util.write_pid(pid_path)
+
     config = derp.util.load_config(args.config)
     recording_path = derp.util.make_recording_path()
     derp.util.dump_config(config, recording_path / 'config.yaml')
     config['recording_path'] = recording_path
     logger = derp.util.init_logger('drive', config['recording_path'])
-        
+
     component_map = {
         "brain": derp.brain.Clone,
         "camera": derp.camera.Camera,
