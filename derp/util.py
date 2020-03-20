@@ -111,44 +111,36 @@ def print_image_config(name, config):
 
 def get_patch_bbox(target_config, source_config):
     """
-    Currently we assume that orientations and positions are identical
+    Gets a different sub-persepective given a smaller desired hfov/vfov and different yaw/pitch
     """
-    if "resize" not in source_config:
-        source_config["resize"] = 1
-    source_width = int(source_config["width"] * source_config["resize"] + 0.5)
-    source_height = int(source_config["height"] * source_config["resize"] + 0.5)
     hfov_ratio = target_config["hfov"] / source_config["hfov"]
     vfov_ratio = target_config["vfov"] / source_config["vfov"]
     hfov_offset = source_config["yaw"] - target_config["yaw"]
     vfov_offset = source_config["pitch"] - target_config["pitch"]
-    patch_width = source_width * hfov_ratio
-    patch_height = source_height * vfov_ratio
-    x_center = (source_width - patch_width) // 2
-    y_center = (source_height - patch_height) // 2
-    x_offset = (hfov_offset / source_config["hfov"]) * source_width
-    y_offset = (vfov_offset / source_config["vfov"]) * source_height
-    x = int(x_center + x_offset + 0.5)
-    y = int(y_center + y_offset + 0.5)
-    patch_width = int(patch_width + 0.5)
-    patch_height = int(patch_height + 0.5)
-    # print("Using bbox:", x, y, patch_width, patch_height, "in", source_width, source_height)
-    if x >= 0 and x + patch_width <= source_width and y >= 0 and y + patch_height <= source_height:
+    patch_width = int(source_config["width"] * hfov_ratio + 0.5)
+    patch_height = int(source_config["height"] * vfov_ratio + 0.5)
+    x_center = (source_config["width"] - patch_width) // 2
+    y_center = (source_config["height"] - patch_height) // 2
+    x_offset = int(hfov_offset / source_config["hfov"] * source_config["width"] + 0.5)
+    y_offset = int(vfov_offset / source_config["vfov"] * source_config["height"] + 0.5)
+    x = x_center + x_offset
+    y = y_center + y_offset
+    if (x >= 0 and x + patch_width <= source_config["width"] and
+        y >= 0 and y + patch_height <= source_config["height"]):
         return Bbox(x, y, patch_width, patch_height)
     return None
 
 
-def crop(image, bbox, copy=False):
+def crop(image, bbox):
     """ Crops the Bbox(x,y,w,h) from the image. Copy indicates to copy of the ROI"s memory"""
-    roi = image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
-    if copy:
-        return roi.copy()
-    return roi
+    return image[bbox.y : bbox.y + bbox.h, bbox.x : bbox.x + bbox.w]
 
 
 def resize(image, size):
     """ Resize the image to the target (w, h) """
     is_larger = size[0] > image.shape[1] or size[1] > image.shape[0]
-    return cv2.resize(image, size, interpolation=cv2.INTER_LINEAR if is_larger else cv2.INTER_AREA)
+    interpolation = cv2.INTER_LINEAR if is_larger else cv2.INTER_AREA
+    return cv2.resize(image, size, interpolation=interpolation)
 
 
 def perturb(frame, camera_config, shift=0, rotate=0):
@@ -233,6 +225,8 @@ def extract_latest(desired_times, source_times, source_values):
 
 
 def load_topics(folder):
+    if isinstance(folder, str):
+        folder = pathlib.Path(folder)
     out = {}
     for topic in TOPICS:
         if not topic_exists(folder, topic):
