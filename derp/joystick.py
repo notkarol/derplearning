@@ -299,10 +299,10 @@ class Joystick(Part):
             self.speed = 0
             self.action_changed = True
         if self.state.left and not self.last_state.left:
-            self.steer_offset -= 1 / 255
+            self.steer_offset -= 5 / 255
             self.controller_changed = True
         if self.state.right and not self.last_state.right:
-            self.steer_offset += 1 / 255
+            self.steer_offset += 5 / 255
             self.controller_changed = True
         if self.state.up and not self.last_state.up:
             self.speed_offset += 5 / 255
