@@ -48,7 +48,7 @@ class Camera(Part):
             gst = (
                 "nvarguscamerasrc sensor-id=%i"
                 " ! video/x-raw(memory:NVMM),width=%i,height=%i,framerate=(fraction)%i/1,format=(string)NV12"
-                " ! nvvidconv flip-method=0"
+                " ! nvtee ! nvvidconv flip-method=%i"
                 " ! video/x-raw,width=%i,height=%i,format=BGRx"
                 " ! videoconvert ! appsink"
                 % (
@@ -56,6 +56,7 @@ class Camera(Part):
                     self._config["capture_width"],
                     self._config["capture_height"],
                     self._config["fps"],
+                    self._config["flip_method"],
                     self._config["width"],
                     self._config["height"],
                 )

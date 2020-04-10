@@ -10,6 +10,7 @@ camera:
   height: 616
   width: 816
   depth: 3
+  flip_method: 2
   x: -0.01 # meters forward from front axle
   y:  0.00 # meters left from center of vehicle. Assume zero for now
   z:  0.12 # meters up from floor
@@ -18,9 +19,10 @@ camera:
   yaw:    0.0 # degrees left turn. Assume zero for now
   mode: csi
   quality: 80
+imu: {}
 joystick:
   deadzone: 8
-  speed_normalizer: 0.15
+  speed_normalizer: 0.3
   steer_normalizer: 1.0
 servo:
   speed_index: 1

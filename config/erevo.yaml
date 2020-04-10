@@ -5,6 +5,7 @@ camera:
   hfov: 145
   vfov: 109.5
   fps: 21
+  flip_method: 0
   capture_height: 2464
   capture_width: 3264
   height: 616
