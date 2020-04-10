@@ -288,4 +288,6 @@ def extract_car_actions(topics):
         elif topic == "action":
             if autonomous or msg.isManual:
                 out.append([timestamp, msg.speed + speed_offset, msg.steer + steer_offset])
+    if not out:
+        out.append([0, 0, 0])
     return np.array(out)
