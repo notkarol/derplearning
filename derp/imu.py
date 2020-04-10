@@ -6,7 +6,7 @@ import Adafruit_BNO055.BNO055
 import time
 from derp.part import Part
 import derp.util
-
+import numpy as np
 
 class Imu(Part):
     """
@@ -20,7 +20,6 @@ class Imu(Part):
             config (dict): The configuration file for the sensor.
         """
         super(Imu, self).__init__(config, "imu", [])
-        self.busnum = self.config["busnum"] if "busnum" in self.config else -1
         self._bno = None
         self.calibration = None
         self.last_read_calibration = 0.0
@@ -39,7 +38,7 @@ class Imu(Part):
         Otherwise return False.
         """
         try:
-            self._bno = Adafruit_BNO055.BNO055.BNO055(busnum=self.busnum)
+            self._bno = Adafruit_BNO055.BNO055.BNO055(busnum=self._config["busnum"])
         except PermissionError:
             print("imu: permission error")
             self._bno = None
@@ -76,14 +75,14 @@ class Imu(Part):
         Reinitialize IMU if it's failed to get data at any point.
         Otherwise get data from the IMU to update state variable.
         """
-        if self._bno == None:
+        if self._bno is None:
             self.__connect()
         self._timestamp = derp.util.get_timestamp()
         try:
-            if self._timestamp - self.last_read_calibration > 1e6:
+            self.calibration_status = self._bno.get_calibration_status()
+            if self._timestamp - self.last_read_calibration > 10e9:
                 self.last_read_calibration = derp.util.get_timestamp()
                 self.calibration = self._bno.get_calibration()
-            self.calibration_status = self._bno.get_calibration_status()
             self.angular_velocity = self._bno.read_gyroscope()
             self.magnetic_field = self._bno.read_magnetometer()
             self.linear_acceleration = self._bno.read_linear_acceleration()
@@ -91,11 +90,13 @@ class Imu(Part):
             self.orientation_quaternion = self._bno.read_quaternion()
             self.temperature = self._bno.read_temp()
         except OSError:
-            print("IMU FAILED", self._timestamp)
+            print("IMU OSError", self._timestamp)
+        except AttributeError:
+            print("IMU AttributeError", self._timestamp)
         finally:
             self.publish(
                 "imu",
-                index=self.busnum,
+                index=self._config["busnum"],
                 isCalibrated=self.is_calibrated(),
                 angularVelocity=self.angular_velocity,
                 magneticField=self.magnetic_field,
@@ -104,5 +105,4 @@ class Imu(Part):
                 orientationQuaternion=self.orientation_quaternion,
                 temperature=self.temperature,
             )
-        derp.util.sleep_hertz(self._timestamp, 100)
         return True

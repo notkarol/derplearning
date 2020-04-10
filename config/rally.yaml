@@ -19,7 +19,8 @@ camera:
   yaw:    0.0 # degrees left turn. Assume zero for now
   mode: csi
   quality: 80
-imu: {}
+imu:
+  busnum: 1
 joystick:
   deadzone: 8
   speed_normalizer: 0.3

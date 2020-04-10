@@ -23,6 +23,8 @@ joystick:
   deadzone: 8
   speed_normalizer: 0.2
   steer_normalizer: 1.0
+imu:
+  busnum: 1
 servo:
   speed_index: 1
   speed_min: -0.5
