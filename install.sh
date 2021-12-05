@@ -39,8 +39,8 @@ if [[ "$(uname -m)" == "x86_64" ]] ; then
     pip3 install --user torch torchvision
 elif [[ -n $(egrep -i "jetson.nano" /proc/device-tree/model) ]] ; then
     if [[ -z $(pip3 freeze | grep torch) ]] ; then
-	wget https://nvidia.box.com/shared/static/phqe92v26cbhqjohwtvxorrwnmrnfx1o.whl -O torch-1.3.0-cp36-cp36m-linux_aarch64.whl
-	pip3 install --user torch-1.3.0-cp36-cp36m-linux_aarch64.whl torchvision
+        wget https://nvidia.box.com/shared/static/fjtbno0vpo676a25cgvuqc1wty0fkkg6.whl -O torch-1.10.0-cp36-cp36m-linux_aarch64.whl
+	pip3 install --user torch-1.10.0-cp36-cp36m-linux_aarch64.whl torchvision
     fi
 fi
 
